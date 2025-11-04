@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(chmod:*)",
-      "Bash(tree:*)"
+      "Bash(tree:*)",
+      "Bash(go vet:*)",
+      "Bash(go build:*)",
+      "Bash(./fix_lint.sh)",
+      "Bash(go get:*)"
     ],
     "deny": [],
     "ask": []

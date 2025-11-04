@@ -1,8 +1,10 @@
 package rides
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -287,6 +289,158 @@ func (h *Handler) GetAvailableRides(c *gin.Context) {
 	}
 
 	common.SuccessResponse(c, rides)
+}
+
+// GetRideHistory retrieves ride history with filters
+func (h *Handler) GetRideHistory(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	role, _ := c.Get("role")
+
+	// Parse query parameters
+	status := c.Query("status")
+	startDate := c.Query("start_date")
+	endDate := c.Query("end_date")
+	limitStr := c.DefaultQuery("limit", "20")
+	offsetStr := c.DefaultQuery("offset", "0")
+
+	limit := 20
+	offset := 0
+	fmt.Sscanf(limitStr, "%d", &limit)
+	fmt.Sscanf(offsetStr, "%d", &offset)
+
+	// Build filters
+	filters := &RideFilters{}
+	if status != "" {
+		filters.Status = &status
+	}
+	if startDate != "" {
+		t, err := time.Parse("2006-01-02", startDate)
+		if err == nil {
+			filters.StartDate = &t
+		}
+	}
+	if endDate != "" {
+		t, err := time.Parse("2006-01-02", endDate)
+		if err == nil {
+			filters.EndDate = &t
+		}
+	}
+
+	var ridesList []*models.Ride
+	var total int
+	var err error
+
+	// Get rides based on role
+	if role == models.RoleDriver {
+		ridesList, total, err = h.service.repo.GetRidesByRiderWithFilters(
+			c.Request.Context(),
+			userID.(uuid.UUID),
+			filters,
+			limit,
+			offset,
+		)
+	} else {
+		ridesList, total, err = h.service.repo.GetRidesByRiderWithFilters(
+			c.Request.Context(),
+			userID.(uuid.UUID),
+			filters,
+			limit,
+			offset,
+		)
+	}
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch ride history"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"rides":  ridesList,
+		"total":  total,
+		"limit":  limit,
+		"offset": offset,
+	})
+}
+
+// GetRideReceipt generates a receipt for a completed ride
+func (h *Handler) GetRideReceipt(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	rideID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid ride ID"})
+		return
+	}
+
+	ride, err := h.service.repo.GetRideByID(c.Request.Context(), rideID)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Ride not found"})
+		return
+	}
+
+	// Verify user is part of this ride
+	if ride.RiderID != userID.(uuid.UUID) && (ride.DriverID == nil || *ride.DriverID != userID.(uuid.UUID)) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Unauthorized"})
+		return
+	}
+
+	// Only completed rides have receipts
+	if ride.Status != models.RideStatusCompleted {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Ride is not completed"})
+		return
+	}
+
+	receipt := gin.H{
+		"ride_id":           ride.ID,
+		"date":              ride.CompletedAt,
+		"pickup_address":    ride.PickupAddress,
+		"dropoff_address":   ride.DropoffAddress,
+		"distance":          ride.ActualDistance,
+		"duration":          ride.ActualDuration,
+		"base_fare":         ride.EstimatedFare,
+		"surge_multiplier":  ride.SurgeMultiplier,
+		"final_fare":        ride.FinalFare,
+		"payment_method":    "wallet", // TODO: get from payment service
+		"rider_id":          ride.RiderID,
+		"driver_id":         ride.DriverID,
+	}
+
+	c.JSON(http.StatusOK, receipt)
+}
+
+// GetUserProfile retrieves user profile data
+func (h *Handler) GetUserProfile(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+	role, _ := c.Get("role")
+
+	// Placeholder - in production, you'd query the users table for full profile
+	// For now, just return basic info
+	c.JSON(http.StatusOK, gin.H{
+		"user_id": userID,
+		"role":    role,
+		"message": "Profile endpoint - full implementation requires user service integration",
+	})
+}
+
+// UpdateUserProfile updates user profile
+func (h *Handler) UpdateUserProfile(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	var req struct {
+		FirstName   string `json:"first_name"`
+		LastName    string `json:"last_name"`
+		PhoneNumber string `json:"phone_number"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Placeholder - in production, update the users table
+	c.JSON(http.StatusOK, gin.H{
+		"user_id": userID,
+		"message": "Profile updated successfully",
+	})
 }
 
 // RegisterRoutes registers ride routes

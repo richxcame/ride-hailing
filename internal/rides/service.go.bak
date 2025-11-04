@@ -81,7 +81,7 @@ func (s *Service) AcceptRide(ctx context.Context, rideID, driverID uuid.UUID) (*
 	}
 
 	if ride.Status != models.RideStatusRequested {
-		return nil, common.NewBadRequestError("ride is not available for acceptance", nil)
+		return nil, common.NewBadRequestError("ride is not available for acceptance")
 	}
 
 	if err := s.repo.UpdateRideStatus(ctx, rideID, models.RideStatusAccepted, &driverID); err != nil {
@@ -104,11 +104,11 @@ func (s *Service) StartRide(ctx context.Context, rideID, driverID uuid.UUID) (*m
 	}
 
 	if ride.Status != models.RideStatusAccepted {
-		return nil, common.NewBadRequestError("ride has not been accepted", nil)
+		return nil, common.NewBadRequestError("ride has not been accepted")
 	}
 
 	if ride.DriverID == nil || *ride.DriverID != driverID {
-		return nil, common.NewBadRequestError("unauthorized driver", nil)
+		return nil, common.NewBadRequestError("unauthorized driver")
 	}
 
 	if err := s.repo.UpdateRideStatus(ctx, rideID, models.RideStatusInProgress, nil); err != nil {
@@ -130,11 +130,11 @@ func (s *Service) CompleteRide(ctx context.Context, rideID, driverID uuid.UUID, 
 	}
 
 	if ride.Status != models.RideStatusInProgress {
-		return nil, common.NewBadRequestError("ride is not in progress", nil)
+		return nil, common.NewBadRequestError("ride is not in progress")
 	}
 
 	if ride.DriverID == nil || *ride.DriverID != driverID {
-		return nil, common.NewBadRequestError("unauthorized driver", nil)
+		return nil, common.NewBadRequestError("unauthorized driver")
 	}
 
 	// Calculate actual duration
@@ -173,11 +173,11 @@ func (s *Service) CancelRide(ctx context.Context, rideID, userID uuid.UUID, reas
 	isDriver := ride.DriverID != nil && *ride.DriverID == userID
 
 	if !isRider && !isDriver {
-		return nil, common.NewBadRequestError("unauthorized to cancel this ride", nil)
+		return nil, common.NewBadRequestError("unauthorized to cancel this ride")
 	}
 
 	if ride.Status == models.RideStatusCompleted || ride.Status == models.RideStatusCancelled {
-		return nil, common.NewBadRequestError("cannot cancel completed or already cancelled ride", nil)
+		return nil, common.NewBadRequestError("cannot cancel completed or already cancelled ride")
 	}
 
 	if err := s.repo.UpdateRideStatus(ctx, rideID, models.RideStatusCancelled, nil); err != nil {
@@ -200,11 +200,11 @@ func (s *Service) RateRide(ctx context.Context, rideID, riderID uuid.UUID, req *
 	}
 
 	if ride.RiderID != riderID {
-		return common.NewBadRequestError("unauthorized to rate this ride", nil)
+		return common.NewBadRequestError("unauthorized to rate this ride")
 	}
 
 	if ride.Status != models.RideStatusCompleted {
-		return common.NewBadRequestError("can only rate completed rides", nil)
+		return common.NewBadRequestError("can only rate completed rides")
 	}
 
 	if err := s.repo.UpdateRideRating(ctx, rideID, req.Rating, req.Feedback); err != nil {

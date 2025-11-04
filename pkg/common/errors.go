@@ -44,11 +44,11 @@ func NewAppError(code int, message string, err error) *AppError {
 }
 
 // Common error constructors
-func NewNotFoundError(message string) *AppError {
+func NewNotFoundError(message string, err error) *AppError {
 	return &AppError{
 		Code:    http.StatusNotFound,
 		Message: message,
-		Err:     ErrNotFound,
+		Err:     err,
 	}
 }
 
@@ -60,11 +60,27 @@ func NewUnauthorizedError(message string) *AppError {
 	}
 }
 
-func NewBadRequestError(message string) *AppError {
+func NewBadRequestError(message string, err error) *AppError {
 	return &AppError{
 		Code:    http.StatusBadRequest,
 		Message: message,
-		Err:     ErrBadRequest,
+		Err:     err,
+	}
+}
+
+func NewInternalError(message string, err error) *AppError {
+	return &AppError{
+		Code:    http.StatusInternalServerError,
+		Message: message,
+		Err:     err,
+	}
+}
+
+func NewInternalErrorWithError(message string, err error) *AppError {
+	return &AppError{
+		Code:    http.StatusInternalServerError,
+		Message: message,
+		Err:     err,
 	}
 }
 

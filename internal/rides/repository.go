@@ -355,3 +355,110 @@ func (r *Repository) GetPendingRides(ctx context.Context) ([]*models.Ride, error
 
 	return rides, nil
 }
+
+// RideFilters represents filters for ride history queries
+type RideFilters struct {
+	Status    *string
+	StartDate *time.Time
+	EndDate   *time.Time
+}
+
+// GetRidesByRiderWithFilters retrieves filtered rides for a rider
+func (r *Repository) GetRidesByRiderWithFilters(ctx context.Context, riderID uuid.UUID, filters *RideFilters, limit, offset int) ([]*models.Ride, int, error) {
+	// Build dynamic query
+	baseQuery := `
+		SELECT id, rider_id, driver_id, status, pickup_latitude, pickup_longitude,
+			   pickup_address, dropoff_latitude, dropoff_longitude, dropoff_address,
+			   estimated_distance, estimated_duration, estimated_fare, actual_distance,
+			   actual_duration, final_fare, surge_multiplier, requested_at, accepted_at,
+			   started_at, completed_at, cancelled_at, cancellation_reason, rating,
+			   feedback, created_at, updated_at
+		FROM rides
+		WHERE rider_id = $1
+	`
+
+	countQuery := `SELECT COUNT(*) FROM rides WHERE rider_id = $1`
+
+	args := []interface{}{riderID}
+	argCount := 2
+
+	// Apply filters
+	if filters.Status != nil {
+		baseQuery += fmt.Sprintf(" AND status = $%d", argCount)
+		countQuery += fmt.Sprintf(" AND status = $%d", argCount)
+		args = append(args, *filters.Status)
+		argCount++
+	}
+
+	if filters.StartDate != nil {
+		baseQuery += fmt.Sprintf(" AND created_at >= $%d", argCount)
+		countQuery += fmt.Sprintf(" AND created_at >= $%d", argCount)
+		args = append(args, *filters.StartDate)
+		argCount++
+	}
+
+	if filters.EndDate != nil {
+		baseQuery += fmt.Sprintf(" AND created_at <= $%d", argCount)
+		countQuery += fmt.Sprintf(" AND created_at <= $%d", argCount)
+		args = append(args, *filters.EndDate)
+		argCount++
+	}
+
+	// Add ordering and pagination
+	baseQuery += fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", argCount, argCount+1)
+	args = append(args, limit, offset)
+
+	// Get total count
+	var total int
+	err := r.db.QueryRow(ctx, countQuery, args[:argCount-2]...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get total count: %w", err)
+	}
+
+	// Get rides
+	rows, err := r.db.Query(ctx, baseQuery, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get filtered rides: %w", err)
+	}
+	defer rows.Close()
+
+	var rides []*models.Ride
+	for rows.Next() {
+		ride := &models.Ride{}
+		err := rows.Scan(
+			&ride.ID,
+			&ride.RiderID,
+			&ride.DriverID,
+			&ride.Status,
+			&ride.PickupLatitude,
+			&ride.PickupLongitude,
+			&ride.PickupAddress,
+			&ride.DropoffLatitude,
+			&ride.DropoffLongitude,
+			&ride.DropoffAddress,
+			&ride.EstimatedDistance,
+			&ride.EstimatedDuration,
+			&ride.EstimatedFare,
+			&ride.ActualDistance,
+			&ride.ActualDuration,
+			&ride.FinalFare,
+			&ride.SurgeMultiplier,
+			&ride.RequestedAt,
+			&ride.AcceptedAt,
+			&ride.StartedAt,
+			&ride.CompletedAt,
+			&ride.CancelledAt,
+			&ride.CancellationReason,
+			&ride.Rating,
+			&ride.Feedback,
+			&ride.CreatedAt,
+			&ride.UpdatedAt,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan ride: %w", err)
+		}
+		rides = append(rides, ride)
+	}
+
+	return rides, total, nil
+}

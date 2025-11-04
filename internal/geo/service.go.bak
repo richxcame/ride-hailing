@@ -71,7 +71,7 @@ func (s *Service) GetDriverLocation(ctx context.Context, driverID uuid.UUID) (*D
 	key := fmt.Sprintf("%s%s", driverLocationPrefix, driverID.String())
 	data, err := s.redis.GetString(ctx, key)
 	if err != nil {
-		return nil, common.NewNotFoundError("driver location not found", nil)
+		return nil, common.NewNotFoundError("driver location not found")
 	}
 
 	var location DriverLocation

@@ -126,7 +126,7 @@ func (s *Service) Login(ctx context.Context, req *models.LoginRequest) (*models.
 func (s *Service) GetProfile(ctx context.Context, userID uuid.UUID) (*models.User, error) {
 	user, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {
-		return nil, common.NewNotFoundError("user not found", nil)
+		return nil, common.NewNotFoundError("user not found")
 	}
 
 	// Clear password hash
@@ -139,7 +139,7 @@ func (s *Service) GetProfile(ctx context.Context, userID uuid.UUID) (*models.Use
 func (s *Service) UpdateProfile(ctx context.Context, userID uuid.UUID, updates *models.User) (*models.User, error) {
 	user, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {
-		return nil, common.NewNotFoundError("user not found", nil)
+		return nil, common.NewNotFoundError("user not found")
 	}
 
 	// Update fields

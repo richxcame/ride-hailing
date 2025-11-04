@@ -30,17 +30,21 @@ const (
 
 // Notification represents a notification
 type Notification struct {
-	ID        uuid.UUID           `json:"id" db:"id"`
-	UserID    uuid.UUID           `json:"user_id" db:"user_id"`
-	Type      NotificationType    `json:"type" db:"type"`
-	Channel   NotificationChannel `json:"channel" db:"channel"`
-	Title     string              `json:"title" db:"title"`
-	Body      string              `json:"body" db:"body"`
-	Data      map[string]string   `json:"data,omitempty" db:"data"`
-	IsRead    bool                `json:"is_read" db:"is_read"`
-	SentAt    *time.Time          `json:"sent_at,omitempty" db:"sent_at"`
-	ReadAt    *time.Time          `json:"read_at,omitempty" db:"read_at"`
-	CreatedAt time.Time           `json:"created_at" db:"created_at"`
+	ID           uuid.UUID              `json:"id" db:"id"`
+	UserID       uuid.UUID              `json:"user_id" db:"user_id"`
+	Type         string                 `json:"type" db:"type"`
+	Channel      string                 `json:"channel" db:"channel"`
+	Title        string                 `json:"title" db:"title"`
+	Body         string                 `json:"body" db:"body"`
+	Data         map[string]interface{} `json:"data,omitempty" db:"data"`
+	Status       string                 `json:"status" db:"status"`
+	ScheduledAt  *time.Time             `json:"scheduled_at,omitempty" db:"scheduled_at"`
+	SentAt       *time.Time             `json:"sent_at,omitempty" db:"sent_at"`
+	ReadAt       *time.Time             `json:"read_at,omitempty" db:"read_at"`
+	ErrorMessage *string                `json:"error_message,omitempty" db:"error_message"`
+	IsRead       bool                   `json:"is_read" db:"is_read"`
+	CreatedAt    time.Time              `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time              `json:"updated_at" db:"updated_at"`
 }
 
 // NotificationRequest represents a request to send a notification

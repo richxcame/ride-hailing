@@ -24,13 +24,23 @@ type ErrorInfo struct {
 type Meta struct {
 	Page       int   `json:"page,omitempty"`
 	PerPage    int   `json:"per_page,omitempty"`
+	Limit      int   `json:"limit,omitempty"`
+	Offset     int   `json:"offset,omitempty"`
 	Total      int64 `json:"total,omitempty"`
 	TotalPages int   `json:"total_pages,omitempty"`
 }
 
-// SuccessResponse sends a successful response
+// SuccessResponse sends a successful response (backward compatibility)
 func SuccessResponse(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Data:    data,
+	})
+}
+
+// SuccessResponseWithStatus sends a successful response with custom status code
+func SuccessResponseWithStatus(c *gin.Context, statusCode int, data interface{}, message string) {
+	c.JSON(statusCode, Response{
 		Success: true,
 		Data:    data,
 	})
@@ -39,6 +49,15 @@ func SuccessResponse(c *gin.Context, data interface{}) {
 // SuccessResponseWithMeta sends a successful response with metadata
 func SuccessResponseWithMeta(c *gin.Context, data interface{}, meta *Meta) {
 	c.JSON(http.StatusOK, Response{
+		Success: true,
+		Data:    data,
+		Meta:    meta,
+	})
+}
+
+// SuccessResponseWithMetaAndStatus sends a successful response with metadata and status
+func SuccessResponseWithMetaAndStatus(c *gin.Context, statusCode int, data interface{}, meta *Meta, message string) {
+	c.JSON(statusCode, Response{
 		Success: true,
 		Data:    data,
 		Meta:    meta,
