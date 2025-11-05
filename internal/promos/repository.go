@@ -320,3 +320,72 @@ func (r *Repository) CreateReferral(ctx context.Context, referral *Referral) err
 
 	return nil
 }
+
+// GetReferralByReferredID retrieves a referral by the referred user ID
+func (r *Repository) GetReferralByReferredID(ctx context.Context, referredID uuid.UUID) (*Referral, error) {
+	query := `
+		SELECT id, referrer_id, referred_id, referral_code_id, referrer_bonus, referred_bonus,
+			   referrer_bonus_applied, referred_bonus_applied, referred_first_ride_id,
+			   created_at, completed_at
+		FROM referrals
+		WHERE referred_id = $1
+		LIMIT 1
+	`
+
+	referral := &Referral{}
+	err := r.db.QueryRow(ctx, query, referredID).Scan(
+		&referral.ID,
+		&referral.ReferrerID,
+		&referral.ReferredID,
+		&referral.ReferralCodeID,
+		&referral.ReferrerBonus,
+		&referral.ReferredBonus,
+		&referral.ReferrerBonusApplied,
+		&referral.ReferredBonusApplied,
+		&referral.ReferredFirstRideID,
+		&referral.CreatedAt,
+		&referral.CompletedAt,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get referral: %w", err)
+	}
+
+	return referral, nil
+}
+
+// IsFirstCompletedRide checks if the given ride is the user's first completed ride
+func (r *Repository) IsFirstCompletedRide(ctx context.Context, userID uuid.UUID, rideID uuid.UUID) (bool, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM rides
+		WHERE rider_id = $1 AND status = 'completed' AND id != $2
+	`
+
+	var count int
+	err := r.db.QueryRow(ctx, query, userID, rideID).Scan(&count)
+	if err != nil {
+		return false, fmt.Errorf("failed to count completed rides: %w", err)
+	}
+
+	return count == 0, nil
+}
+
+// MarkReferralBonusesApplied marks the referral bonuses as applied
+func (r *Repository) MarkReferralBonusesApplied(ctx context.Context, referralID uuid.UUID, rideID uuid.UUID) error {
+	query := `
+		UPDATE referrals
+		SET referrer_bonus_applied = true,
+			referred_bonus_applied = true,
+			completed_at = NOW(),
+			referred_first_ride_id = $2
+		WHERE id = $1
+	`
+
+	_, err := r.db.Exec(ctx, query, referralID, rideID)
+	if err != nil {
+		return fmt.Errorf("failed to mark bonuses as applied: %w", err)
+	}
+
+	return nil
+}

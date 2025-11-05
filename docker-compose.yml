@@ -89,6 +89,7 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      PROMOS_SERVICE_URL: http://promos-service:8080
     ports:
       - "8082:8080"
     depends_on:
@@ -299,6 +300,59 @@ services:
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
     ports:
       - "8089:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ridehailing-network
+    restart: unless-stopped
+
+  # Scheduler Service (Background Worker)
+  scheduler-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: scheduler
+    container_name: ridehailing-scheduler
+    environment:
+      PORT: 8080
+      ENVIRONMENT: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: ridehailing
+      DB_SSLMODE: disable
+    ports:
+      - "8090:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ridehailing-network
+    restart: unless-stopped
+
+  # Analytics Service
+  analytics-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: analytics
+    container_name: ridehailing-analytics
+    environment:
+      PORT: 8080
+      ENVIRONMENT: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: ridehailing
+      DB_SSLMODE: disable
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+    ports:
+      - "8091:8080"
     depends_on:
       postgres:
         condition: service_healthy

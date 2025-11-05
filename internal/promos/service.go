@@ -281,11 +281,54 @@ func (s *Service) generateUniqueCode(base string) string {
 	}
 
 	// Add random suffix
-	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123916789"
 	suffix := make([]byte, 4)
 	for i := range suffix {
 		suffix[i] = charset[rand.Intn(len(charset))]
 	}
 
 	return base + string(suffix)
+}
+
+// ProcessReferralBonus processes referral bonuses when a user completes their first ride
+// Returns the referrer and referred bonuses to be credited
+func (s *Service) ProcessReferralBonus(ctx context.Context, userID uuid.UUID, rideID uuid.UUID) (map[string]interface{}, error) {
+	// Check if this user was referred
+	referral, err := s.repo.GetReferralByReferredID(ctx, userID)
+	if err != nil {
+		// User wasn't referred, no bonus to process
+		return nil, nil
+	}
+
+	// Check if bonuses have already been applied
+	if referral.ReferrerBonusApplied && referral.ReferredBonusApplied {
+		return nil, nil
+	}
+
+	// Check if this is the user's first completed ride
+	isFirstRide, err := s.repo.IsFirstCompletedRide(ctx, userID, rideID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if first ride: %w", err)
+	}
+
+	if !isFirstRide {
+		return nil, nil
+	}
+
+	// Mark bonuses as ready to be applied
+	err = s.repo.MarkReferralBonusesApplied(ctx, referral.ID, rideID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to mark bonuses as applied: %w", err)
+	}
+
+	// Return bonus information for both users
+	result := map[string]interface{}{
+		"referrer_id":     referral.ReferrerID,
+		"referrer_bonus":  referral.ReferrerBonus,
+		"referred_id":     referral.ReferredID,
+		"referred_bonus":  referral.ReferredBonus,
+		"has_bonus":       true,
+	}
+
+	return result, nil
 }

@@ -10,7 +10,9 @@
       "Bash(docker-compose:*)",
       "Bash(go test:*)",
       "Bash(go mod tidy:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(docker logs:*)",
+      "Bash(docker ps:*)"
     ],
     "deny": [],
     "ask": []

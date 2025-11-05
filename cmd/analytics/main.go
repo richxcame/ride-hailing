@@ -11,8 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/richxcame/ride-hailing/internal/rides"
-	"github.com/richxcame/ride-hailing/pkg/common"
+	"github.com/richxcame/ride-hailing/internal/analytics"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/database"
 	"github.com/richxcame/ride-hailing/pkg/logger"
@@ -21,7 +20,7 @@ import (
 )
 
 const (
-	serviceName = "rides-service"
+	serviceName = "analytics-service"
 	version     = "1.0.0"
 )
 
@@ -36,7 +35,7 @@ func main() {
 	}
 	defer logger.Sync()
 
-	logger.Info("Starting rides service",
+	logger.Info("Starting analytics service",
 		zap.String("service", serviceName),
 		zap.String("version", version),
 		zap.String("environment", cfg.Server.Environment),
@@ -49,16 +48,9 @@ func main() {
 	defer database.Close(db)
 	logger.Info("Connected to database")
 
-	// Get Promos service URL from environment
-	promosServiceURL := os.Getenv("PROMOS_SERVICE_URL")
-	if promosServiceURL == "" {
-		promosServiceURL = "http://localhost:8089" // Default for development
-	}
-	logger.Info("Promos service URL configured", zap.String("url", promosServiceURL))
-
-	repo := rides.NewRepository(db)
-	service := rides.NewService(repo, promosServiceURL)
-	handler := rides.NewHandler(service)
+	repo := analytics.NewRepository(db)
+	service := analytics.NewService(repo)
+	handler := analytics.NewHandler(service)
 
 	if cfg.Server.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -70,7 +62,8 @@ func main() {
 	router.Use(middleware.CORS())
 	router.Use(middleware.Metrics(serviceName))
 
-	router.GET("/healthz", common.HealthCheck(serviceName, version))
+	// Public endpoints
+	router.GET("/healthz", handler.HealthCheck)
 	router.GET("/version", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"service": serviceName,
@@ -79,7 +72,18 @@ func main() {
 	})
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	handler.RegisterRoutes(router, cfg.JWT.Secret)
+	// Admin-only analytics endpoints
+	api := router.Group("/api/v1/analytics")
+	api.Use(middleware.AuthMiddleware(cfg.JWT.Secret))
+	api.Use(middleware.RequireAdmin())
+	{
+		api.GET("/dashboard", handler.GetDashboardMetrics)
+		api.GET("/revenue", handler.GetRevenueMetrics)
+		api.GET("/promo-codes", handler.GetPromoCodePerformance)
+		api.GET("/ride-types", handler.GetRideTypeStats)
+		api.GET("/referrals", handler.GetReferralMetrics)
+		api.GET("/top-drivers", handler.GetTopDrivers)
+	}
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Server.Port,

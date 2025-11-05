@@ -2,11 +2,14 @@ package rides
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"math"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/pkg/common"
+	"github.com/richxcame/ride-hailing/pkg/httpclient"
 	"github.com/richxcame/ride-hailing/pkg/models"
 )
 
@@ -19,12 +22,16 @@ const (
 
 // Service handles ride business logic
 type Service struct {
-	repo *Repository
+	repo         *Repository
+	promosClient *httpclient.Client
 }
 
 // NewService creates a new rides service
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, promosServiceURL string) *Service {
+	return &Service{
+		repo:         repo,
+		promosClient: httpclient.NewClient(promosServiceURL, 10*time.Second),
+	}
 }
 
 // RequestRide creates a new ride request
@@ -37,7 +44,36 @@ func (s *Service) RequestRide(ctx context.Context, riderID uuid.UUID, req *model
 
 	duration := estimateDuration(distance)
 	surgeMultiplier := calculateSurgeMultiplier(time.Now())
-	fare := calculateFare(distance, duration, surgeMultiplier)
+
+	var fare float64
+	var rideTypeID *uuid.UUID
+
+	// If ride type is specified, calculate fare using ride type pricing
+	if req.RideTypeID != nil {
+		rideTypeID = req.RideTypeID
+		calculatedFare, err := s.calculateFareWithRideType(ctx, *req.RideTypeID, distance, duration, surgeMultiplier)
+		if err != nil {
+			// Fall back to default pricing if ride type calculation fails
+			fare = calculateFare(distance, duration, surgeMultiplier)
+		} else {
+			fare = calculatedFare
+		}
+	} else {
+		// Use default fare calculation
+		fare = calculateFare(distance, duration, surgeMultiplier)
+	}
+
+	// Apply promo code if provided
+	var promoCodeID *uuid.UUID
+	var discountAmount float64
+	if req.PromoCode != "" {
+		validation, err := s.validatePromoCode(ctx, req.PromoCode, riderID, fare)
+		if err == nil && validation.Valid {
+			promoCodeID = &validation.PromoCodeID
+			discountAmount = validation.DiscountAmount
+			fare = validation.FinalAmount
+		}
+	}
 
 	ride := &models.Ride{
 		ID:                uuid.New(),
@@ -54,6 +90,16 @@ func (s *Service) RequestRide(ctx context.Context, riderID uuid.UUID, req *model
 		EstimatedFare:     fare,
 		SurgeMultiplier:   surgeMultiplier,
 		RequestedAt:       time.Now(),
+		RideTypeID:        rideTypeID,
+		PromoCodeID:       promoCodeID,
+		DiscountAmount:    discountAmount,
+	}
+
+	// Handle scheduled rides
+	if req.IsScheduled && req.ScheduledAt != nil {
+		ride.IsScheduled = true
+		ride.ScheduledAt = req.ScheduledAt
+		ride.ScheduledNotificationSent = false
 	}
 
 	if err := s.repo.CreateRide(ctx, ride); err != nil {
@@ -311,4 +357,68 @@ func (s *Service) GetUserProfile(ctx context.Context, userID uuid.UUID) (*models
 // UpdateUserProfile updates a user's profile
 func (s *Service) UpdateUserProfile(ctx context.Context, userID uuid.UUID, firstName, lastName, phoneNumber string) error {
 	return s.repo.UpdateUserProfile(ctx, userID, firstName, lastName, phoneNumber)
+}
+
+// PromoCodeValidation represents the response from promo code validation
+type PromoCodeValidation struct {
+	Valid          bool    `json:"valid"`
+	PromoCodeID    uuid.UUID `json:"promo_code_id"`
+	DiscountAmount float64 `json:"discount_amount"`
+	FinalAmount    float64 `json:"final_amount"`
+	Message        string  `json:"message"`
+}
+
+// validatePromoCode validates a promo code with the Promos service
+func (s *Service) validatePromoCode(ctx context.Context, code string, riderID uuid.UUID, rideAmount float64) (*PromoCodeValidation, error) {
+	requestBody := map[string]interface{}{
+		"code":        code,
+		"ride_amount": rideAmount,
+	}
+
+	// Get JWT token from context (if available)
+	headers := make(map[string]string)
+	// In a real scenario, you'd extract the JWT from the context
+	// For now, we'll make a direct service-to-service call
+
+	respBody, err := s.promosClient.Post(ctx, "/api/v1/promo-codes/validate", requestBody, headers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate promo code: %w", err)
+	}
+
+	var validation PromoCodeValidation
+	if err := json.Unmarshal(respBody, &validation); err != nil {
+		return nil, fmt.Errorf("failed to parse validation response: %w", err)
+	}
+
+	return &validation, nil
+}
+
+// RideTypeFareResponse represents the response from ride type fare calculation
+type RideTypeFareResponse struct {
+	Fare            float64 `json:"fare"`
+	Distance        float64 `json:"distance"`
+	Duration        int     `json:"duration"`
+	SurgeMultiplier float64 `json:"surge_multiplier"`
+}
+
+// calculateFareWithRideType calculates fare using the Promos service ride type pricing
+func (s *Service) calculateFareWithRideType(ctx context.Context, rideTypeID uuid.UUID, distance float64, duration int, surgeMultiplier float64) (float64, error) {
+	requestBody := map[string]interface{}{
+		"ride_type_id":     rideTypeID.String(),
+		"distance":         distance,
+		"duration":         duration,
+		"surge_multiplier": surgeMultiplier,
+	}
+
+	respBody, err := s.promosClient.Post(ctx, "/api/v1/ride-types/calculate-fare", requestBody, nil)
+	if err != nil {
+		return 0, fmt.Errorf("failed to calculate fare with ride type: %w", err)
+	}
+
+	var fareResp RideTypeFareResponse
+	if err := json.Unmarshal(respBody, &fareResp); err != nil {
+		return 0, fmt.Errorf("failed to parse fare response: %w", err)
+	}
+
+	return fareResp.Fare, nil
 }

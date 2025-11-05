@@ -26,9 +26,11 @@ func (r *Repository) CreateRide(ctx context.Context, ride *models.Ride) error {
 		INSERT INTO rides (
 			id, rider_id, status, pickup_latitude, pickup_longitude, pickup_address,
 			dropoff_latitude, dropoff_longitude, dropoff_address, estimated_distance,
-			estimated_duration, estimated_fare, surge_multiplier, requested_at
+			estimated_duration, estimated_fare, surge_multiplier, requested_at,
+			ride_type_id, promo_code_id, discount_amount, scheduled_at, is_scheduled,
+			scheduled_notification_sent
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
 		RETURNING created_at, updated_at
 	`
 
@@ -47,6 +49,12 @@ func (r *Repository) CreateRide(ctx context.Context, ride *models.Ride) error {
 		ride.EstimatedFare,
 		ride.SurgeMultiplier,
 		ride.RequestedAt,
+		ride.RideTypeID,
+		ride.PromoCodeID,
+		ride.DiscountAmount,
+		ride.ScheduledAt,
+		ride.IsScheduled,
+		ride.ScheduledNotificationSent,
 	).Scan(&ride.CreatedAt, &ride.UpdatedAt)
 
 	if err != nil {
@@ -64,7 +72,8 @@ func (r *Repository) GetRideByID(ctx context.Context, id uuid.UUID) (*models.Rid
 			   estimated_distance, estimated_duration, estimated_fare, actual_distance,
 			   actual_duration, final_fare, surge_multiplier, requested_at, accepted_at,
 			   started_at, completed_at, cancelled_at, cancellation_reason, rating,
-			   feedback, created_at, updated_at
+			   feedback, created_at, updated_at, ride_type_id, promo_code_id,
+			   discount_amount, scheduled_at, is_scheduled, scheduled_notification_sent
 		FROM rides
 		WHERE id = $1
 	`
@@ -98,6 +107,12 @@ func (r *Repository) GetRideByID(ctx context.Context, id uuid.UUID) (*models.Rid
 		&ride.Feedback,
 		&ride.CreatedAt,
 		&ride.UpdatedAt,
+		&ride.RideTypeID,
+		&ride.PromoCodeID,
+		&ride.DiscountAmount,
+		&ride.ScheduledAt,
+		&ride.IsScheduled,
+		&ride.ScheduledNotificationSent,
 	)
 
 	if err != nil {
@@ -179,7 +194,8 @@ func (r *Repository) GetRidesByRider(ctx context.Context, riderID uuid.UUID, lim
 			   estimated_distance, estimated_duration, estimated_fare, actual_distance,
 			   actual_duration, final_fare, surge_multiplier, requested_at, accepted_at,
 			   started_at, completed_at, cancelled_at, cancellation_reason, rating,
-			   feedback, created_at, updated_at
+			   feedback, created_at, updated_at, ride_type_id, promo_code_id,
+			   discount_amount, scheduled_at, is_scheduled, scheduled_notification_sent
 		FROM rides
 		WHERE rider_id = $1
 		ORDER BY created_at DESC
@@ -223,6 +239,12 @@ func (r *Repository) GetRidesByRider(ctx context.Context, riderID uuid.UUID, lim
 			&ride.Feedback,
 			&ride.CreatedAt,
 			&ride.UpdatedAt,
+			&ride.RideTypeID,
+			&ride.PromoCodeID,
+			&ride.DiscountAmount,
+			&ride.ScheduledAt,
+			&ride.IsScheduled,
+			&ride.ScheduledNotificationSent,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan ride: %w", err)
@@ -241,7 +263,8 @@ func (r *Repository) GetRidesByDriver(ctx context.Context, driverID uuid.UUID, l
 			   estimated_distance, estimated_duration, estimated_fare, actual_distance,
 			   actual_duration, final_fare, surge_multiplier, requested_at, accepted_at,
 			   started_at, completed_at, cancelled_at, cancellation_reason, rating,
-			   feedback, created_at, updated_at
+			   feedback, created_at, updated_at, ride_type_id, promo_code_id,
+			   discount_amount, scheduled_at, is_scheduled, scheduled_notification_sent
 		FROM rides
 		WHERE driver_id = $1
 		ORDER BY created_at DESC
@@ -285,6 +308,12 @@ func (r *Repository) GetRidesByDriver(ctx context.Context, driverID uuid.UUID, l
 			&ride.Feedback,
 			&ride.CreatedAt,
 			&ride.UpdatedAt,
+			&ride.RideTypeID,
+			&ride.PromoCodeID,
+			&ride.DiscountAmount,
+			&ride.ScheduledAt,
+			&ride.IsScheduled,
+			&ride.ScheduledNotificationSent,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan ride: %w", err)
@@ -303,7 +332,8 @@ func (r *Repository) GetPendingRides(ctx context.Context) ([]*models.Ride, error
 			   estimated_distance, estimated_duration, estimated_fare, actual_distance,
 			   actual_duration, final_fare, surge_multiplier, requested_at, accepted_at,
 			   started_at, completed_at, cancelled_at, cancellation_reason, rating,
-			   feedback, created_at, updated_at
+			   feedback, created_at, updated_at, ride_type_id, promo_code_id,
+			   discount_amount, scheduled_at, is_scheduled, scheduled_notification_sent
 		FROM rides
 		WHERE status = 'requested'
 		ORDER BY requested_at ASC
@@ -346,6 +376,12 @@ func (r *Repository) GetPendingRides(ctx context.Context) ([]*models.Ride, error
 			&ride.Feedback,
 			&ride.CreatedAt,
 			&ride.UpdatedAt,
+			&ride.RideTypeID,
+			&ride.PromoCodeID,
+			&ride.DiscountAmount,
+			&ride.ScheduledAt,
+			&ride.IsScheduled,
+			&ride.ScheduledNotificationSent,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan ride: %w", err)
@@ -372,7 +408,8 @@ func (r *Repository) GetRidesByRiderWithFilters(ctx context.Context, riderID uui
 			   estimated_distance, estimated_duration, estimated_fare, actual_distance,
 			   actual_duration, final_fare, surge_multiplier, requested_at, accepted_at,
 			   started_at, completed_at, cancelled_at, cancellation_reason, rating,
-			   feedback, created_at, updated_at
+			   feedback, created_at, updated_at, ride_type_id, promo_code_id,
+			   discount_amount, scheduled_at, is_scheduled, scheduled_notification_sent
 		FROM rides
 		WHERE rider_id = $1
 	`
@@ -453,6 +490,12 @@ func (r *Repository) GetRidesByRiderWithFilters(ctx context.Context, riderID uui
 			&ride.Feedback,
 			&ride.CreatedAt,
 			&ride.UpdatedAt,
+			&ride.RideTypeID,
+			&ride.PromoCodeID,
+			&ride.DiscountAmount,
+			&ride.ScheduledAt,
+			&ride.IsScheduled,
+			&ride.ScheduledNotificationSent,
 		)
 		if err != nil {
 			return nil, 0, fmt.Errorf("failed to scan ride: %w", err)
