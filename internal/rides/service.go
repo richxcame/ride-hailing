@@ -22,16 +22,29 @@ const (
 
 // Service handles ride business logic
 type Service struct {
-	repo         *Repository
-	promosClient *httpclient.Client
+	repo            *Repository
+	promosClient    *httpclient.Client
+	surgeCalculator SurgeCalculator
+}
+
+// SurgeCalculator defines the interface for surge pricing calculation
+type SurgeCalculator interface {
+	CalculateSurgeMultiplier(ctx context.Context, lat, lon float64) (float64, error)
+	GetCurrentSurgeInfo(ctx context.Context, lat, lon float64) (map[string]interface{}, error)
 }
 
 // NewService creates a new rides service
 func NewService(repo *Repository, promosServiceURL string) *Service {
 	return &Service{
-		repo:         repo,
-		promosClient: httpclient.NewClient(promosServiceURL, 10*time.Second),
+		repo:            repo,
+		promosClient:    httpclient.NewClient(promosServiceURL, 10*time.Second),
+		surgeCalculator: nil, // Will be set via SetSurgeCalculator
 	}
+}
+
+// SetSurgeCalculator sets the surge pricing calculator
+func (s *Service) SetSurgeCalculator(calculator SurgeCalculator) {
+	s.surgeCalculator = calculator
 }
 
 // RequestRide creates a new ride request
@@ -43,7 +56,19 @@ func (s *Service) RequestRide(ctx context.Context, riderID uuid.UUID, req *model
 	)
 
 	duration := estimateDuration(distance)
-	surgeMultiplier := calculateSurgeMultiplier(time.Now())
+
+	// Use dynamic surge pricing if available, otherwise fall back to time-based
+	var surgeMultiplier float64
+	if s.surgeCalculator != nil {
+		var err error
+		surgeMultiplier, err = s.surgeCalculator.CalculateSurgeMultiplier(ctx, req.PickupLatitude, req.PickupLongitude)
+		if err != nil {
+			// Fallback to time-based surge on error
+			surgeMultiplier = calculateSurgeMultiplier(time.Now())
+		}
+	} else {
+		surgeMultiplier = calculateSurgeMultiplier(time.Now())
+	}
 
 	var fare float64
 	var rideTypeID *uuid.UUID

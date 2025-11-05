@@ -12,7 +12,8 @@
       "Bash(go mod tidy:*)",
       "Bash(curl:*)",
       "Bash(docker logs:*)",
-      "Bash(docker ps:*)"
+      "Bash(docker ps:*)",
+      "Bash(migrate -path:*)"
     ],
     "deny": [],
     "ask": []

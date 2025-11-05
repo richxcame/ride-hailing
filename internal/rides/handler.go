@@ -466,6 +466,48 @@ func (h *Handler) UpdateUserProfile(c *gin.Context) {
 	})
 }
 
+// GetSurgeInfo retrieves surge pricing information for a location
+func (h *Handler) GetSurgeInfo(c *gin.Context) {
+	latStr := c.Query("lat")
+	lonStr := c.Query("lon")
+
+	if latStr == "" || lonStr == "" {
+		common.ErrorResponse(c, http.StatusBadRequest, "latitude and longitude are required")
+		return
+	}
+
+	lat, err := strconv.ParseFloat(latStr, 64)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitude")
+		return
+	}
+
+	lon, err := strconv.ParseFloat(lonStr, 64)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid longitude")
+		return
+	}
+
+	if h.service.surgeCalculator == nil {
+		// Fallback to time-based surge
+		multiplier := calculateSurgeMultiplier(time.Now())
+		common.SuccessResponse(c, gin.H{
+			"surge_multiplier": multiplier,
+			"is_surge_active":  multiplier > 1.0,
+			"message":          "Time-based surge pricing active",
+		})
+		return
+	}
+
+	surgeInfo, err := h.service.surgeCalculator.GetCurrentSurgeInfo(c.Request.Context(), lat, lon)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get surge information")
+		return
+	}
+
+	common.SuccessResponse(c, surgeInfo)
+}
+
 // RegisterRoutes registers ride routes
 func (h *Handler) RegisterRoutes(r *gin.Engine, jwtSecret string) {
 	api := r.Group("/api/v1")
@@ -478,6 +520,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine, jwtSecret string) {
 		riders.POST("", h.RequestRide)
 		riders.GET("/:id", h.GetRide)
 		riders.GET("", h.GetMyRides)
+		riders.GET("/surge-info", h.GetSurgeInfo) // New endpoint
 		riders.POST("/:id/cancel", h.CancelRide)
 		riders.POST("/:id/rate", h.RateRide)
 	}

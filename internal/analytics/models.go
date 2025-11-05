@@ -76,3 +76,46 @@ type DashboardMetrics struct {
 	TopPromoCode     *PromoCodePerformance `json:"top_promo_code,omitempty"`
 	TopRideType      *RideTypeStats    `json:"top_ride_type,omitempty"`
 }
+
+// DemandHeatMap represents geographic demand data
+type DemandHeatMap struct {
+	Latitude      float64 `json:"latitude"`
+	Longitude     float64 `json:"longitude"`
+	RideCount     int     `json:"ride_count"`
+	AvgWaitTime   int     `json:"avg_wait_time_minutes"`
+	AvgFare       float64 `json:"avg_fare"`
+	DemandLevel   string  `json:"demand_level"` // low, medium, high, very_high
+	SurgeActive   bool    `json:"surge_active"`
+}
+
+// FinancialReport represents financial summary for a period
+type FinancialReport struct {
+	Period                 string  `json:"period"`
+	GrossRevenue           float64 `json:"gross_revenue"`
+	NetRevenue             float64 `json:"net_revenue"`
+	PlatformCommission     float64 `json:"platform_commission"`
+	DriverPayouts          float64 `json:"driver_payouts"`
+	PromoDiscounts         float64 `json:"promo_discounts"`
+	ReferralBonuses        float64 `json:"referral_bonuses"`
+	Refunds                float64 `json:"refunds"`
+	TotalExpenses          float64 `json:"total_expenses"`
+	Profit                 float64 `json:"profit"`
+	ProfitMargin           float64 `json:"profit_margin_percent"`
+	TotalRides             int     `json:"total_rides"`
+	CompletedRides         int     `json:"completed_rides"`
+	CancelledRides         int     `json:"cancelled_rides"`
+	AvgRevenuePerRide      float64 `json:"avg_revenue_per_ride"`
+	TopRevenueDay          string  `json:"top_revenue_day,omitempty"`
+	TopRevenueDayAmount    float64 `json:"top_revenue_day_amount"`
+}
+
+// DemandZone represents a high-demand geographic zone
+type DemandZone struct {
+	ZoneName      string  `json:"zone_name"`
+	CenterLat     float64 `json:"center_latitude"`
+	CenterLon     float64 `json:"center_longitude"`
+	RadiusKm      float64 `json:"radius_km"`
+	TotalRides    int     `json:"total_rides"`
+	AvgSurge      float64 `json:"avg_surge_multiplier"`
+	PeakHours     string  `json:"peak_hours"`
+}

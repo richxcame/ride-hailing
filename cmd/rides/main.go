@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/richxcame/ride-hailing/internal/pricing"
 	"github.com/richxcame/ride-hailing/internal/rides"
 	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
@@ -58,6 +59,12 @@ func main() {
 
 	repo := rides.NewRepository(db)
 	service := rides.NewService(repo, promosServiceURL)
+
+	// Initialize dynamic surge pricing calculator
+	surgeCalculator := pricing.NewSurgeCalculator(db)
+	service.SetSurgeCalculator(surgeCalculator)
+	logger.Info("Dynamic surge pricing enabled")
+
 	handler := rides.NewHandler(service)
 
 	if cfg.Server.Environment == "production" {

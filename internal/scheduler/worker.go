@@ -14,13 +14,20 @@ const (
 	checkInterval = 1 * time.Minute
 	// Look ahead window - process rides scheduled within next 30 minutes
 	lookAheadMinutes = 30
+	// Refresh analytics materialized views
+	demandZonesRefreshInterval = 15 * time.Minute
+	driverPerfRefreshInterval  = 1 * time.Hour
+	revenueRefreshInterval     = 24 * time.Hour
 )
 
-// Worker handles scheduled ride processing
+// Worker handles scheduled ride processing and maintenance tasks
 type Worker struct {
-	db     *pgxpool.Pool
-	logger *zap.Logger
-	done   chan struct{}
+	db                      *pgxpool.Pool
+	logger                  *zap.Logger
+	done                    chan struct{}
+	lastDemandZonesRefresh  time.Time
+	lastDriverPerfRefresh   time.Time
+	lastRevenueRefresh      time.Time
 }
 
 // NewWorker creates a new scheduler worker
@@ -32,25 +39,27 @@ func NewWorker(db *pgxpool.Pool, logger *zap.Logger) *Worker {
 	}
 }
 
-// Start begins the scheduled ride processing loop
+// Start begins the scheduled ride processing loop and maintenance tasks
 func (w *Worker) Start(ctx context.Context) {
-	w.logger.Info("Starting scheduled rides worker")
+	w.logger.Info("Starting scheduler worker with maintenance tasks")
 
 	ticker := time.NewTicker(checkInterval)
 	defer ticker.Stop()
 
 	// Run immediately on start
 	w.processScheduledRides(ctx)
+	w.refreshMaterializedViews(ctx)
 
 	for {
 		select {
 		case <-ticker.C:
 			w.processScheduledRides(ctx)
+			w.refreshMaterializedViews(ctx)
 		case <-ctx.Done():
-			w.logger.Info("Scheduled rides worker stopped")
+			w.logger.Info("Scheduler worker stopped")
 			return
 		case <-w.done:
-			w.logger.Info("Scheduled rides worker shutdown requested")
+			w.logger.Info("Scheduler worker shutdown requested")
 			return
 		}
 	}
@@ -212,4 +221,57 @@ func (w *Worker) sendUpcomingRideNotification(ctx context.Context, rideID, rider
 		zap.String("rider_id", riderID.String()))
 
 	return nil
+}
+
+// refreshMaterializedViews refreshes analytics materialized views based on their schedules
+func (w *Worker) refreshMaterializedViews(ctx context.Context) {
+	now := time.Now()
+
+	// Refresh demand zones every 15 minutes
+	if now.Sub(w.lastDemandZonesRefresh) >= demandZonesRefreshInterval {
+		w.logger.Info("Refreshing demand zones materialized view")
+		err := w.refreshView(ctx, "mv_demand_zones")
+		if err != nil {
+			w.logger.Error("Failed to refresh demand zones view", zap.Error(err))
+		} else {
+			w.lastDemandZonesRefresh = now
+			w.logger.Info("Successfully refreshed demand zones view")
+		}
+	}
+
+	// Refresh driver performance every hour
+	if now.Sub(w.lastDriverPerfRefresh) >= driverPerfRefreshInterval {
+		w.logger.Info("Refreshing driver performance materialized view")
+		err := w.refreshView(ctx, "mv_driver_performance")
+		if err != nil {
+			w.logger.Error("Failed to refresh driver performance view", zap.Error(err))
+		} else {
+			w.lastDriverPerfRefresh = now
+			w.logger.Info("Successfully refreshed driver performance view")
+		}
+	}
+
+	// Refresh revenue metrics daily
+	if now.Sub(w.lastRevenueRefresh) >= revenueRefreshInterval {
+		w.logger.Info("Refreshing revenue metrics materialized view")
+		err := w.refreshView(ctx, "mv_revenue_metrics")
+		if err != nil {
+			w.logger.Error("Failed to refresh revenue metrics view", zap.Error(err))
+		} else {
+			w.lastRevenueRefresh = now
+			w.logger.Info("Successfully refreshed revenue metrics view")
+		}
+	}
+}
+
+// refreshView refreshes a specific materialized view concurrently
+func (w *Worker) refreshView(ctx context.Context, viewName string) error {
+	query := "REFRESH MATERIALIZED VIEW CONCURRENTLY " + viewName
+
+	// Use a timeout context to prevent long-running refreshes from blocking
+	refreshCtx, cancel := context.WithTimeout(ctx, 5*time.Minute)
+	defer cancel()
+
+	_, err := w.db.Exec(refreshCtx, query)
+	return err
 }

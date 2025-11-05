@@ -11,7 +11,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/richxcame/ride-hailing/internal/analytics"
+	"github.com/richxcame/ride-hailing/internal/fraud"
+	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/database"
 	"github.com/richxcame/ride-hailing/pkg/logger"
@@ -20,7 +21,7 @@ import (
 )
 
 const (
-	serviceName = "analytics-service"
+	serviceName = "fraud-service"
 	version     = "1.0.0"
 )
 
@@ -35,7 +36,7 @@ func main() {
 	}
 	defer logger.Sync()
 
-	logger.Info("Starting analytics service",
+	logger.Info("Starting fraud detection service",
 		zap.String("service", serviceName),
 		zap.String("version", version),
 		zap.String("environment", cfg.Server.Environment),
@@ -48,9 +49,9 @@ func main() {
 	defer database.Close(db)
 	logger.Info("Connected to database")
 
-	repo := analytics.NewRepository(db)
-	service := analytics.NewService(repo)
-	handler := analytics.NewHandler(service)
+	repo := fraud.NewRepository(db)
+	service := fraud.NewService(repo)
+	handler := fraud.NewHandler(service)
 
 	if cfg.Server.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -62,8 +63,7 @@ func main() {
 	router.Use(middleware.CORS())
 	router.Use(middleware.Metrics(serviceName))
 
-	// Public endpoints
-	router.GET("/healthz", handler.HealthCheck)
+	router.GET("/healthz", common.HealthCheck(serviceName, version))
 	router.GET("/version", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{
 			"service": serviceName,
@@ -72,21 +72,7 @@ func main() {
 	})
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	// Admin-only analytics endpoints
-	api := router.Group("/api/v1/analytics")
-	api.Use(middleware.AuthMiddleware(cfg.JWT.Secret))
-	api.Use(middleware.RequireAdmin())
-	{
-		api.GET("/dashboard", handler.GetDashboardMetrics)
-		api.GET("/revenue", handler.GetRevenueMetrics)
-		api.GET("/promo-codes", handler.GetPromoCodePerformance)
-		api.GET("/ride-types", handler.GetRideTypeStats)
-		api.GET("/referrals", handler.GetReferralMetrics)
-		api.GET("/top-drivers", handler.GetTopDrivers)
-		api.GET("/heat-map", handler.GetDemandHeatMap)
-		api.GET("/financial-report", handler.GetFinancialReport)
-		api.GET("/demand-zones", handler.GetDemandZones)
-	}
+	handler.RegisterRoutes(router, cfg.JWT.Secret)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Server.Port,

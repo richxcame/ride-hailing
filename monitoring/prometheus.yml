@@ -15,6 +15,42 @@ scrape_configs:
     static_configs:
       - targets: ['geo-service:8080']
 
+  - job_name: 'payments-service'
+    static_configs:
+      - targets: ['payments-service:8080']
+
+  - job_name: 'notifications-service'
+    static_configs:
+      - targets: ['notifications-service:8080']
+
+  - job_name: 'realtime-service'
+    static_configs:
+      - targets: ['realtime-service:8080']
+
+  - job_name: 'mobile-service'
+    static_configs:
+      - targets: ['mobile-service:8080']
+
+  - job_name: 'admin-service'
+    static_configs:
+      - targets: ['admin-service:8080']
+
+  - job_name: 'promos-service'
+    static_configs:
+      - targets: ['promos-service:8080']
+
+  - job_name: 'scheduler-service'
+    static_configs:
+      - targets: ['scheduler-service:8080']
+
+  - job_name: 'analytics-service'
+    static_configs:
+      - targets: ['analytics-service:8080']
+
+  - job_name: 'fraud-service'
+    static_configs:
+      - targets: ['fraud-service:8080']
+
   - job_name: 'prometheus'
     static_configs:
       - targets: ['localhost:9090']

@@ -360,6 +360,33 @@ services:
       - ridehailing-network
     restart: unless-stopped
 
+  # Fraud Detection Service
+  fraud-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SERVICE_NAME: fraud
+    container_name: ridehailing-fraud
+    environment:
+      PORT: 8080
+      ENVIRONMENT: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: ridehailing
+      DB_SSLMODE: disable
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+    ports:
+      - "8092:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ridehailing-network
+    restart: unless-stopped
+
   # Prometheus for metrics
   prometheus:
     image: prom/prometheus:latest

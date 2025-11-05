@@ -135,6 +135,75 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 	})
 }
 
+// GetDemandHeatMap handles demand heat map requests
+func (h *Handler) GetDemandHeatMap(c *gin.Context) {
+	startDate, endDate, err := parseDateRange(c)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Optional grid size parameter (in degrees, default 0.01 = ~1km)
+	gridSizeStr := c.DefaultQuery("grid_size", "0.01")
+	gridSize, err := strconv.ParseFloat(gridSizeStr, 64)
+	if err != nil || gridSize <= 0 {
+		gridSize = 0.01
+	}
+
+	heatMap, err := h.service.GetDemandHeatMap(c.Request.Context(), startDate, endDate, gridSize)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get demand heat map")
+		return
+	}
+
+	common.SuccessResponse(c, gin.H{
+		"heat_map": heatMap,
+		"grid_size_km": gridSize * 111, // Approximate conversion to km
+	})
+}
+
+// GetFinancialReport handles financial report requests
+func (h *Handler) GetFinancialReport(c *gin.Context) {
+	startDate, endDate, err := parseDateRange(c)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	report, err := h.service.GetFinancialReport(c.Request.Context(), startDate, endDate)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get financial report")
+		return
+	}
+
+	common.SuccessResponse(c, report)
+}
+
+// GetDemandZones handles demand zones requests
+func (h *Handler) GetDemandZones(c *gin.Context) {
+	startDate, endDate, err := parseDateRange(c)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	minRidesStr := c.DefaultQuery("min_rides", "20")
+	minRides, err := strconv.Atoi(minRidesStr)
+	if err != nil || minRides < 1 {
+		minRides = 20
+	}
+
+	zones, err := h.service.GetDemandZones(c.Request.Context(), startDate, endDate, minRides)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get demand zones")
+		return
+	}
+
+	common.SuccessResponse(c, gin.H{
+		"zones": zones,
+	})
+}
+
 // parseDateRange parses start_date and end_date query parameters
 func parseDateRange(c *gin.Context) (time.Time, time.Time, error) {
 	startDateStr := c.Query("start_date")

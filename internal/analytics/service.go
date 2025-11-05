@@ -44,3 +44,18 @@ func (s *Service) GetTopDrivers(ctx context.Context, startDate, endDate time.Tim
 func (s *Service) GetDashboardMetrics(ctx context.Context) (*DashboardMetrics, error) {
 	return s.repo.GetDashboardMetrics(ctx)
 }
+
+// GetDemandHeatMap retrieves geographic demand data for heat map visualization
+func (s *Service) GetDemandHeatMap(ctx context.Context, startDate, endDate time.Time, gridSize float64) ([]*DemandHeatMap, error) {
+	return s.repo.GetDemandHeatMap(ctx, startDate, endDate, gridSize)
+}
+
+// GetFinancialReport generates a comprehensive financial report for a period
+func (s *Service) GetFinancialReport(ctx context.Context, startDate, endDate time.Time) (*FinancialReport, error) {
+	return s.repo.GetFinancialReport(ctx, startDate, endDate)
+}
+
+// GetDemandZones identifies high-demand geographic zones
+func (s *Service) GetDemandZones(ctx context.Context, startDate, endDate time.Time, minRides int) ([]*DemandZone, error) {
+	return s.repo.GetDemandZones(ctx, startDate, endDate, minRides)
+}

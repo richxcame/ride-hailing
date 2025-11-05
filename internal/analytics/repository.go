@@ -315,3 +315,236 @@ func (r *Repository) GetDashboardMetrics(ctx context.Context) (*DashboardMetrics
 
 	return metrics, nil
 }
+
+// GetDemandHeatMap retrieves geographic demand data for heat map visualization
+func (r *Repository) GetDemandHeatMap(ctx context.Context, startDate, endDate time.Time, gridSize float64) ([]*DemandHeatMap, error) {
+	// Grid size is in degrees (approximately 0.01 = 1km)
+	if gridSize == 0 {
+		gridSize = 0.01 // Default ~1km grid
+	}
+
+	query := `
+		SELECT
+			ROUND(pickup_latitude / $3) * $3 as grid_lat,
+			ROUND(pickup_longitude / $3) * $3 as grid_lon,
+			COUNT(*) as ride_count,
+			COALESCE(AVG(EXTRACT(EPOCH FROM (accepted_at - requested_at)) / 60), 0)::int as avg_wait_minutes,
+			COALESCE(AVG(final_fare), 0) as avg_fare,
+			COALESCE(AVG(surge_multiplier), 1.0) as avg_surge
+		FROM rides
+		WHERE status = 'completed'
+		  AND completed_at >= $1
+		  AND completed_at <= $2
+		  AND pickup_latitude IS NOT NULL
+		  AND pickup_longitude IS NOT NULL
+		GROUP BY grid_lat, grid_lon
+		HAVING COUNT(*) >= 3
+		ORDER BY ride_count DESC
+		LIMIT 100
+	`
+
+	rows, err := r.db.Query(ctx, query, startDate, endDate, gridSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get demand heat map: %w", err)
+	}
+	defer rows.Close()
+
+	var results []*DemandHeatMap
+	for rows.Next() {
+		heatMap := &DemandHeatMap{}
+		var avgSurge float64
+
+		err := rows.Scan(
+			&heatMap.Latitude,
+			&heatMap.Longitude,
+			&heatMap.RideCount,
+			&heatMap.AvgWaitTime,
+			&heatMap.AvgFare,
+			&avgSurge,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan heat map data: %w", err)
+		}
+
+		// Determine demand level based on ride count
+		switch {
+		case heatMap.RideCount >= 50:
+			heatMap.DemandLevel = "very_high"
+		case heatMap.RideCount >= 20:
+			heatMap.DemandLevel = "high"
+		case heatMap.RideCount >= 10:
+			heatMap.DemandLevel = "medium"
+		default:
+			heatMap.DemandLevel = "low"
+		}
+
+		heatMap.SurgeActive = avgSurge > 1.0
+
+		results = append(results, heatMap)
+	}
+
+	return results, nil
+}
+
+// GetFinancialReport generates a comprehensive financial report for a period
+func (r *Repository) GetFinancialReport(ctx context.Context, startDate, endDate time.Time) (*FinancialReport, error) {
+	report := &FinancialReport{
+		Period: fmt.Sprintf("%s to %s", startDate.Format("2006-01-02"), endDate.Format("2006-01-02")),
+	}
+
+	// Get ride and revenue statistics
+	rideQuery := `
+		SELECT
+			COUNT(*) FILTER (WHERE status = 'completed') as completed_rides,
+			COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled_rides,
+			COUNT(*) as total_rides,
+			COALESCE(SUM(final_fare) FILTER (WHERE status = 'completed'), 0) as gross_revenue,
+			COALESCE(SUM(discount_amount) FILTER (WHERE status = 'completed'), 0) as promo_discounts,
+			COALESCE(AVG(final_fare) FILTER (WHERE status = 'completed'), 0) as avg_revenue_per_ride
+		FROM rides
+		WHERE requested_at >= $1
+		  AND requested_at <= $2
+	`
+
+	err := r.db.QueryRow(ctx, rideQuery, startDate, endDate).Scan(
+		&report.CompletedRides,
+		&report.CancelledRides,
+		&report.TotalRides,
+		&report.GrossRevenue,
+		&report.PromoDiscounts,
+		&report.AvgRevenuePerRide,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ride statistics: %w", err)
+	}
+
+	// Calculate platform commission (20% of gross revenue)
+	report.PlatformCommission = report.GrossRevenue * commissionRate
+	report.DriverPayouts = report.GrossRevenue * (1 - commissionRate)
+
+	// Get referral bonuses paid
+	referralQuery := `
+		SELECT COALESCE(SUM(referrer_bonus + referred_bonus), 0)
+		FROM referrals
+		WHERE referrer_bonus_applied = true
+		  AND created_at >= $1
+		  AND created_at <= $2
+	`
+
+	err = r.db.QueryRow(ctx, referralQuery, startDate, endDate).Scan(&report.ReferralBonuses)
+	if err != nil {
+		report.ReferralBonuses = 0
+	}
+
+	// TODO: Get actual refunds from payments table when available
+	// For now, estimate as 5% of cancelled rides
+	report.Refunds = float64(report.CancelledRides) * 5.0
+
+	// Calculate financial metrics
+	report.TotalExpenses = report.DriverPayouts + report.PromoDiscounts + report.ReferralBonuses + report.Refunds
+	report.NetRevenue = report.GrossRevenue - report.PromoDiscounts
+	report.Profit = report.PlatformCommission - report.ReferralBonuses - report.Refunds
+
+	if report.NetRevenue > 0 {
+		report.ProfitMargin = (report.Profit / report.NetRevenue) * 100
+	}
+
+	// Get top revenue day
+	dayQuery := `
+		SELECT
+			DATE(completed_at) as revenue_day,
+			SUM(final_fare) as day_revenue
+		FROM rides
+		WHERE status = 'completed'
+		  AND completed_at >= $1
+		  AND completed_at <= $2
+		GROUP BY revenue_day
+		ORDER BY day_revenue DESC
+		LIMIT 1
+	`
+
+	var topDay *time.Time
+	err = r.db.QueryRow(ctx, dayQuery, startDate, endDate).Scan(&topDay, &report.TopRevenueDayAmount)
+	if err == nil && topDay != nil {
+		report.TopRevenueDay = topDay.Format("2006-01-02")
+	}
+
+	return report, nil
+}
+
+// GetDemandZones identifies high-demand geographic zones
+func (r *Repository) GetDemandZones(ctx context.Context, startDate, endDate time.Time, minRides int) ([]*DemandZone, error) {
+	if minRides == 0 {
+		minRides = 20 // Default minimum rides to qualify as a zone
+	}
+
+	query := `
+		WITH zone_data AS (
+			SELECT
+				ROUND(pickup_latitude / 0.05) * 0.05 as zone_lat,
+				ROUND(pickup_longitude / 0.05) * 0.05 as zone_lon,
+				COUNT(*) as ride_count,
+				COALESCE(AVG(surge_multiplier), 1.0) as avg_surge,
+				ARRAY_AGG(DISTINCT EXTRACT(HOUR FROM requested_at)::int ORDER BY EXTRACT(HOUR FROM requested_at)::int) as hours
+			FROM rides
+			WHERE status = 'completed'
+			  AND completed_at >= $1
+			  AND completed_at <= $2
+			GROUP BY zone_lat, zone_lon
+			HAVING COUNT(*) >= $3
+		)
+		SELECT
+			zone_lat,
+			zone_lon,
+			ride_count,
+			avg_surge,
+			hours
+		FROM zone_data
+		ORDER BY ride_count DESC
+		LIMIT 20
+	`
+
+	rows, err := r.db.Query(ctx, query, startDate, endDate, minRides)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get demand zones: %w", err)
+	}
+	defer rows.Close()
+
+	var results []*DemandZone
+	zoneNum := 1
+	for rows.Next() {
+		zone := &DemandZone{
+			RadiusKm: 5.0, // ~5km radius for each zone
+		}
+
+		var hours []int
+		err := rows.Scan(
+			&zone.CenterLat,
+			&zone.CenterLon,
+			&zone.TotalRides,
+			&zone.AvgSurge,
+			&hours,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan demand zone: %w", err)
+		}
+
+		zone.ZoneName = fmt.Sprintf("Zone %d", zoneNum)
+		zoneNum++
+
+		// Format peak hours
+		if len(hours) > 0 {
+			peakHours := []string{}
+			for _, h := range hours {
+				if len(peakHours) < 3 { // Show top 3 peak hours
+					peakHours = append(peakHours, fmt.Sprintf("%02d:00", h))
+				}
+			}
+			zone.PeakHours = fmt.Sprintf("%v", peakHours)
+		}
+
+		results = append(results, zone)
+	}
+
+	return results, nil
+}
