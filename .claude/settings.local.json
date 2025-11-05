@@ -9,7 +9,8 @@
       "Bash(go get:*)",
       "Bash(docker-compose:*)",
       "Bash(go test:*)",
-      "Bash(go mod tidy:*)"
+      "Bash(go mod tidy:*)",
+      "Bash(curl:*)"
     ],
     "deny": [],
     "ask": []

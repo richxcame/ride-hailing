@@ -1,0 +1,291 @@
+package promos
+
+import (
+	"context"
+	"fmt"
+	"math/rand"
+	"strings"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+const (
+	// Referral bonus amounts
+	ReferrerBonusAmount = 10.00 // Bonus for the person who refers
+	ReferredBonusAmount = 10.00 // Bonus for the new user
+)
+
+// Service handles promo code and referral business logic
+type Service struct {
+	repo *Repository
+}
+
+// NewService creates a new promos service
+func NewService(repo *Repository) *Service {
+	return &Service{repo: repo}
+}
+
+// ValidatePromoCode validates a promo code and calculates the discount
+func (s *Service) ValidatePromoCode(ctx context.Context, code string, userID uuid.UUID, rideAmount float64) (*PromoCodeValidation, error) {
+	// Get promo code
+	promo, err := s.repo.GetPromoCodeByCode(ctx, code)
+	if err != nil {
+		return &PromoCodeValidation{
+			Valid:   false,
+			Message: "Invalid promo code",
+		}, nil
+	}
+
+	// Check if active
+	if !promo.IsActive {
+		return &PromoCodeValidation{
+			Valid:   false,
+			Message: "This promo code is no longer active",
+		}, nil
+	}
+
+	// Check validity dates
+	now := time.Now()
+	if now.Before(promo.ValidFrom) {
+		return &PromoCodeValidation{
+			Valid:   false,
+			Message: "This promo code is not yet valid",
+		}, nil
+	}
+	if now.After(promo.ValidUntil) {
+		return &PromoCodeValidation{
+			Valid:   false,
+			Message: "This promo code has expired",
+		}, nil
+	}
+
+	// Check max uses
+	if promo.MaxUses != nil && promo.TotalUses >= *promo.MaxUses {
+		return &PromoCodeValidation{
+			Valid:   false,
+			Message: "This promo code has reached its maximum usage limit",
+		}, nil
+	}
+
+	// Check uses per user
+	userUses, err := s.repo.GetPromoCodeUsesByUser(ctx, promo.ID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check user uses: %w", err)
+	}
+
+	if userUses >= promo.UsesPerUser {
+		return &PromoCodeValidation{
+			Valid:   false,
+			Message: "You have already used this promo code the maximum number of times",
+		}, nil
+	}
+
+	// Check minimum ride amount
+	if promo.MinRideAmount != nil && rideAmount < *promo.MinRideAmount {
+		return &PromoCodeValidation{
+			Valid:   false,
+			Message: fmt.Sprintf("Minimum ride amount of $%.2f required to use this promo code", *promo.MinRideAmount),
+		}, nil
+	}
+
+	// Calculate discount
+	var discountAmount float64
+	if promo.DiscountType == "percentage" {
+		discountAmount = rideAmount * (promo.DiscountValue / 100.0)
+		// Apply max discount if set
+		if promo.MaxDiscountAmount != nil && discountAmount > *promo.MaxDiscountAmount {
+			discountAmount = *promo.MaxDiscountAmount
+		}
+	} else {
+		// Fixed amount
+		discountAmount = promo.DiscountValue
+	}
+
+	// Ensure discount doesn't exceed ride amount
+	if discountAmount > rideAmount {
+		discountAmount = rideAmount
+	}
+
+	finalAmount := rideAmount - discountAmount
+
+	return &PromoCodeValidation{
+		Valid:          true,
+		DiscountAmount: discountAmount,
+		FinalAmount:    finalAmount,
+	}, nil
+}
+
+// ApplyPromoCode applies a promo code to a ride
+func (s *Service) ApplyPromoCode(ctx context.Context, code string, userID, rideID uuid.UUID, originalAmount float64) (*PromoCodeUse, error) {
+	// Validate first
+	validation, err := s.ValidatePromoCode(ctx, code, userID, originalAmount)
+	if err != nil {
+		return nil, err
+	}
+
+	if !validation.Valid {
+		return nil, fmt.Errorf(validation.Message)
+	}
+
+	// Get promo code again
+	promo, err := s.repo.GetPromoCodeByCode(ctx, code)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create promo code use record
+	use := &PromoCodeUse{
+		PromoCodeID:    promo.ID,
+		UserID:         userID,
+		RideID:         rideID,
+		DiscountAmount: validation.DiscountAmount,
+		OriginalAmount: originalAmount,
+		FinalAmount:    validation.FinalAmount,
+	}
+
+	err = s.repo.CreatePromoCodeUse(ctx, use)
+	if err != nil {
+		return nil, fmt.Errorf("failed to apply promo code: %w", err)
+	}
+
+	return use, nil
+}
+
+// CreatePromoCode creates a new promo code (admin only)
+func (s *Service) CreatePromoCode(ctx context.Context, promo *PromoCode) error {
+	// Validate promo code
+	if promo.Code == "" {
+		return fmt.Errorf("promo code cannot be empty")
+	}
+
+	// Normalize code (uppercase, no spaces)
+	promo.Code = strings.ToUpper(strings.TrimSpace(promo.Code))
+
+	if promo.DiscountType != "percentage" && promo.DiscountType != "fixed_amount" {
+		return fmt.Errorf("discount type must be 'percentage' or 'fixed_amount'")
+	}
+
+	if promo.DiscountValue <= 0 {
+		return fmt.Errorf("discount value must be greater than 0")
+	}
+
+	if promo.DiscountType == "percentage" && promo.DiscountValue > 100 {
+		return fmt.Errorf("percentage discount cannot exceed 100%%")
+	}
+
+	if promo.ValidFrom.After(promo.ValidUntil) {
+		return fmt.Errorf("valid_from must be before valid_until")
+	}
+
+	return s.repo.CreatePromoCode(ctx, promo)
+}
+
+// GenerateReferralCode generates a unique referral code for a user
+func (s *Service) GenerateReferralCode(ctx context.Context, userID uuid.UUID, baseCode string) (*ReferralCode, error) {
+	// Try to get existing referral code
+	existing, err := s.repo.GetReferralCodeByUserID(ctx, userID)
+	if err == nil {
+		return existing, nil
+	}
+
+	// Generate unique code
+	code := s.generateUniqueCode(baseCode)
+
+	referral := &ReferralCode{
+		UserID:         userID,
+		Code:           code,
+		TotalReferrals: 0,
+		TotalEarnings:  0,
+	}
+
+	err = s.repo.CreateReferralCode(ctx, referral)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create referral code: %w", err)
+	}
+
+	return referral, nil
+}
+
+// ApplyReferralCode applies a referral code when a new user signs up
+func (s *Service) ApplyReferralCode(ctx context.Context, referralCode string, newUserID uuid.UUID) error {
+	// Get referral code
+	refCode, err := s.repo.GetReferralCodeByCode(ctx, referralCode)
+	if err != nil {
+		return fmt.Errorf("invalid referral code")
+	}
+
+	// Can't refer yourself
+	if refCode.UserID == newUserID {
+		return fmt.Errorf("you cannot use your own referral code")
+	}
+
+	// Create referral relationship
+	referral := &Referral{
+		ReferrerID:           refCode.UserID,
+		ReferredID:           newUserID,
+		ReferralCodeID:       refCode.ID,
+		ReferrerBonus:        ReferrerBonusAmount,
+		ReferredBonus:        ReferredBonusAmount,
+		ReferrerBonusApplied: false,
+		ReferredBonusApplied: false,
+	}
+
+	err = s.repo.CreateReferral(ctx, referral)
+	if err != nil {
+		return fmt.Errorf("failed to apply referral code: %w", err)
+	}
+
+	return nil
+}
+
+// GetAllRideTypes retrieves all available ride types
+func (s *Service) GetAllRideTypes(ctx context.Context) ([]*RideType, error) {
+	return s.repo.GetAllRideTypes(ctx)
+}
+
+// GetRideTypeByID retrieves a specific ride type
+func (s *Service) GetRideTypeByID(ctx context.Context, id uuid.UUID) (*RideType, error) {
+	return s.repo.GetRideTypeByID(ctx, id)
+}
+
+// CalculateFareForRideType calculates fare based on ride type
+func (s *Service) CalculateFareForRideType(ctx context.Context, rideTypeID uuid.UUID, distance float64, duration int, surgeMultiplier float64) (float64, error) {
+	rideType, err := s.repo.GetRideTypeByID(ctx, rideTypeID)
+	if err != nil {
+		return 0, err
+	}
+
+	// Calculate base fare
+	distanceCost := distance * rideType.PerKmRate
+	timeCost := float64(duration) * rideType.PerMinuteRate
+	baseFare := rideType.BaseFare + distanceCost + timeCost
+
+	// Apply surge multiplier
+	fare := baseFare * surgeMultiplier
+
+	// Ensure minimum fare
+	if fare < rideType.MinimumFare {
+		fare = rideType.MinimumFare
+	}
+
+	return fare, nil
+}
+
+// generateUniqueCode generates a unique referral code
+func (s *Service) generateUniqueCode(base string) string {
+	// Clean base string
+	base = strings.ToUpper(strings.ReplaceAll(base, " ", ""))
+	if len(base) > 6 {
+		base = base[:6]
+	}
+
+	// Add random suffix
+	const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	suffix := make([]byte, 4)
+	for i := range suffix {
+		suffix[i] = charset[rand.Intn(len(charset))]
+	}
+
+	return base + string(suffix)
+}
