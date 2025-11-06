@@ -1,8 +1,11 @@
 package middleware
 
 import (
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/richxcame/ride-hailing/pkg/logger"
 )
 
 const (
@@ -16,7 +19,14 @@ const (
 func CorrelationID() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// Try to get correlation ID from header
-		correlationID := c.GetHeader(CorrelationIDHeader)
+		correlationID := strings.TrimSpace(c.GetHeader(CorrelationIDHeader))
+
+		// Validate provided correlation ID
+		if correlationID != "" {
+			if _, err := uuid.Parse(correlationID); err != nil {
+				correlationID = ""
+			}
+		}
 
 		// If not provided, generate a new UUID
 		if correlationID == "" {
@@ -25,6 +35,10 @@ func CorrelationID() gin.HandlerFunc {
 
 		// Store in context for use by handlers
 		c.Set(CorrelationIDKey, correlationID)
+
+		// Store in request context for downstream usage
+		ctx := logger.ContextWithCorrelationID(c.Request.Context(), correlationID)
+		c.Request = c.Request.WithContext(ctx)
 
 		// Add to response headers
 		c.Writer.Header().Set(CorrelationIDHeader, correlationID)
@@ -40,5 +54,5 @@ func GetCorrelationID(c *gin.Context) string {
 			return correlationID
 		}
 	}
-	return ""
+	return logger.CorrelationIDFromContext(c.Request.Context())
 }

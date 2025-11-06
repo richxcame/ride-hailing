@@ -70,6 +70,7 @@ func main() {
 
 	// Set up Gin router
 	router := gin.Default()
+	router.Use(middleware.CorrelationID())
 
 	// Health check and metrics (no auth required)
 	router.GET("/healthz", func(c *gin.Context) {
