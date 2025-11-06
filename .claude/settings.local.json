@@ -28,7 +28,8 @@
       "Bash(./generate-services.sh:*)",
       "Bash(do echo '=== $service ===' echo 'cmd/$service files:' ls -la /Users/richxcame/dev/richxcame/ride-hailing/cmd/$service/)",
       "Bash(xargs dirname:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

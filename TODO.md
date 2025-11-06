@@ -1,0 +1,1039 @@
+# Backend Improvement Plan
+
+## Overview
+
+This document outlines improvements for the ride-hailing backend. The codebase has strong architectural foundations with 13 microservices and enterprise features, but needs hardening in testing, validation, and operational resilience.
+
+**Current State:** 7.5/10 - Excellent architecture, needs operational readiness improvements
+
+---
+
+## Priority 1: Critical Improvements (Do First)
+
+### 1.1 Testing Infrastructure
+
+**Impact:** HIGH | **Effort:** HIGH | **Timeline:** 2-3 weeks
+
+Current coverage is insufficient (only 2 test files). Need comprehensive testing.
+
+-   [ ] **Unit Tests for All Services**
+
+    -   [ ] Auth service tests (JWT validation, password hashing, RBAC)
+    -   [ ] Geo service tests (Redis GeoSpatial queries, distance calculations)
+    -   [ ] Notifications service tests (mocked Firebase, Twilio, SMTP)
+    -   [ ] Real-time service tests (WebSocket hub, message routing)
+    -   [ ] Fraud service tests (risk scoring, alert generation)
+    -   [ ] ML ETA service tests (prediction accuracy, feature weights)
+    -   [ ] Analytics service tests (aggregation queries, metrics)
+    -   [ ] Promos service tests (discount calculations, referral logic)
+    -   Target: 80%+ code coverage
+
+-   [ ] **Integration Tests**
+
+    -   [ ] Complete ride flow (request → match → pickup → complete → payment)
+    -   [ ] Authentication flow (register → login → refresh token)
+    -   [ ] Payment processing (Stripe webhook handling)
+    -   [ ] Promo code application (validation, discount calculation)
+    -   [ ] Fraud detection triggering (suspicious activity)
+
+-   [ ] **Test Infrastructure**
+
+    -   [ ] Docker compose for test dependencies (Postgres, Redis)
+    -   [ ] Test data fixtures and factory functions
+    -   [ ] Mock implementations for external APIs (Stripe, Firebase, Twilio)
+    -   [ ] Test helper utilities (assertions, database setup/teardown)
+    -   [ ] CI/CD pipeline configuration (GitHub Actions)
+
+-   [ ] **Coverage Reporting**
+    -   [ ] Set up coverage collection (`go test -cover`)
+    -   [ ] Add coverage badge to README
+    -   [ ] Enforce minimum coverage thresholds (80%)
+    -   [ ] Coverage reports in CI/CD
+
+**Files to Create:**
+
+-   `internal/auth/auth_test.go`
+-   `internal/geo/geo_test.go`
+-   `internal/notifications/notifications_test.go`
+-   `internal/fraud/fraud_test.go`
+-   `internal/ml_eta/ml_eta_test.go`
+-   `internal/analytics/analytics_test.go`
+-   `test/integration/ride_flow_test.go`
+-   `test/integration/auth_flow_test.go`
+-   `test/mocks/stripe_mock.go`
+-   `test/mocks/firebase_mock.go`
+-   `.github/workflows/test.yml`
+
+---
+
+### 1.2 Input Validation Layer
+
+**Impact:** HIGH | **Effort:** MEDIUM | **Timeline:** 1 week
+
+Currently relying on database constraints. Need explicit validation.
+
+-   [ ] **Create Validation Package**
+
+    -   [ ] Email format validation (RFC 5322)
+    -   [ ] Phone number validation (E.164 format)
+    -   [ ] Coordinate bounds validation (-90 to 90 lat, -180 to 180 lon)
+    -   [ ] Distance/duration range validation
+    -   [ ] Amount validation (min/max, positive values)
+    -   [ ] String length and character set validation
+    -   [ ] Date/time validation (future dates for scheduling)
+
+-   [ ] **Add Request Validation**
+
+    -   [ ] Validate all API inputs before processing
+    -   [ ] Return structured validation errors (field-level)
+    -   [ ] Add validation middleware for common patterns
+    -   [ ] Sanitize inputs to prevent XSS
+
+-   [ ] **Use Validation Library**
+    -   [ ] Integrate `github.com/go-playground/validator/v10`
+    -   [ ] Add custom validation tags
+    -   [ ] Create reusable validation functions
+
+**Files to Create:**
+
+-   `pkg/validation/validator.go`
+-   `pkg/validation/rules.go`
+-   `pkg/validation/errors.go`
+-   `pkg/middleware/validation.go`
+
+**Example Implementation:**
+
+```go
+type CreateRideRequest struct {
+    PickupLat    float64 `validate:"required,latitude"`
+    PickupLon    float64 `validate:"required,longitude"`
+    DropoffLat   float64 `validate:"required,latitude"`
+    DropoffLon   float64 `validate:"required,longitude"`
+    RideType     string  `validate:"required,oneof=economy premium xl"`
+    PromoCode    string  `validate:"omitempty,alphanum,max=20"`
+    ScheduledFor *time.Time `validate:"omitempty,future"`
+}
+```
+
+---
+
+### 1.3 Request Tracing with Correlation IDs
+
+**Impact:** HIGH | **Effort:** LOW | **Timeline:** 2-3 days
+
+Essential for debugging distributed systems.
+
+-   [ ] **Add Correlation ID Middleware**
+
+    -   [ ] Generate UUID for each request
+    -   [ ] Accept X-Request-ID header if provided
+    -   [ ] Add to request context
+    -   [ ] Include in all log messages
+    -   [ ] Return in response headers
+    -   [ ] Propagate across service boundaries
+
+-   [ ] **Update Logging**
+    -   [ ] Add correlation ID to all log entries
+    -   [ ] Include service name, method, path
+    -   [ ] Log request/response payloads (sanitized)
+    -   [ ] Add log levels (DEBUG, INFO, WARN, ERROR)
+
+**Files to Modify:**
+
+-   `pkg/middleware/logging.go` (add correlation ID)
+-   `pkg/common/logger.go` (add correlation ID extraction)
+-   All service handlers (propagate correlation ID)
+
+---
+
+### 1.4 OpenAPI/Swagger Specifications
+
+**Impact:** MEDIUM | **Effort:** MEDIUM | **Timeline:** 1 week
+
+Essential for API documentation and client generation.
+
+-   [ ] **Generate OpenAPI Specs**
+
+    -   [ ] Use `swaggo/swag` for annotation-based generation
+    -   [ ] Document all endpoints with examples
+    -   [ ] Include request/response schemas
+    -   [ ] Add authentication requirements
+    -   [ ] Document error responses
+
+-   [ ] **Serve Swagger UI**
+
+    -   [ ] Add Swagger UI endpoint (`/swagger`)
+    -   [ ] Auto-generate on code changes
+    -   [ ] Version API endpoints (`/api/v1`)
+
+-   [ ] **API Versioning**
+    -   [ ] Implement URL-based versioning
+    -   [ ] Add version negotiation
+    -   [ ] Deprecation policy
+
+**Files to Create:**
+
+-   `docs/swagger.yaml` (per service)
+-   API route versioning: `/api/v1/rides`, `/api/v1/auth`, etc.
+
+---
+
+## Priority 2: Security Hardening (Do Next)
+
+### 2.1 Application-Level Rate Limiting
+
+**Impact:** HIGH | **Effort:** MEDIUM | **Timeline:** 3-4 days
+
+Kong provides gateway-level limits, but need per-endpoint control.
+
+-   [ ] **Implement Rate Limiter**
+
+    -   [ ] Redis-backed token bucket algorithm
+    -   [ ] Per-user rate limits (authenticated)
+    -   [ ] Per-IP rate limits (anonymous)
+    -   [ ] Per-endpoint configuration
+    -   [ ] Burst allowance
+    -   [ ] Rate limit headers (X-RateLimit-\*)
+
+-   [ ] **Add Rate Limit Middleware**
+    -   [ ] Configurable limits per service
+    -   [ ] Return 429 Too Many Requests
+    -   [ ] Include retry-after header
+
+**Example Limits:**
+
+-   Auth: 5 login attempts per 15 minutes
+-   Rides: 10 ride requests per minute
+-   Payments: 5 payment attempts per hour
+-   API: 100 requests per minute per user
+
+**Files to Create:**
+
+-   `pkg/middleware/ratelimit.go`
+-   `pkg/ratelimit/redis_limiter.go`
+-   `pkg/ratelimit/config.go`
+
+---
+
+### 2.2 Input Sanitization
+
+**Impact:** HIGH | **Effort:** LOW | **Timeline:** 2 days
+
+Prevent XSS and injection attacks.
+
+-   [ ] **Add Sanitization Layer**
+
+    -   [ ] HTML entity encoding for text fields
+    -   [ ] Strip dangerous HTML tags
+    -   [ ] Sanitize SQL special characters (already using parameterized queries)
+    -   [ ] Validate JSON payloads against schema
+
+-   [ ] **Security Headers**
+    -   [ ] Content-Security-Policy
+    -   [ ] X-Content-Type-Options: nosniff
+    -   [ ] X-Frame-Options: DENY
+    -   [ ] X-XSS-Protection: 1; mode=block
+
+**Files to Create:**
+
+-   `pkg/security/sanitize.go`
+-   `pkg/middleware/security_headers.go`
+
+---
+
+### 2.3 JWT Secret Rotation
+
+**Impact:** MEDIUM | **Effort:** MEDIUM | **Timeline:** 3 days
+
+Currently using single static secret.
+
+-   [ ] **Implement Key Rotation**
+
+    -   [ ] Support multiple active keys (key versioning)
+    -   [ ] Add key ID (kid) to JWT header
+    -   [ ] Automatic rotation schedule (monthly)
+    -   [ ] Graceful key deprecation
+    -   [ ] Key storage in secure vault (AWS Secrets Manager, HashiCorp Vault)
+
+-   [ ] **Update Auth Service**
+    -   [ ] Sign with latest key
+    -   [ ] Verify with any active key
+    -   [ ] Reject tokens with revoked keys
+
+**Files to Modify:**
+
+-   `pkg/auth/jwt.go` (add key rotation support)
+-   `internal/auth/service.go` (use versioned keys)
+
+---
+
+### 2.4 Secrets Management
+
+**Impact:** HIGH | **Effort:** MEDIUM | **Timeline:** 3-4 days
+
+Currently using environment variables directly.
+
+-   [ ] **Integrate Secrets Management**
+
+    -   [ ] HashiCorp Vault integration
+    -   [ ] AWS Secrets Manager (if on AWS)
+    -   [ ] Google Secret Manager (if on GCP)
+    -   [ ] Kubernetes secrets for K8s deployment
+
+-   [ ] **Secret Types to Manage**
+
+    -   [ ] Database credentials
+    -   [ ] JWT signing keys
+    -   [ ] Stripe API keys
+    -   [ ] Firebase credentials
+    -   [ ] Twilio auth tokens
+    -   [ ] SMTP passwords
+
+-   [ ] **Rotation Policy**
+    -   [ ] Automatic credential rotation (90 days)
+    -   [ ] Secret versioning
+    -   [ ] Audit logging
+
+**Files to Create:**
+
+-   `pkg/secrets/vault.go`
+-   `pkg/secrets/manager.go`
+-   `configs/vault-policy.hcl`
+
+---
+
+## Priority 3: Resilience Patterns (Week 3-4)
+
+### 3.1 Circuit Breakers
+
+**Impact:** HIGH | **Effort:** MEDIUM | **Timeline:** 4-5 days
+
+Prevent cascading failures in distributed system.
+
+-   [ ] **Implement Circuit Breaker**
+
+    -   [ ] Use `github.com/sony/gobreaker`
+    -   [ ] Configure per external dependency
+    -   [ ] States: Closed → Open → Half-Open
+    -   [ ] Threshold: 5 failures in 10 seconds
+    -   [ ] Timeout: 30 seconds before retry
+    -   [ ] Metrics: failure rate, state changes
+
+-   [ ] **Apply to External Services**
+
+    -   [ ] Stripe API calls (payments)
+    -   [ ] Firebase FCM (notifications)
+    -   [ ] Twilio SMS (notifications)
+    -   [ ] SMTP servers (email)
+    -   [ ] Database connections (primary/replica)
+
+-   [ ] **Fallback Mechanisms**
+    -   [ ] Notification failures: Queue for retry
+    -   [ ] Payment failures: Return user-friendly error
+    -   [ ] ML ETA failures: Fall back to simple distance-based calculation
+
+**Files to Create:**
+
+-   `pkg/resilience/circuit_breaker.go`
+-   `pkg/resilience/fallback.go`
+
+---
+
+### 3.2 Retry Logic with Exponential Backoff
+
+**Impact:** MEDIUM | **Effort:** LOW | **Timeline:** 2 days
+
+Handle transient failures gracefully.
+
+-   [ ] **Implement Retry Logic**
+
+    -   [ ] Exponential backoff: 1s, 2s, 4s, 8s
+    -   [ ] Max retries: 3-5 depending on operation
+    -   [ ] Jitter to prevent thundering herd
+    -   [ ] Idempotency tokens for safe retries
+
+-   [ ] **Apply to Operations**
+    -   [ ] HTTP client calls
+    -   [ ] Database query failures (replica fallback)
+    -   [ ] Redis connection errors
+    -   [ ] External API calls
+
+**Files to Create:**
+
+-   `pkg/resilience/retry.go`
+-   `pkg/http/client.go` (with retry support)
+
+---
+
+### 3.3 Timeout Configuration
+
+**Impact:** MEDIUM | **Effort:** LOW | **Timeline:** 1-2 days
+
+Prevent indefinite blocking.
+
+-   [ ] **Standardize Timeouts**
+
+    -   [ ] HTTP client timeout: 30s
+    -   [ ] Database query timeout: 10s (already set to 30s)
+    -   [ ] Redis operation timeout: 5s
+    -   [ ] WebSocket connection timeout: 60s
+    -   [ ] Context timeouts for all operations
+
+-   [ ] **Add Context Propagation**
+    -   [ ] Pass context through all service layers
+    -   [ ] Respect parent context cancellation
+    -   [ ] Add timeout middleware
+
+**Files to Modify:**
+
+-   All service methods (add context.Context parameter)
+-   `pkg/middleware/timeout.go` (create)
+
+---
+
+## Priority 4: Observability (Week 4-5)
+
+### 4.1 Distributed Tracing
+
+**Impact:** HIGH | **Effort:** MEDIUM | **Timeline:** 5-6 days
+
+Essential for debugging microservices.
+
+-   [ ] **Integrate OpenTelemetry**
+
+    -   [ ] Add OpenTelemetry SDK
+    -   [ ] Configure Jaeger exporter
+    -   [ ] Auto-instrument HTTP handlers
+    -   [ ] Trace database queries
+    -   [ ] Trace Redis operations
+    -   [ ] Trace external API calls
+
+-   [ ] **Custom Spans**
+
+    -   [ ] Business logic operations
+    -   [ ] Critical paths (ride flow)
+    -   [ ] Performance bottlenecks
+    -   [ ] Error tracking
+
+-   [ ] **Deploy Jaeger**
+    -   [ ] Docker compose for local dev
+    -   [ ] Kubernetes deployment
+    -   [ ] Configure sampling rate (10% production)
+
+**Files to Create:**
+
+-   `pkg/tracing/tracer.go`
+-   `pkg/middleware/tracing.go`
+-   `docker-compose-tracing.yml`
+-   `k8s/jaeger.yaml`
+
+---
+
+### 4.2 Grafana Dashboards
+
+**Impact:** MEDIUM | **Effort:** MEDIUM | **Timeline:** 3-4 days
+
+Prometheus is configured but dashboards missing.
+
+-   [ ] **Create Dashboards**
+
+    -   [ ] System metrics (CPU, memory, disk)
+    -   [ ] HTTP metrics (request rate, latency, errors)
+    -   [ ] Database metrics (connections, query duration, slow queries)
+    -   [ ] Redis metrics (hit rate, memory usage)
+    -   [ ] Business metrics (rides/hour, revenue, active users)
+    -   [ ] Service-specific dashboards
+
+-   [ ] **Add Alerting Rules**
+    -   [ ] High error rate (>5% for 5 minutes)
+    -   [ ] High latency (P99 >1s for 5 minutes)
+    -   [ ] Database connection pool exhaustion
+    -   [ ] Low driver availability (<10 in region)
+    -   [ ] Payment failures (>10% failure rate)
+
+**Files to Create:**
+
+-   `monitoring/grafana/dashboards/overview.json`
+-   `monitoring/grafana/dashboards/rides.json`
+-   `monitoring/grafana/dashboards/payments.json`
+-   `monitoring/prometheus/alerts.yml`
+
+---
+
+### 4.3 Error Tracking
+
+**Impact:** MEDIUM | **Effort:** LOW | **Timeline:** 2 days
+
+Centralized error monitoring.
+
+-   [ ] **Integrate Sentry**
+
+    -   [ ] Add Sentry SDK
+    -   [ ] Capture panics automatically
+    -   [ ] Send errors with context
+    -   [ ] Group similar errors
+    -   [ ] Add user context (ID, role)
+    -   [ ] Add breadcrumbs (request flow)
+
+-   [ ] **Error Reporting**
+    -   [ ] Only report unexpected errors
+    -   [ ] Filter out business logic errors (validation failures)
+    -   [ ] Add environment tags (dev/staging/prod)
+    -   [ ] Configure sample rate
+
+**Files to Create:**
+
+-   `pkg/errors/sentry.go`
+-   `pkg/middleware/error_tracking.go`
+
+---
+
+### 4.4 Health Checks
+
+**Impact:** MEDIUM | **Effort:** LOW | **Timeline:** 1 day
+
+Kubernetes readiness/liveness probes.
+
+-   [ ] **Implement Health Endpoints**
+
+    -   [ ] `/health/live` - Liveness probe (service running)
+    -   [ ] `/health/ready` - Readiness probe (dependencies healthy)
+    -   [ ] Check database connectivity
+    -   [ ] Check Redis connectivity
+    -   [ ] Check external API reachability (optional)
+
+-   [ ] **Update Kubernetes Manifests**
+    -   [ ] Add liveness probe configuration
+    -   [ ] Add readiness probe configuration
+    -   [ ] Configure probe intervals and timeouts
+
+**Files to Create:**
+
+-   `pkg/health/checker.go`
+-   Update all `k8s/*-deployment.yaml` files
+
+---
+
+## Priority 5: Code Quality & Developer Experience (Week 5-6)
+
+### 5.1 Code Quality Tools
+
+**Impact:** MEDIUM | **Effort:** LOW | **Timeline:** 2 days
+
+Enforce code standards.
+
+-   [ ] **Setup golangci-lint**
+
+    -   [ ] Create `.golangci.yml` configuration
+    -   [ ] Enable linters: govet, errcheck, staticcheck, gosec, gofmt
+    -   [ ] Run in CI/CD pipeline
+    -   [ ] Pre-commit hook
+
+-   [ ] **Code Coverage Thresholds**
+
+    -   [ ] Fail CI if coverage drops below 80%
+    -   [ ] Per-package coverage reporting
+    -   [ ] Coverage diff in PRs
+
+-   [ ] **Pre-commit Hooks**
+    -   [ ] Format code (gofmt, goimports)
+    -   [ ] Run linters
+    -   [ ] Run tests
+    -   [ ] Check for secrets (gitleaks)
+
+**Files to Create:**
+
+-   `.golangci.yml`
+-   `.pre-commit-config.yaml`
+-   `Makefile` (add lint, fmt, test targets)
+
+---
+
+### 5.2 Database Tooling
+
+**Impact:** MEDIUM | **Effort:** MEDIUM | **Timeline:** 3 days
+
+Improve database operations.
+
+-   [ ] **Migration Improvements**
+
+    -   [ ] Add migration testing in CI
+    -   [ ] Test rollback for each migration
+    -   [ ] Add migration validation script
+    -   [ ] Document migration process
+
+-   [ ] **Database Seeding**
+
+    -   [ ] Create seed data for development
+    -   [ ] Sample users (riders, drivers, admins)
+    -   [ ] Sample rides (various states)
+    -   [ ] Sample transactions
+    -   [ ] Script: `make db-seed`
+
+-   [ ] **Backup Strategy**
+    -   [ ] Automated daily backups
+    -   [ ] Point-in-time recovery
+    -   [ ] Backup retention policy (30 days)
+    -   [ ] Restore testing (monthly)
+
+**Files to Create:**
+
+-   `scripts/seed-database.sql`
+-   `scripts/backup-database.sh`
+-   `scripts/restore-database.sh`
+-   `scripts/test-migrations.sh`
+
+---
+
+### 5.3 Local Development Scripts
+
+**Impact:** LOW | **Effort:** LOW | **Timeline:** 2 days
+
+Improve developer experience.
+
+-   [ ] **Makefile Targets**
+
+    -   [ ] `make setup` - Initial project setup
+    -   [ ] `make dev` - Start all services locally
+    -   [ ] `make test` - Run all tests
+    -   [ ] `make lint` - Run linters
+    -   [ ] `make fmt` - Format code
+    -   [ ] `make db-migrate` - Run migrations
+    -   [ ] `make db-seed` - Seed database
+    -   [ ] `make db-reset` - Reset database
+    -   [ ] `make docker-build` - Build Docker images
+    -   [ ] `make docker-up` - Start Docker compose
+
+-   [ ] **Development Documentation**
+    -   [ ] CONTRIBUTING.md
+    -   [ ] Troubleshooting guide
+    -   [ ] Architecture decision records (ADRs)
+
+**Files to Create:**
+
+-   `Makefile` (expand existing)
+-   `CONTRIBUTING.md`
+-   `docs/TROUBLESHOOTING.md`
+-   `docs/adr/` (directory for ADRs)
+
+---
+
+### 5.4 API Collections
+
+**Impact:** LOW | **Effort:** LOW | **Timeline:** 1 day
+
+Easy API testing.
+
+-   [ ] **Create API Collections**
+
+    -   [ ] Postman collection (all endpoints)
+    -   [ ] Environment variables
+    -   [ ] Pre-request scripts (auth token)
+    -   [ ] Test assertions
+
+-   [ ] **Alternative: HTTPie/curl Scripts**
+    -   [ ] Shell scripts for common flows
+    -   [ ] Auth flow
+    -   [ ] Complete ride flow
+    -   [ ] Payment flow
+
+**Files to Create:**
+
+-   `api/postman/ride-hailing.postman_collection.json`
+-   `api/postman/environment.json`
+-   `api/scripts/test-ride-flow.sh`
+
+---
+
+## Priority 6: Advanced Features (Week 6+)
+
+### 6.1 Feature Flags
+
+**Impact:** MEDIUM | **Effort:** MEDIUM | **Timeline:** 4-5 days
+
+Enable/disable features without deployment.
+
+-   [ ] **Implement Feature Flag System**
+
+    -   [ ] Use LaunchDarkly or Unleash
+    -   [ ] Or build simple Redis-backed flags
+    -   [ ] Per-user flags (beta testing)
+    -   [ ] Per-region flags (gradual rollout)
+    -   [ ] Percentage-based rollouts
+
+-   [ ] **Flag Examples**
+    -   [ ] New ML ETA model
+    -   [ ] Enhanced fraud detection
+    -   [ ] New payment provider
+    -   [ ] Experimental ride types
+
+**Files to Create:**
+
+-   `pkg/features/flags.go`
+-   `pkg/features/redis_provider.go`
+
+---
+
+### 6.2 Enhanced Analytics
+
+**Impact:** MEDIUM | **Effort:** MEDIUM | **Timeline:** 5-6 days
+
+Better business insights.
+
+-   [ ] **Event Tracking**
+
+    -   [ ] Track business events (ride_requested, ride_completed, payment_processed)
+    -   [ ] Use Segment or custom event pipeline
+    -   [ ] Send to data warehouse (BigQuery, Redshift)
+    -   [ ] Real-time event streaming (Kafka)
+
+-   [ ] **Analytics Queries**
+    -   [ ] Revenue by region/time
+    -   [ ] Driver utilization rate
+    -   [ ] Rider retention cohorts
+    -   [ ] Promo code effectiveness
+    -   [ ] Cancellation reasons
+
+**Files to Create:**
+
+-   `pkg/analytics/events.go`
+-   `pkg/analytics/tracker.go`
+-   `internal/analytics/queries/` (directory)
+
+---
+
+### 6.3 Multi-tenancy
+
+**Impact:** LOW | **Effort:** HIGH | **Timeline:** 2 weeks
+
+Support multiple organizations.
+
+-   [ ] **Add Tenant Context**
+
+    -   [ ] Tenant ID in all tables
+    -   [ ] Row-level security (Postgres RLS)
+    -   [ ] Tenant-scoped queries
+    -   [ ] Tenant-specific configuration
+
+-   [ ] **Isolation Levels**
+    -   [ ] Shared database, separate schemas
+    -   [ ] Or separate databases per tenant
+    -   [ ] Tenant-specific Redis namespaces
+
+**Files to Modify:**
+
+-   All database models (add tenant_id)
+-   All queries (add tenant filtering)
+-   Auth middleware (extract tenant from JWT)
+
+---
+
+### 6.4 GraphQL API (Optional)
+
+**Impact:** LOW | **Effort:** HIGH | **Timeline:** 2 weeks
+
+Alternative to REST API.
+
+-   [ ] **Implement GraphQL**
+    -   [ ] Use gqlgen
+    -   [ ] Schema definition
+    -   [ ] Resolvers for all entities
+    -   [ ] DataLoader for N+1 prevention
+    -   [ ] GraphQL Playground
+
+**Files to Create:**
+
+-   `internal/graphql/schema.graphql`
+-   `internal/graphql/resolvers/`
+-   `cmd/graphql/main.go`
+
+---
+
+## Priority 7: Load Testing & Performance (Week 7)
+
+### 7.1 Load Testing Suite
+
+**Impact:** HIGH | **Effort:** MEDIUM | **Timeline:** 4-5 days
+
+Validate system under load.
+
+-   [ ] **Create Load Tests**
+
+    -   [ ] Use k6 or Locust
+    -   [ ] Simulate realistic traffic patterns
+    -   [ ] Test scenarios:
+        -   Normal load (100 RPS)
+        -   Peak load (500 RPS)
+        -   Spike test (1000 RPS burst)
+        -   Soak test (24h sustained load)
+
+-   [ ] **Performance Targets**
+
+    -   [ ] P95 latency <500ms
+    -   [ ] P99 latency <1s
+    -   [ ] Error rate <0.1%
+    -   [ ] Throughput: 1000 concurrent rides
+
+-   [ ] **Bottleneck Analysis**
+    -   [ ] Profile with pprof
+    -   [ ] Identify slow queries
+    -   [ ] Memory leak detection
+    -   [ ] CPU hotspots
+
+**Files to Create:**
+
+-   `load-tests/scenarios/normal_load.js`
+-   `load-tests/scenarios/peak_load.js`
+-   `load-tests/scenarios/spike_test.js`
+-   `scripts/run-load-test.sh`
+
+---
+
+### 7.2 Database Performance
+
+**Impact:** MEDIUM | **Effort:** MEDIUM | **Timeline:** 3 days
+
+Optimize query performance.
+
+-   [ ] **Query Optimization**
+
+    -   [ ] Identify slow queries (>100ms)
+    -   [ ] Add missing indexes
+    -   [ ] Optimize N+1 queries
+    -   [ ] Use EXPLAIN ANALYZE
+
+-   [ ] **Connection Pooling Tuning**
+
+    -   [ ] Adjust min/max pool sizes
+    -   [ ] Monitor pool exhaustion
+    -   [ ] Read replica load balancing
+
+-   [ ] **Caching Strategy**
+    -   [ ] Cache frequently accessed data
+    -   [ ] User profiles
+    -   [ ] Driver locations (already cached)
+    -   [ ] Promo codes
+    -   [ ] Surge pricing factors
+
+**Files to Create:**
+
+-   `docs/PERFORMANCE.md`
+-   `scripts/analyze-slow-queries.sh`
+
+---
+
+## Priority 8: Production Readiness (Week 8)
+
+### 8.1 Runbook Documentation
+
+**Impact:** MEDIUM | **Effort:** LOW | **Timeline:** 2 days
+
+Incident response procedures.
+
+-   [ ] **Create Runbooks**
+
+    -   [ ] Database connection failures
+    -   [ ] Redis connection failures
+    -   [ ] High error rates
+    -   [ ] Payment processing issues
+    -   [ ] Driver matching failures
+    -   [ ] WebSocket connection storms
+
+-   [ ] **Include in Each Runbook**
+    -   [ ] Symptoms
+    -   [ ] Investigation steps
+    -   [ ] Common causes
+    -   [ ] Resolution steps
+    -   [ ] Escalation path
+
+**Files to Create:**
+
+-   `docs/runbooks/database-connection-failure.md`
+-   `docs/runbooks/high-error-rate.md`
+-   `docs/runbooks/payment-issues.md`
+
+---
+
+### 8.2 Disaster Recovery Plan
+
+**Impact:** HIGH | **Effort:** MEDIUM | **Timeline:** 3-4 days
+
+Prepare for worst-case scenarios.
+
+-   [ ] **Backup & Restore**
+
+    -   [ ] Automated database backups (daily)
+    -   [ ] Test restore procedures (monthly)
+    -   [ ] Backup retention (30 days)
+    -   [ ] Point-in-time recovery
+
+-   [ ] **Disaster Scenarios**
+
+    -   [ ] Complete data center failure
+    -   [ ] Database corruption
+    -   [ ] Security breach
+    -   [ ] Data deletion (accidental/malicious)
+
+-   [ ] **Recovery Objectives**
+    -   [ ] RTO (Recovery Time Objective): 4 hours
+    -   [ ] RPO (Recovery Point Objective): 1 hour
+
+**Files to Create:**
+
+-   `docs/DISASTER_RECOVERY.md`
+-   `scripts/backup-all.sh`
+-   `scripts/restore-all.sh`
+
+---
+
+### 8.3 Security Audit
+
+**Impact:** HIGH | **Effort:** MEDIUM | **Timeline:** 3 days
+
+Identify vulnerabilities.
+
+-   [ ] **Security Checklist**
+
+    -   [ ] OWASP Top 10 review
+    -   [ ] Dependency vulnerability scan (Snyk, Dependabot)
+    -   [ ] Secrets detection (gitleaks)
+    -   [ ] Container security scan (Trivy)
+    -   [ ] API security testing (OWASP ZAP)
+
+-   [ ] **Penetration Testing**
+
+    -   [ ] Authentication bypass attempts
+    -   [ ] Authorization flaws
+    -   [ ] SQL injection testing
+    -   [ ] XSS testing
+    -   [ ] CSRF testing
+
+-   [ ] **Compliance**
+    -   [ ] GDPR (data privacy)
+    -   [ ] PCI DSS (payment data)
+    -   [ ] Data encryption at rest
+    -   [ ] Data encryption in transit
+
+**Files to Create:**
+
+-   `docs/SECURITY.md`
+-   `.github/dependabot.yml`
+-   `scripts/security-scan.sh`
+
+---
+
+### 8.4 Capacity Planning
+
+**Impact:** MEDIUM | **Effort:** LOW | **Timeline:** 2 days
+
+Ensure scalability.
+
+-   [ ] **Resource Requirements**
+
+    -   [ ] Calculate resources per 1000 concurrent users
+    -   [ ] Database sizing (connections, storage, IOPS)
+    -   [ ] Redis memory requirements
+    -   [ ] Kubernetes node sizing
+
+-   [ ] **Scaling Thresholds**
+
+    -   [ ] Horizontal pod autoscaling (HPA) rules
+    -   [ ] Database read replica count
+    -   [ ] Redis cluster nodes
+    -   [ ] CDN bandwidth
+
+-   [ ] **Growth Projections**
+    -   [ ] User growth estimates
+    -   [ ] Transaction volume growth
+    -   [ ] Storage growth
+    -   [ ] Bandwidth growth
+
+**Files to Create:**
+
+-   `docs/CAPACITY_PLANNING.md`
+-   Update `k8s/*-hpa.yaml` files
+
+---
+
+## Estimated Timeline Summary
+
+| Phase                         | Duration  | Key Deliverables                        |
+| ----------------------------- | --------- | --------------------------------------- |
+| **Priority 1: Critical**      | 3-4 weeks | Tests, validation, tracing, OpenAPI     |
+| **Priority 2: Security**      | 1 week    | Rate limiting, sanitization, secrets    |
+| **Priority 3: Resilience**    | 1 week    | Circuit breakers, retries, timeouts     |
+| **Priority 4: Observability** | 1 week    | Distributed tracing, dashboards, alerts |
+| **Priority 5: Code Quality**  | 1 week    | Linters, tooling, documentation         |
+| **Priority 6: Advanced**      | 2+ weeks  | Feature flags, analytics, multi-tenancy |
+| **Priority 7: Performance**   | 1 week    | Load tests, optimization                |
+| **Priority 8: Production**    | 1 week    | Runbooks, DR plan, security audit       |
+
+**Total Estimated Time: 11-13 weeks**
+
+**Recommended First Month Focus:**
+
+-   Weeks 1-2: Testing infrastructure + Input validation
+-   Week 3: Security hardening (rate limiting, secrets)
+-   Week 4: Resilience patterns + Observability basics
+
+---
+
+## Quick Wins (Can Do This Week)
+
+These are small improvements with high impact that can be done quickly:
+
+1. **Add Correlation IDs** (2-3 hours)
+
+    - Middleware to generate/extract request IDs
+    - Update logging to include correlation IDs
+
+2. **Security Headers** (1 hour)
+
+    - Add security headers middleware
+
+3. **Health Check Endpoints** (2-3 hours)
+
+    - `/health/live` and `/health/ready` endpoints
+
+4. **golangci-lint Setup** (2 hours)
+
+    - Create `.golangci.yml`
+    - Add to CI/CD
+
+5. **Database Seed Script** (3-4 hours)
+
+    - Sample data for local development
+
+6. **Makefile Improvements** (2 hours)
+    - Add common development targets
+
+**Total: 1-2 days for all quick wins**
+
+---
+
+## Success Metrics
+
+Track these metrics to measure improvement:
+
+-   **Testing:** Code coverage >80%
+-   **Reliability:** 99.9% uptime, <0.1% error rate
+-   **Performance:** P99 latency <1s, throughput >1000 concurrent rides
+-   **Security:** Zero critical vulnerabilities, regular audits
+-   **Observability:** Mean time to detect (MTTD) <5 minutes, mean time to resolve (MTTR) <1 hour
+-   **Developer Experience:** Setup time <15 minutes, deployment time <10 minutes
+
+---
+
+## Conclusion
+
+The backend has excellent architectural foundations but needs improvements in:
+
+1. **Testing** (highest priority - only 2 test files)
+2. **Input validation** (critical for security)
+3. **Resilience** (circuit breakers, retries)
+4. **Observability** (distributed tracing, better dashboards)
+5. **Security hardening** (rate limiting, secrets management)
+
+Focus on **Priority 1 & 2 items first** (4-5 weeks) to make the system production-ready, then gradually add advanced features.
+
+The codebase demonstrates strong engineering with microservices, clean architecture, and enterprise features. With these improvements, it will be truly production-grade.
