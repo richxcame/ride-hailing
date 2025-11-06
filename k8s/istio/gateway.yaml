@@ -1,0 +1,248 @@
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: ridehailing-gateway
+  namespace: ridehailing
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+  # HTTP (redirect to HTTPS)
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "api.ridehailing.com"
+    - "admin.ridehailing.com"
+    - "ws.ridehailing.com"
+    tls:
+      httpsRedirect: true
+
+  # HTTPS
+  - port:
+      number: 443
+      name: https
+      protocol: HTTPS
+    hosts:
+    - "api.ridehailing.com"
+    - "admin.ridehailing.com"
+    tls:
+      mode: SIMPLE
+      credentialName: ridehailing-tls
+
+  # WebSocket (HTTPS)
+  - port:
+      number: 443
+      name: https-ws
+      protocol: HTTPS
+    hosts:
+    - "ws.ridehailing.com"
+    tls:
+      mode: SIMPLE
+      credentialName: ridehailing-ws-tls
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: ridehailing-api
+  namespace: ridehailing
+spec:
+  hosts:
+  - "api.ridehailing.com"
+  gateways:
+  - ridehailing-gateway
+  http:
+  # Auth Service Routes
+  - match:
+    - uri:
+        prefix: "/api/v1/auth"
+    route:
+    - destination:
+        host: auth-service
+        port:
+          number: 8080
+    retries:
+      attempts: 3
+      perTryTimeout: 2s
+      retryOn: 5xx,reset,connect-failure,refused-stream
+    timeout: 10s
+
+  # Rides Service Routes
+  - match:
+    - uri:
+        prefix: "/api/v1/rides"
+    route:
+    - destination:
+        host: rides-service
+        port:
+          number: 8080
+    retries:
+      attempts: 3
+      perTryTimeout: 5s
+    timeout: 30s
+
+  # Geo Service Routes
+  - match:
+    - uri:
+        prefix: "/api/v1/geo"
+    route:
+    - destination:
+        host: geo-service
+        port:
+          number: 8080
+    retries:
+      attempts: 2
+      perTryTimeout: 1s
+    timeout: 5s
+
+  # Payments Service Routes
+  - match:
+    - uri:
+        prefix: "/api/v1/payments"
+    route:
+    - destination:
+        host: payments-service
+        port:
+          number: 8080
+    retries:
+      attempts: 2
+      perTryTimeout: 10s
+    timeout: 30s
+
+  # Wallet Routes (Payments Service)
+  - match:
+    - uri:
+        prefix: "/api/v1/wallet"
+    route:
+    - destination:
+        host: payments-service
+        port:
+          number: 8080
+    retries:
+      attempts: 2
+      perTryTimeout: 10s
+    timeout: 30s
+
+  # Notifications Service Routes
+  - match:
+    - uri:
+        prefix: "/api/v1/notifications"
+    route:
+    - destination:
+        host: notifications-service
+        port:
+          number: 8080
+    timeout: 10s
+
+  # Mobile Service Routes
+  - match:
+    - uri:
+        prefix: "/api/v1/mobile"
+    route:
+    - destination:
+        host: mobile-service
+        port:
+          number: 8080
+    timeout: 10s
+
+  # Promos Service Routes
+  - match:
+    - uri:
+        prefix: "/api/v1/promos"
+    route:
+    - destination:
+        host: promos-service
+        port:
+          number: 8080
+    timeout: 10s
+
+  # Scheduler Service Routes
+  - match:
+    - uri:
+        prefix: "/api/v1/scheduler"
+    route:
+    - destination:
+        host: scheduler-service
+        port:
+          number: 8080
+    timeout: 15s
+
+  # Analytics Service Routes
+  - match:
+    - uri:
+        prefix: "/api/v1/analytics"
+    route:
+    - destination:
+        host: analytics-service
+        port:
+          number: 8080
+    timeout: 60s  # Longer timeout for analytics
+
+  # Fraud Service Routes
+  - match:
+    - uri:
+        prefix: "/api/v1/fraud"
+    route:
+    - destination:
+        host: fraud-service
+        port:
+          number: 8080
+    timeout: 10s
+
+  # ML ETA Service Routes
+  - match:
+    - uri:
+        prefix: "/api/v1/eta"
+    route:
+    - destination:
+        host: ml-eta-service
+        port:
+          number: 8080
+    timeout: 15s  # Longer timeout for ML predictions
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: ridehailing-admin
+  namespace: ridehailing
+spec:
+  hosts:
+  - "admin.ridehailing.com"
+  gateways:
+  - ridehailing-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/api/v1/admin"
+    route:
+    - destination:
+        host: admin-service
+        port:
+          number: 8080
+    timeout: 30s
+
+---
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: ridehailing-websocket
+  namespace: ridehailing
+spec:
+  hosts:
+  - "ws.ridehailing.com"
+  gateways:
+  - ridehailing-gateway
+  http:
+  - match:
+    - uri:
+        prefix: "/ws"
+    route:
+    - destination:
+        host: realtime-service
+        port:
+          number: 8080
+    timeout: 3600s  # 1 hour for WebSocket connections
+    websocketUpgrade: true

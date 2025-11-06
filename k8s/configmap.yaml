@@ -1,0 +1,42 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ridehailing-config
+  namespace: ridehailing
+data:
+  # Database Configuration
+  DB_HOST: "postgres-service"
+  DB_PORT: "5432"
+  DB_NAME: "ridehailing"
+  DB_SSLMODE: "disable"
+
+  # Redis Configuration
+  REDIS_HOST: "redis-service"
+  REDIS_PORT: "6379"
+
+  # Service Configuration
+  ENVIRONMENT: "production"
+  PORT: "8080"
+
+  # Service URLs (for inter-service communication)
+  AUTH_SERVICE_URL: "http://auth-service:8080"
+  RIDES_SERVICE_URL: "http://rides-service:8080"
+  GEO_SERVICE_URL: "http://geo-service:8080"
+  PAYMENTS_SERVICE_URL: "http://payments-service:8080"
+  NOTIFICATIONS_SERVICE_URL: "http://notifications-service:8080"
+  REALTIME_SERVICE_URL: "http://realtime-service:8080"
+  MOBILE_SERVICE_URL: "http://mobile-service:8080"
+  ADMIN_SERVICE_URL: "http://admin-service:8080"
+  PROMOS_SERVICE_URL: "http://promos-service:8080"
+  SCHEDULER_SERVICE_URL: "http://scheduler-service:8080"
+  ANALYTICS_SERVICE_URL: "http://analytics-service:8080"
+  FRAUD_SERVICE_URL: "http://fraud-service:8080"
+
+  # SMTP Configuration (optional)
+  SMTP_HOST: "smtp.gmail.com"
+  SMTP_PORT: "587"
+  SMTP_FROM_EMAIL: "noreply@ridehailing.com"
+  SMTP_FROM_NAME: "RideHailing"
+
+  # JWT Configuration
+  JWT_EXPIRATION: "24"

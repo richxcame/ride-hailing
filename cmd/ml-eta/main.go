@@ -1,0 +1,126 @@
+package main
+
+import (
+	"context"
+	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"github.com/richxcame/ride-hailing/internal/mleta"
+	"github.com/richxcame/ride-hailing/pkg/common"
+	"github.com/richxcame/ride-hailing/pkg/database"
+	"github.com/richxcame/ride-hailing/pkg/middleware"
+	redisClient "github.com/richxcame/ride-hailing/pkg/redis"
+)
+
+func main() {
+	// Load configuration
+	cfg := common.LoadConfig()
+
+	// Initialize database
+	db, err := database.NewPostgresDB(cfg.DatabaseURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to database: %v", err)
+	}
+	defer db.Close()
+
+	// Initialize Redis
+	redis, err := redisClient.NewRedisClient(cfg.RedisHost, cfg.RedisPort, cfg.RedisPassword)
+	if err != nil {
+		log.Fatalf("Failed to connect to Redis: %v", err)
+	}
+	defer redis.Close()
+
+	// Initialize ML ETA service
+	repo := mleta.NewRepository(db, redis)
+	service := mleta.NewService(repo, redis)
+	handler := mleta.NewHandler(service)
+
+	// Start ML model training worker
+	go service.StartModelTrainingWorker(context.Background())
+
+	// Setup Gin router
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.New()
+	router.Use(gin.Recovery())
+	router.Use(middleware.Logger())
+	router.Use(middleware.CORS())
+
+	// Health check
+	router.GET("/healthz", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "healthy", "service": "ml-eta"})
+	})
+
+	// ML ETA API routes
+	api := router.Group("/api/v1/eta")
+	{
+		// Public endpoints
+		api.POST("/predict", handler.PredictETA)                   // Predict ETA for a route
+		api.POST("/predict/batch", handler.BatchPredictETA)        // Batch ETA predictions
+
+		// Admin endpoints (require JWT)
+		admin := api.Group("")
+		admin.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+		admin.Use(middleware.AdminMiddleware())
+		{
+			admin.POST("/train", handler.TriggerModelTraining)     // Trigger model retraining
+			admin.GET("/model/stats", handler.GetModelStats)       // Get model performance stats
+			admin.GET("/model/accuracy", handler.GetModelAccuracy) // Get model accuracy metrics
+			admin.POST("/model/tune", handler.TuneHyperparameters) // Tune ML model hyperparameters
+		}
+
+		// Analytics endpoints
+		analytics := api.Group("/analytics")
+		analytics.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+		{
+			analytics.GET("/predictions", handler.GetPredictionHistory)   // Historical predictions
+			analytics.GET("/accuracy", handler.GetAccuracyTrends)          // Accuracy over time
+			analytics.GET("/features", handler.GetFeatureImportance)       // Feature importance
+		}
+	}
+
+	// Prometheus metrics
+	router.GET("/metrics", middleware.PrometheusHandler())
+
+	// Start server
+	port := cfg.Port
+	if port == "" {
+		port = "8080"
+	}
+
+	srv := &http.Server{
+		Addr:         ":" + port,
+		Handler:      router,
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	// Graceful shutdown
+	go func() {
+		log.Printf("🤖 ML ETA Service starting on port %s", port)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("Failed to start server: %v", err)
+		}
+	}()
+
+	// Wait for interrupt signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Println("🛑 Shutting down ML ETA Service...")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("Server forced to shutdown: %v", err)
+	}
+
+	log.Println("✅ ML ETA Service stopped")
+}

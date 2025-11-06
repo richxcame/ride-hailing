@@ -1,0 +1,316 @@
+# Destination Rules for Circuit Breaking, Load Balancing, and TLS
+# These rules configure how traffic is handled for each service
+
+---
+# Auth Service
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: auth-service
+  namespace: ridehailing
+spec:
+  host: auth-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+        maxRequestsPerConnection: 2
+    loadBalancer:
+      simple: LEAST_REQUEST
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 30s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+      minHealthPercent: 50
+  subsets:
+  - name: v1
+    labels:
+      version: v1
+
+---
+# Rides Service
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: rides-service
+  namespace: ridehailing
+spec:
+  host: rides-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 200
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 200
+    loadBalancer:
+      simple: ROUND_ROBIN
+    outlierDetection:
+      consecutiveErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+      maxEjectionPercent: 50
+
+---
+# Geo Service
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: geo-service
+  namespace: ridehailing
+spec:
+  host: geo-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 300
+      http:
+        http1MaxPendingRequests: 200
+        http2MaxRequests: 300
+    loadBalancer:
+      simple: LEAST_REQUEST  # Best for location updates
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 5s
+      baseEjectionTime: 15s
+
+---
+# Payments Service
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: payments-service
+  namespace: ridehailing
+spec:
+  host: payments-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+        maxRetries: 3
+    loadBalancer:
+      simple: ROUND_ROBIN
+    outlierDetection:
+      consecutiveErrors: 2  # Strict for payments
+      interval: 20s
+      baseEjectionTime: 60s
+      maxEjectionPercent: 30
+
+---
+# Notifications Service
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: notifications-service
+  namespace: ridehailing
+spec:
+  host: notifications-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 150
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 150
+    loadBalancer:
+      simple: RANDOM
+
+---
+# Real-time Service (WebSocket)
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: realtime-service
+  namespace: ridehailing
+spec:
+  host: realtime-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 500  # Higher for WebSocket
+      http:
+        http1MaxPendingRequests: 200
+        http2MaxRequests: 500
+    loadBalancer:
+      consistentHash:  # Sticky sessions for WebSocket
+        httpHeaderName: "X-User-ID"
+
+---
+# Mobile Service
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: mobile-service
+  namespace: ridehailing
+spec:
+  host: mobile-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 200
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 200
+    loadBalancer:
+      simple: ROUND_ROBIN
+
+---
+# Admin Service
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: admin-service
+  namespace: ridehailing
+spec:
+  host: admin-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 50
+      http:
+        http1MaxPendingRequests: 30
+        http2MaxRequests: 50
+    loadBalancer:
+      simple: LEAST_REQUEST
+
+---
+# Promos Service
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: promos-service
+  namespace: ridehailing
+spec:
+  host: promos-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+    loadBalancer:
+      simple: ROUND_ROBIN
+
+---
+# Scheduler Service
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: scheduler-service
+  namespace: ridehailing
+spec:
+  host: scheduler-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 50
+      http:
+        http1MaxPendingRequests: 30
+        http2MaxRequests: 50
+    loadBalancer:
+      simple: ROUND_ROBIN
+
+---
+# Analytics Service
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: analytics-service
+  namespace: ridehailing
+spec:
+  host: analytics-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        http1MaxPendingRequests: 50
+        http2MaxRequests: 100
+    loadBalancer:
+      simple: LEAST_REQUEST  # Best for compute-heavy operations
+
+---
+# Fraud Service
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: fraud-service
+  namespace: ridehailing
+spec:
+  host: fraud-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 150
+      http:
+        http1MaxPendingRequests: 75
+        http2MaxRequests: 150
+    loadBalancer:
+      simple: ROUND_ROBIN
+    outlierDetection:
+      consecutiveErrors: 3
+      interval: 10s
+      baseEjectionTime: 30s
+
+---
+# PostgreSQL
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: postgres-service
+  namespace: ridehailing
+spec:
+  host: postgres-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+    loadBalancer:
+      simple: ROUND_ROBIN
+
+---
+# ML ETA Service
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: ml-eta-service
+  namespace: ridehailing
+spec:
+  host: ml-eta-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 150
+      http:
+        http1MaxPendingRequests: 100
+        http2MaxRequests: 150
+    loadBalancer:
+      simple: LEAST_REQUEST  # Best for ML compute operations
+    outlierDetection:
+      consecutiveErrors: 5
+      interval: 10s
+      baseEjectionTime: 30s
+
+---
+# Redis
+apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: redis-service
+  namespace: ridehailing
+spec:
+  host: redis-service
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 200
+    loadBalancer:
+      simple: ROUND_ROBIN

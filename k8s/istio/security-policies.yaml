@@ -1,0 +1,149 @@
+# Istio Security Policies
+# mTLS, Authorization Policies, and Rate Limiting
+
+---
+# Enable mTLS for all services in the namespace
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+  namespace: ridehailing
+spec:
+  mtls:
+    mode: STRICT
+
+---
+# JWT Authentication for API endpoints
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: jwt-auth
+  namespace: ridehailing
+spec:
+  selector:
+    matchLabels:
+      tier: backend
+  jwtRules:
+  - issuer: "ridehailing-auth-service"
+    jwksUri: "http://auth-service:8080/.well-known/jwks.json"
+    audiences:
+    - "ridehailing-api"
+
+---
+# Authorization Policy - Allow authenticated requests
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: require-jwt
+  namespace: ridehailing
+spec:
+  selector:
+    matchLabels:
+      tier: backend
+  action: ALLOW
+  rules:
+  # Allow health checks without JWT
+  - to:
+    - operation:
+        paths:
+        - "/healthz"
+        - "/metrics"
+  # Allow auth service without JWT (for login)
+  - to:
+    - operation:
+        paths:
+        - "/api/v1/auth/*"
+  # Require JWT for all other endpoints
+  - from:
+    - source:
+        requestPrincipals: ["*"]
+
+---
+# Authorization Policy - Admin endpoints require admin role
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: admin-only
+  namespace: ridehailing
+spec:
+  selector:
+    matchLabels:
+      app: admin-service
+  action: ALLOW
+  rules:
+  - when:
+    - key: request.auth.claims[role]
+      values: ["admin"]
+
+---
+# Authorization Policy - Payments require authenticated users
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: payments-auth
+  namespace: ridehailing
+spec:
+  selector:
+    matchLabels:
+      app: payments-service
+  action: ALLOW
+  rules:
+  - from:
+    - source:
+        requestPrincipals: ["*"]
+    when:
+    - key: request.auth.claims[role]
+      values: ["rider", "driver", "admin"]
+
+---
+# Authorization Policy - Deny all by default for sensitive services
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: deny-all-default
+  namespace: ridehailing
+spec:
+  action: DENY
+  rules:
+  - from:
+    - source:
+        notNamespaces: ["ridehailing", "istio-system"]
+
+---
+# Service-to-Service Authorization
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: service-to-service
+  namespace: ridehailing
+spec:
+  action: ALLOW
+  rules:
+  # Rides service can call Payments, Geo, Promos, Fraud
+  - from:
+    - source:
+        principals: ["cluster.local/ns/ridehailing/sa/rides-service"]
+    to:
+    - operation:
+        hosts:
+        - "payments-service.ridehailing.svc.cluster.local"
+        - "geo-service.ridehailing.svc.cluster.local"
+        - "promos-service.ridehailing.svc.cluster.local"
+        - "fraud-service.ridehailing.svc.cluster.local"
+
+  # Notifications service can be called by any service
+  - from:
+    - source:
+        namespaces: ["ridehailing"]
+    to:
+    - operation:
+        hosts:
+        - "notifications-service.ridehailing.svc.cluster.local"
+
+  # Analytics service can call all services (read-only)
+  - from:
+    - source:
+        principals: ["cluster.local/ns/ridehailing/sa/analytics-service"]
+    to:
+    - operation:
+        methods: ["GET"]

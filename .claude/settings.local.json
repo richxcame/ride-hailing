@@ -24,7 +24,11 @@
       "Bash(PHASE2_SUMMARY.md PROGRESS.md PROJECT_SUMMARY.md QUICKSTART.md STATUS_REPORT.md )",
       "Bash(fix_lint.sh)",
       "Bash(cat:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(./generate-services.sh:*)",
+      "Bash(do echo '=== $service ===' echo 'cmd/$service files:' ls -la /Users/richxcame/dev/richxcame/ride-hailing/cmd/$service/)",
+      "Bash(xargs dirname:*)",
+      "Bash(xargs:*)"
     ],
     "deny": [],
     "ask": []

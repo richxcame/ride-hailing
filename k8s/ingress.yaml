@@ -1,0 +1,200 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ridehailing-ingress
+  namespace: ridehailing
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/limit-rps: "10"
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "*"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type, Accept"
+spec:
+  tls:
+  - hosts:
+    - api.ridehailing.com
+    - admin.ridehailing.com
+    - ws.ridehailing.com
+    secretName: ridehailing-tls
+  rules:
+  # Main API Endpoint
+  - host: api.ridehailing.com
+    http:
+      paths:
+      # Auth Service
+      - path: /api/v1/auth
+        pathType: Prefix
+        backend:
+          service:
+            name: auth-service
+            port:
+              number: 8080
+
+      # Rides Service
+      - path: /api/v1/rides
+        pathType: Prefix
+        backend:
+          service:
+            name: rides-service
+            port:
+              number: 8080
+
+      # Geo Service
+      - path: /api/v1/geo
+        pathType: Prefix
+        backend:
+          service:
+            name: geo-service
+            port:
+              number: 8080
+
+      # Payments Service
+      - path: /api/v1/payments
+        pathType: Prefix
+        backend:
+          service:
+            name: payments-service
+            port:
+              number: 8080
+
+      # Wallet endpoints (Payments Service)
+      - path: /api/v1/wallet
+        pathType: Prefix
+        backend:
+          service:
+            name: payments-service
+            port:
+              number: 8080
+
+      # Notifications Service
+      - path: /api/v1/notifications
+        pathType: Prefix
+        backend:
+          service:
+            name: notifications-service
+            port:
+              number: 8080
+
+      # Mobile Service
+      - path: /api/v1/mobile
+        pathType: Prefix
+        backend:
+          service:
+            name: mobile-service
+            port:
+              number: 8080
+
+      # Promos Service
+      - path: /api/v1/promos
+        pathType: Prefix
+        backend:
+          service:
+            name: promos-service
+            port:
+              number: 8080
+
+      # Scheduler Service
+      - path: /api/v1/scheduler
+        pathType: Prefix
+        backend:
+          service:
+            name: scheduler-service
+            port:
+              number: 8080
+
+      # Analytics Service
+      - path: /api/v1/analytics
+        pathType: Prefix
+        backend:
+          service:
+            name: analytics-service
+            port:
+              number: 8080
+
+      # Fraud Service
+      - path: /api/v1/fraud
+        pathType: Prefix
+        backend:
+          service:
+            name: fraud-service
+            port:
+              number: 8080
+
+  # Admin Dashboard API
+  - host: admin.ridehailing.com
+    http:
+      paths:
+      - path: /api/v1/admin
+        pathType: Prefix
+        backend:
+          service:
+            name: admin-service
+            port:
+              number: 8080
+
+  # WebSocket Endpoint
+  - host: ws.ridehailing.com
+    http:
+      paths:
+      - path: /ws
+        pathType: Prefix
+        backend:
+          service:
+            name: realtime-service
+            port:
+              number: 8080
+
+---
+# Kong Ingress (if using Kong in Kubernetes)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: kong-ingress
+  namespace: ridehailing
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  tls:
+  - hosts:
+    - gateway.ridehailing.com
+    secretName: kong-tls
+  rules:
+  - host: gateway.ridehailing.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: kong-proxy
+            port:
+              number: 8000
+
+---
+# Konga Admin UI Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: konga-ingress
+  namespace: ridehailing
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
+    nginx.ingress.kubernetes.io/whitelist-source-range: "0.0.0.0/0"  # Restrict in production
+spec:
+  rules:
+  - host: konga.ridehailing.com
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: konga-service
+            port:
+              number: 1337
