@@ -8,6 +8,7 @@ Base URLs:
 - Auth Service: `http://localhost:8081`
 - Rides Service: `http://localhost:8082`
 - Geo Service: `http://localhost:8083`
+- Mobile Service: `http://localhost:8087`
 
 All API requests and responses use JSON format.
 
@@ -291,6 +292,203 @@ Rate a completed ride. Requires rider authentication.
 ```
 
 **Response:** `200 OK`
+
+### GET /api/v1/rides/surge-info
+
+Retrieve the current surge pricing information for a latitude/longitude pair. Requires authentication (rider or driver).
+
+**Query Parameters:**
+- `lat` (required) – Pickup latitude
+- `lon` (required) – Pickup longitude
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "surge_multiplier": 1.4,
+    "is_surge_active": true,
+    "message": "Increased demand - Fares are slightly higher",
+    "factors": {
+      "demand_ratio": 1.8,
+      "demand_surge": 1.8,
+      "time_multiplier": 1.2,
+      "day_multiplier": 1.0,
+      "zone_multiplier": 1.1,
+      "weather_factor": 1.0
+    }
+  }
+}
+```
+
+## Mobile Service API
+
+The mobile API consolidates rider-facing functionality such as ride history, favorites, and profile management. All endpoints require the `Authorization: Bearer <token>` header.
+
+### GET /api/v1/rides/history
+
+Retrieve ride history with rich filtering options.
+
+**Query Parameters:**
+- `status` – Optional ride status filter (`completed`, `cancelled`, etc.)
+- `start_date` – Optional ISO date (`YYYY-MM-DD`)
+- `end_date` – Optional ISO date (`YYYY-MM-DD`)
+- `limit` – Number of records to return (default 20)
+- `offset` – Pagination offset (default 0)
+
+**Response:** `200 OK`
+```json
+{
+  "rides": [
+    {
+      "id": "uuid",
+      "status": "completed",
+      "pickup_address": "New York, NY",
+      "dropoff_address": "Times Square, NY",
+      "final_fare": 18.75,
+      "completed_at": "2024-01-01T00:30:00Z"
+    }
+  ],
+  "total": 42,
+  "limit": 20,
+  "offset": 0
+}
+```
+
+### GET /api/v1/rides/:id/receipt
+
+Generate a detailed receipt for a completed ride (rider or driver).
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "ride_id": "uuid",
+    "date": "2024-01-01T00:30:00Z",
+    "pickup_address": "New York, NY",
+    "dropoff_address": "Times Square, NY",
+    "distance": 5.4,
+    "duration": 19,
+    "base_fare": 12.50,
+    "surge_multiplier": 1.3,
+    "final_fare": 16.25,
+    "payment_method": "wallet",
+    "rider_id": "uuid",
+    "driver_id": "uuid"
+  }
+}
+```
+
+### Favorites Endpoints
+
+#### POST /api/v1/favorites
+
+Create a favorite location for the authenticated user.
+
+**Request Body:**
+```json
+{
+  "name": "Home",
+  "address": "123 Main St, Springfield",
+  "latitude": 40.7128,
+  "longitude": -74.0060
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "id": "uuid",
+  "user_id": "uuid",
+  "name": "Home",
+  "address": "123 Main St, Springfield",
+  "latitude": 40.7128,
+  "longitude": -74.0060,
+  "created_at": "2024-01-01T00:00:00Z",
+  "updated_at": "2024-01-01T00:00:00Z"
+}
+```
+
+#### GET /api/v1/favorites
+
+List all favorite locations for the authenticated user.
+
+**Response:** `200 OK`
+```json
+{
+  "favorites": [
+    {
+      "id": "uuid",
+      "name": "Home",
+      "address": "123 Main St, Springfield",
+      "latitude": 40.7128,
+      "longitude": -74.0060
+    }
+  ]
+}
+```
+
+#### GET /api/v1/favorites/:id
+
+Fetch a single favorite location by ID. Returns `404` if it does not belong to the user.
+
+#### PUT /api/v1/favorites/:id
+
+Update a favorite location. Request body matches the create payload. Returns the updated favorite on success.
+
+#### DELETE /api/v1/favorites/:id
+
+Delete a favorite location. Returns:
+```json
+{
+  "message": "Favorite location deleted"
+}
+```
+
+### Profile Endpoints
+
+#### GET /api/v1/profile
+
+Retrieve the authenticated user's profile information.
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "first_name": "John",
+    "last_name": "Doe",
+    "phone_number": "+1234567890",
+    "role": "rider"
+  }
+}
+```
+
+#### PUT /api/v1/profile
+
+Update the authenticated user's profile.
+
+**Request Body:**
+```json
+{
+  "first_name": "John",
+  "last_name": "Smith",
+  "phone_number": "+1234567890"
+}
+```
+
+**Response:** `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Profile updated successfully"
+  }
+}
+```
 
 ## Geo Service API
 
