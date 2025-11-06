@@ -8,6 +8,9 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/richxcame/ride-hailing/pkg/logger"
+	"github.com/richxcame/ride-hailing/pkg/middleware"
 )
 
 // Client wraps http.Client with convenience methods
@@ -43,6 +46,7 @@ func (c *Client) Post(ctx context.Context, path string, body interface{}, header
 	}
 
 	req.Header.Set("Content-Type", "application/json")
+	injectCorrelationID(ctx, req)
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
@@ -72,6 +76,7 @@ func (c *Client) Get(ctx context.Context, path string, headers map[string]string
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	injectCorrelationID(ctx, req)
 	for key, value := range headers {
 		req.Header.Set(key, value)
 	}
@@ -92,4 +97,14 @@ func (c *Client) Get(ctx context.Context, path string, headers map[string]string
 	}
 
 	return respBody, nil
+}
+
+func injectCorrelationID(ctx context.Context, req *http.Request) {
+	if ctx == nil || req == nil {
+		return
+	}
+
+	if correlationID := logger.CorrelationIDFromContext(ctx); correlationID != "" {
+		req.Header.Set(middleware.CorrelationIDHeader, correlationID)
+	}
 }
