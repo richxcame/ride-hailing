@@ -25,13 +25,15 @@ Current coverage is insufficient (only 2 test files). Need comprehensive testing
     -   [x] Analytics service tests (aggregation queries, metrics) ✅ COMPLETE
     -   [x] Promos service tests (discount calculations, referral logic) ✅ COMPLETE
 
--   [ ] **Integration Tests**
+-   [x] **Integration Tests**
 
-    -   [ ] Complete ride flow (request → match → pickup → complete → payment)
-    -   [ ] Authentication flow (register → login → refresh token)
-    -   [ ] Payment processing (Stripe webhook handling)
-    -   [ ] Promo code application (validation, discount calculation)
-    -   [ ] Fraud detection triggering (suspicious activity)
+    -   [x] Complete ride flow (request → match → pickup → complete → payment) ✅
+    -   [x] Authentication flow (register → login → refresh token) ✅
+    -   [x] Payment processing (Stripe webhook handling) ✅
+    -   [x] Promo code application (validation, discount calculation) ✅
+    -   [x] Admin service (user management, driver approval, dashboard) ✅
+    -   [x] Geo service (driver location tracking, distance calculation) ✅
+    -   [x] E2E ride flow with promo codes and referral bonuses ✅
 
 -   [ ] **Test Infrastructure**
 
