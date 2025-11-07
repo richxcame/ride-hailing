@@ -78,6 +78,9 @@ func main() {
 
 	// Health check
 	router.GET("/healthz", common.HealthCheck(serviceName, version))
+	router.GET("/version", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"service": serviceName, "version": version})
+	})
 
 	// Metrics endpoint
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
