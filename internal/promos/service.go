@@ -16,13 +16,30 @@ const (
 	ReferredBonusAmount = 10.00 // Bonus for the new user
 )
 
+// PromosRepository defines the storage operations required by the service.
+type PromosRepository interface {
+	GetPromoCodeByCode(ctx context.Context, code string) (*PromoCode, error)
+	GetPromoCodeUsesByUser(ctx context.Context, promoID uuid.UUID, userID uuid.UUID) (int, error)
+	CreatePromoCodeUse(ctx context.Context, use *PromoCodeUse) error
+	CreatePromoCode(ctx context.Context, promo *PromoCode) error
+	GetReferralCodeByUserID(ctx context.Context, userID uuid.UUID) (*ReferralCode, error)
+	CreateReferralCode(ctx context.Context, code *ReferralCode) error
+	GetReferralCodeByCode(ctx context.Context, code string) (*ReferralCode, error)
+	CreateReferral(ctx context.Context, referral *Referral) error
+	GetAllRideTypes(ctx context.Context) ([]*RideType, error)
+	GetRideTypeByID(ctx context.Context, id uuid.UUID) (*RideType, error)
+	GetReferralByReferredID(ctx context.Context, userID uuid.UUID) (*Referral, error)
+	IsFirstCompletedRide(ctx context.Context, userID uuid.UUID, rideID uuid.UUID) (bool, error)
+	MarkReferralBonusesApplied(ctx context.Context, referralID uuid.UUID, rideID uuid.UUID) error
+}
+
 // Service handles promo code and referral business logic
 type Service struct {
-	repo *Repository
+	repo PromosRepository
 }
 
 // NewService creates a new promos service
-func NewService(repo *Repository) *Service {
+func NewService(repo PromosRepository) *Service {
 	return &Service{repo: repo}
 }
 

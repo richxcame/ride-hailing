@@ -24,8 +24,8 @@ Current coverage is insufficient (only 2 test files). Need comprehensive testing
     -   [x] Real-time service tests (WebSocket hub, message routing) ✅ COMPLETE
     -   [x] Fraud service tests (risk scoring, alert generation) ✅ COMPLETE
     -   [x] ML ETA service tests (prediction accuracy, feature weights) ✅ COMPLETE
-    -   [ ] Analytics service tests (aggregation queries, metrics)
-    -   [ ] Promos service tests (discount calculations, referral logic)
+    -   [x] Analytics service tests (aggregation queries, metrics) ✅ COMPLETE
+    -   [x] Promos service tests (discount calculations, referral logic) ✅ COMPLETE
 
 -   [ ] **Integration Tests**
 

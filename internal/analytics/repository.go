@@ -17,6 +17,9 @@ type Repository struct {
 	db *pgxpool.Pool
 }
 
+// Ensure Repository implements AnalyticsRepository.
+var _ AnalyticsRepository = (*Repository)(nil)
+
 // NewRepository creates a new analytics repository
 func NewRepository(db *pgxpool.Pool) *Repository {
 	return &Repository{db: db}

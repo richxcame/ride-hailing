@@ -14,6 +14,9 @@ type Repository struct {
 	db *pgxpool.Pool
 }
 
+// Ensure Repository implements PromosRepository.
+var _ PromosRepository = (*Repository)(nil)
+
 // NewRepository creates a new promos repository
 func NewRepository(db *pgxpool.Pool) *Repository {
 	return &Repository{db: db}

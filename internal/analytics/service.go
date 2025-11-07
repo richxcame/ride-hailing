@@ -5,13 +5,26 @@ import (
 	"time"
 )
 
+// AnalyticsRepository defines the persistence operations required by the service.
+type AnalyticsRepository interface {
+	GetRevenueMetrics(ctx context.Context, startDate, endDate time.Time) (*RevenueMetrics, error)
+	GetPromoCodePerformance(ctx context.Context, startDate, endDate time.Time) ([]*PromoCodePerformance, error)
+	GetRideTypeStats(ctx context.Context, startDate, endDate time.Time) ([]*RideTypeStats, error)
+	GetReferralMetrics(ctx context.Context, startDate, endDate time.Time) (*ReferralMetrics, error)
+	GetTopDrivers(ctx context.Context, startDate, endDate time.Time, limit int) ([]*DriverPerformance, error)
+	GetDashboardMetrics(ctx context.Context) (*DashboardMetrics, error)
+	GetDemandHeatMap(ctx context.Context, startDate, endDate time.Time, gridSize float64) ([]*DemandHeatMap, error)
+	GetFinancialReport(ctx context.Context, startDate, endDate time.Time) (*FinancialReport, error)
+	GetDemandZones(ctx context.Context, startDate, endDate time.Time, minRides int) ([]*DemandZone, error)
+}
+
 // Service handles analytics business logic
 type Service struct {
-	repo *Repository
+	repo AnalyticsRepository
 }
 
 // NewService creates a new analytics service
-func NewService(repo *Repository) *Service {
+func NewService(repo AnalyticsRepository) *Service {
 	return &Service{repo: repo}
 }
 
