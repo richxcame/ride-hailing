@@ -11,6 +11,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	ridesdocs "github.com/richxcame/ride-hailing/docs/rides"
+
 	"github.com/richxcame/ride-hailing/internal/pricing"
 	"github.com/richxcame/ride-hailing/internal/rides"
 	"github.com/richxcame/ride-hailing/pkg/common"
@@ -18,13 +21,50 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/database"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
+	"github.com/richxcame/ride-hailing/pkg/ratelimit"
+	redisclient "github.com/richxcame/ride-hailing/pkg/redis"
+	"github.com/richxcame/ride-hailing/pkg/resilience"
 	"go.uber.org/zap"
 )
+
+// @title           Rides Service API
+// @version         1.0
+// @description     API for managing rider and driver interactions in the rides domain.
+// @BasePath        /api/v1
+// @schemes         http https
+// @securityDefinitions.apikey BearerAuth
+// @in              header
+// @name            Authorization
+// @description     Provide a valid JWT token using the format `Bearer <token>`.
 
 const (
 	serviceName = "rides-service"
 	version     = "1.0.0"
 )
+
+const swaggerPage = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Rides Service API Docs</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css">
+</head>
+<body>
+    <div id="swagger-ui"></div>
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-standalone-preset.js"></script>
+    <script>
+        window.onload = function() {
+            window.ui = SwaggerUIBundle({
+                url: '%s',
+                dom_id: '#swagger-ui',
+                presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
+                layout: 'BaseLayout',
+            });
+        };
+    </script>
+</body>
+</html>`
 
 func main() {
 	cfg, err := config.Load(serviceName)
@@ -36,6 +76,11 @@ func main() {
 		panic(fmt.Sprintf("failed to initialize logger: %v", err))
 	}
 	defer logger.Sync()
+
+	swaggerSpec, err := ridesdocs.Files.ReadFile("swagger.yaml")
+	if err != nil {
+		logger.Fatal("Failed to load Swagger spec", zap.Error(err))
+	}
 
 	logger.Info("Starting rides service",
 		zap.String("service", serviceName),
@@ -50,6 +95,32 @@ func main() {
 	defer database.Close(db)
 	logger.Info("Connected to database")
 
+	var (
+		redisClient   *redisclient.Client
+		limiter       *ratelimit.Limiter
+		promosBreaker *resilience.CircuitBreaker
+	)
+
+	if cfg.RateLimit.Enabled {
+		redisClient, err = redisclient.NewRedisClient(&cfg.Redis)
+		if err != nil {
+			logger.Fatal("Failed to initialize redis for rate limiting", zap.Error(err))
+		}
+
+		limiter = ratelimit.NewLimiter(redisClient.Client, cfg.RateLimit)
+		logger.Info("Rate limiting enabled",
+			zap.Int("default_limit", cfg.RateLimit.DefaultLimit),
+			zap.Int("default_burst", cfg.RateLimit.DefaultBurst),
+			zap.Duration("window", cfg.RateLimit.Window()),
+		)
+
+		defer func() {
+			if err := redisClient.Close(); err != nil {
+				logger.Warn("Failed to close redis client", zap.Error(err))
+			}
+		}()
+	}
+
 	// Get Promos service URL from environment
 	promosServiceURL := os.Getenv("PROMOS_SERVICE_URL")
 	if promosServiceURL == "" {
@@ -57,8 +128,26 @@ func main() {
 	}
 	logger.Info("Promos service URL configured", zap.String("url", promosServiceURL))
 
+	if cfg.Resilience.CircuitBreaker.Enabled {
+		breakerCfg := cfg.Resilience.CircuitBreaker.SettingsFor("promos-service")
+		promosBreaker = resilience.NewCircuitBreaker(resilience.Settings{
+			Name:             "promos-service",
+			Interval:         time.Duration(breakerCfg.IntervalSeconds) * time.Second,
+			Timeout:          time.Duration(breakerCfg.TimeoutSeconds) * time.Second,
+			FailureThreshold: uint32(breakerCfg.FailureThreshold),
+			SuccessThreshold: uint32(breakerCfg.SuccessThreshold),
+		}, nil)
+
+		logger.Info("Circuit breaker configured for promos service",
+			zap.Int("failure_threshold", breakerCfg.FailureThreshold),
+			zap.Int("success_threshold", breakerCfg.SuccessThreshold),
+			zap.Int("timeout_seconds", breakerCfg.TimeoutSeconds),
+			zap.Int("interval_seconds", breakerCfg.IntervalSeconds),
+		)
+	}
+
 	repo := rides.NewRepository(db)
-	service := rides.NewService(repo, promosServiceURL)
+	service := rides.NewService(repo, promosServiceURL, promosBreaker)
 
 	// Initialize dynamic surge pricing calculator
 	surgeCalculator := pricing.NewSurgeCalculator(db)
@@ -87,7 +176,21 @@ func main() {
 	})
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	handler.RegisterRoutes(router, cfg.JWT.Secret)
+	router.GET("/swagger/doc.yaml", func(c *gin.Context) {
+		c.Data(http.StatusOK, "application/yaml; charset=utf-8", swaggerSpec)
+	})
+	router.GET("/swagger", func(c *gin.Context) {
+		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(fmt.Sprintf(swaggerPage, "/swagger/doc.yaml")))
+	})
+	router.GET("/swagger/*path", func(c *gin.Context) {
+		if c.Param("path") == "/doc.yaml" {
+			c.Data(http.StatusOK, "application/yaml; charset=utf-8", swaggerSpec)
+			return
+		}
+		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(fmt.Sprintf(swaggerPage, "/swagger/doc.yaml")))
+	})
+
+	handler.RegisterRoutes(router, cfg.JWT.Secret, limiter, cfg.RateLimit)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Server.Port,

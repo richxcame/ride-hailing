@@ -6,13 +6,13 @@ This directory contains the Kong API Gateway configuration for the Ride Hailing 
 
 Kong serves as the centralized API Gateway for all 12 microservices, providing:
 
-- **Unified API Entry Point** - Single endpoint for all services
-- **Rate Limiting** - Protect services from abuse
-- **Authentication** - JWT validation at gateway level
-- **CORS Handling** - Proper cross-origin request handling
-- **Monitoring** - Prometheus metrics integration
-- **Request Transformation** - Add headers and modify requests
-- **Load Balancing** - Distribute traffic across service instances
+-   **Unified API Entry Point** - Single endpoint for all services
+-   **Rate Limiting** - Protect services from abuse
+-   **Authentication** - JWT validation at gateway level
+-   **CORS Handling** - Proper cross-origin request handling
+-   **Monitoring** - Prometheus metrics integration
+-   **Request Transformation** - Add headers and modify requests
+-   **Load Balancing** - Distribute traffic across service instances
 
 ## Architecture
 
@@ -94,12 +94,12 @@ curl http://localhost:8001/routes
 
 ## Access Points
 
-| Service | URL | Purpose |
-|---------|-----|---------|
-| Kong Proxy | http://localhost:8000 | Main API gateway endpoint |
-| Kong Admin API | http://localhost:8001 | Kong management API |
-| Konga UI | http://localhost:1337 | Web-based Kong administration |
-| Prometheus Metrics | http://localhost:8000/metrics | Gateway metrics |
+| Service            | URL                           | Purpose                       |
+| ------------------ | ----------------------------- | ----------------------------- |
+| Kong Proxy         | http://localhost:8000         | Main API gateway endpoint     |
+| Kong Admin API     | http://localhost:8001         | Kong management API           |
+| Konga UI           | http://localhost:1337         | Web-based Kong administration |
+| Prometheus Metrics | http://localhost:8000/metrics | Gateway metrics               |
 
 ## Service Configuration
 
@@ -109,55 +109,56 @@ All 12 microservices are configured with the following plugins:
 
 Each service has custom rate limits based on expected load:
 
-| Service | Rate Limit | Reason |
-|---------|-----------|--------|
-| Auth | 100/min | Login attempts, security |
-| Rides | 1000/min | High volume ride requests |
-| Geo | 2000/min | Frequent location updates |
-| Payments | 500/min | Payment processing |
-| Notifications | 500/min | Message delivery |
-| Real-time (WS) | 100/min | WebSocket connections |
-| Mobile | 1000/min | Mobile app requests |
-| Admin | 200/min | Admin operations |
-| Promos | 500/min | Promo code validation |
-| Scheduler | 200/min | Scheduled rides |
-| Analytics | 300/min | Report generation |
-| Fraud | 500/min | Fraud checks |
+| Service        | Rate Limit | Reason                    |
+| -------------- | ---------- | ------------------------- |
+| Auth           | 100/min    | Login attempts, security  |
+| Rides          | 1000/min   | High volume ride requests |
+| Geo            | 2000/min   | Frequent location updates |
+| Payments       | 500/min    | Payment processing        |
+| Notifications  | 500/min    | Message delivery          |
+| Real-time (WS) | 100/min    | WebSocket connections     |
+| Mobile         | 1000/min   | Mobile app requests       |
+| Admin          | 200/min    | Admin operations          |
+| Promos         | 500/min    | Promo code validation     |
+| Scheduler      | 200/min    | Scheduled rides           |
+| Analytics      | 300/min    | Report generation         |
+| Fraud          | 500/min    | Fraud checks              |
 
 ### Authentication
 
-- **Auth Service**: No JWT required (handles login)
-- **All Other Services**: JWT authentication enforced
+-   **Auth Service**: No JWT required (handles login)
+-   **All Other Services**: JWT authentication enforced
 
 ### CORS
 
 All services have CORS enabled with:
-- Allowed Origins: `*` (configure for production)
-- Allowed Methods: `GET, POST, PUT, PATCH, DELETE, OPTIONS`
-- Allowed Headers: `Accept, Authorization, Content-Type, Origin, X-Requested-With`
-- Exposed Headers: `X-RateLimit-Limit, X-RateLimit-Remaining`
-- Credentials: Enabled
-- Max Age: 3600 seconds
+
+-   Allowed Origins: `*` (configure for production)
+-   Allowed Methods: `GET, POST, PUT, PATCH, DELETE, OPTIONS`
+-   Allowed Headers: `Accept, Authorization, Content-Type, Origin, X-Requested-With`
+-   Exposed Headers: `X-RateLimit-Limit, X-RateLimit-Remaining`
+-   Credentials: Enabled
+-   Max Age: 3600 seconds
 
 ## Routes
 
 All services are accessible through Kong at `http://localhost:8000`:
 
-| Service | Route | Backend |
-|---------|-------|---------|
-| Auth | `/api/v1/auth/*` | `http://auth-service:8080` |
-| Rides | `/api/v1/rides/*` | `http://rides-service:8080` |
-| Geo | `/api/v1/geo/*` | `http://geo-service:8080` |
-| Payments | `/api/v1/payments/*` | `http://payments-service:8080` |
-| Wallet | `/api/v1/wallet/*` | `http://payments-service:8080` |
+| Service       | Route                     | Backend                             |
+| ------------- | ------------------------- | ----------------------------------- |
+| Auth          | `/api/v1/auth/*`          | `http://auth-service:8080`          |
+| Rides         | `/api/v1/rides/*`         | `http://rides-service:8080`         |
+| Geo           | `/api/v1/geo/*`           | `http://geo-service:8080`           |
+| Payments      | `/api/v1/payments/*`      | `http://payments-service:8080`      |
+| Wallet        | `/api/v1/wallet/*`        | `http://payments-service:8080`      |
 | Notifications | `/api/v1/notifications/*` | `http://notifications-service:8080` |
-| Real-time | `/ws` | `http://realtime-service:8080` |
-| Mobile | `/api/v1/mobile/*` | `http://mobile-service:8080` |
-| Admin | `/api/v1/admin/*` | `http://admin-service:8080` |
-| Promos | `/api/v1/promos/*` | `http://promos-service:8080` |
-| Scheduler | `/api/v1/scheduler/*` | `http://scheduler-service:8080` |
-| Analytics | `/api/v1/analytics/*` | `http://analytics-service:8080` |
-| Fraud | `/api/v1/fraud/*` | `http://fraud-service:8080` |
+| Real-time     | `/ws`                     | `http://realtime-service:8080`      |
+| Mobile        | `/api/v1/mobile/*`        | `http://mobile-service:8080`        |
+| Admin         | `/api/v1/admin/*`         | `http://admin-service:8080`         |
+| Promos        | `/api/v1/promos/*`        | `http://promos-service:8080`        |
+| Scheduler     | `/api/v1/scheduler/*`     | `http://scheduler-service:8080`     |
+| Analytics     | `/api/v1/analytics/*`     | `http://analytics-service:8080`     |
+| Fraud         | `/api/v1/fraud/*`         | `http://fraud-service:8080`         |
 
 ## Usage Examples
 
@@ -212,18 +213,19 @@ curl -I http://localhost:8000/api/v1/auth/healthz
 1. Access Konga at http://localhost:1337
 2. Create an admin account
 3. Add Kong connection:
-   - Name: `Ride Hailing Kong`
-   - Kong Admin URL: `http://kong:8001`
+    - Name: `Ride Hailing Kong`
+    - Kong Admin URL: `http://kong:8001`
 
 ### Managing Services
 
 Through Konga UI, you can:
-- View all services and routes
-- Configure plugins
-- Monitor traffic
-- Adjust rate limits
-- Manage consumers
-- View logs
+
+-   View all services and routes
+-   Configure plugins
+-   Monitor traffic
+-   Adjust rate limits
+-   Manage consumers
+-   View logs
 
 ## Plugins
 
@@ -232,13 +234,14 @@ Through Konga UI, you can:
 Protects services from abuse and ensures fair usage.
 
 **Configuration:**
+
 ```json
 {
-  "name": "rate-limiting",
-  "config": {
-    "minute": 1000,
-    "policy": "local"
-  }
+	"name": "rate-limiting",
+	"config": {
+		"minute": 1000,
+		"policy": "local"
+	}
 }
 ```
 
@@ -247,13 +250,15 @@ Protects services from abuse and ensures fair usage.
 Validates JWT tokens for protected endpoints.
 
 **Configuration:**
+
 ```json
 {
-  "name": "jwt"
+	"name": "jwt"
 }
 ```
 
 **JWT Header Format:**
+
 ```
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
@@ -263,14 +268,15 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 Handles cross-origin requests for web clients.
 
 **Configuration:**
+
 ```json
 {
-  "name": "cors",
-  "config": {
-    "origins": ["*"],
-    "methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    "credentials": true
-  }
+	"name": "cors",
+	"config": {
+		"origins": ["*"],
+		"methods": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+		"credentials": true
+	}
 }
 ```
 
@@ -279,14 +285,15 @@ Handles cross-origin requests for web clients.
 Adds custom headers to all requests.
 
 **Configuration:**
+
 ```json
 {
-  "name": "request-transformer",
-  "config": {
-    "add": {
-      "headers": ["X-Gateway-Version:3.0"]
-    }
-  }
+	"name": "request-transformer",
+	"config": {
+		"add": {
+			"headers": ["X-Gateway-Version:3.0"]
+		}
+	}
 }
 ```
 
@@ -297,9 +304,10 @@ Exports metrics for monitoring.
 **Metrics Endpoint:** http://localhost:8000/metrics
 
 **Available Metrics:**
-- `kong_http_requests_total` - Total HTTP requests
-- `kong_latency` - Request latency
-- `kong_bandwidth` - Bandwidth usage
+
+-   `kong_http_requests_total` - Total HTTP requests
+-   `kong_latency` - Request latency
+-   `kong_bandwidth` - Bandwidth usage
 
 ## Advanced Configuration
 
@@ -359,31 +367,35 @@ curl -X POST http://localhost:8001/services/rides-service-v2/routes \
 ### 1. Security
 
 **Change default credentials:**
+
 ```yaml
 # docker-compose.yml
 kong-database:
-  environment:
-    POSTGRES_PASSWORD: ${KONG_DB_PASSWORD}  # Use secrets
+    environment:
+        POSTGRES_PASSWORD: ${KONG_DB_PASSWORD} # Use secrets
 ```
 
 **Enable HTTPS:**
+
 ```yaml
 kong:
-  environment:
-    KONG_SSL_CERT: /etc/kong/ssl/cert.pem
-    KONG_SSL_CERT_KEY: /etc/kong/ssl/key.pem
+    environment:
+        KONG_SSL_CERT: /etc/kong/ssl/cert.pem
+        KONG_SSL_CERT_KEY: /etc/kong/ssl/key.pem
 ```
 
 **Restrict Admin API:**
+
 ```yaml
 kong:
-  environment:
-    KONG_ADMIN_LISTEN: "127.0.0.1:8001"  # Localhost only
+    environment:
+        KONG_ADMIN_LISTEN: '127.0.0.1:8001' # Localhost only
 ```
 
 ### 2. Rate Limiting
 
 **Use Redis for distributed rate limiting:**
+
 ```bash
 curl -X PATCH http://localhost:8001/plugins/{plugin-id} \
   --data "config.policy=redis" \
@@ -394,32 +406,36 @@ curl -X PATCH http://localhost:8001/plugins/{plugin-id} \
 ### 3. Monitoring
 
 **Set up Prometheus scraping:**
+
 ```yaml
 # prometheus.yml
 scrape_configs:
-  - job_name: 'kong'
-    static_configs:
-      - targets: ['kong:8000']
+    - job_name: 'kong'
+      static_configs:
+          - targets: ['kong:8000']
 ```
 
 **Create Grafana dashboards:**
-- Import Kong dashboard: https://grafana.com/grafana/dashboards/7424
+
+-   Import Kong dashboard: https://grafana.com/grafana/dashboards/7424
 
 ### 4. High Availability
 
 **Run multiple Kong instances:**
+
 ```yaml
 # docker-compose.yml
 kong-1:
-  image: kong:3.4-alpine
-  # ... config
+    image: kong:3.9.1
+    # ... config
 
 kong-2:
-  image: kong:3.4-alpine
-  # ... config
+    image: kong:3.9.1
+    # ... config
 ```
 
 **Add load balancer (Nginx):**
+
 ```nginx
 upstream kong {
   server kong-1:8000;
@@ -529,10 +545,10 @@ docker-compose up -d
 
 ## References
 
-- [Kong Documentation](https://docs.konghq.com/)
-- [Kong Plugins Hub](https://docs.konghq.com/hub/)
-- [Konga Documentation](https://github.com/pantsel/konga)
-- [Kong Ingress Controller](https://docs.konghq.com/kubernetes-ingress-controller/)
+-   [Kong Documentation](https://docs.konghq.com/)
+-   [Kong Plugins Hub](https://docs.konghq.com/hub/)
+-   [Konga Documentation](https://github.com/pantsel/konga)
+-   [Kong Ingress Controller](https://docs.konghq.com/kubernetes-ingress-controller/)
 
 ## Next Steps
 

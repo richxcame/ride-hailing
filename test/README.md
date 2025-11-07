@@ -19,16 +19,19 @@ test/
 ### Unit Tests
 
 Run all unit tests:
+
 ```bash
 go test ./...
 ```
 
 Run tests with coverage:
+
 ```bash
 go test -cover ./...
 ```
 
 Run tests for a specific package:
+
 ```bash
 go test -v ./internal/auth/...
 ```
@@ -53,24 +56,27 @@ docker-compose -f docker-compose.test.yml down
 Integration tests require running services. Make sure to:
 
 1. Start test dependencies:
-   ```bash
-   docker-compose -f docker-compose.test.yml up -d
-   ```
+
+    ```bash
+    docker-compose -f docker-compose.test.yml up -d
+    ```
 
 2. Run migrations on test database:
-   ```bash
-   DATABASE_URL="postgres://testuser:testpassword@localhost:5433/ride_hailing_test?sslmode=disable" \
-   migrate -path migrations -database $DATABASE_URL up
-   ```
+
+    ```bash
+    DATABASE_URL="postgres://testuser:testpassword@localhost:5433/ride_hailing_test?sslmode=disable" \
+    migrate -path migrations -database $DATABASE_URL up
+    ```
 
 3. Run integration tests:
-   ```bash
-   go test -tags=integration ./test/integration/...
-   ```
+    ```bash
+    go test -tags=integration ./test/integration/...
+    ```
 
 ## Test Coverage
 
 Generate detailed coverage report:
+
 ```bash
 # Generate coverage profile
 go test -coverprofile=coverage.out ./...
@@ -84,14 +90,15 @@ go tool cover -html=coverage.out -o coverage.html
 
 ### Coverage Goals
 
-- **Target:** 80% overall coverage
-- **Critical paths:** 90% coverage (auth, payments, rides)
-- **Utility functions:** 70% coverage
+-   **Target:** 80% overall coverage
+-   **Critical paths:** 90% coverage (auth, payments, rides)
+-   **Utility functions:** 70% coverage
 
 Current coverage by package:
-- `internal/auth`: 37.2% ⚠️ (Target: 80%)
-- `internal/rides`: 1.7% ⚠️ (Target: 80%)
-- `internal/payments`: 0.0% ⚠️ (Target: 80%)
+
+-   `internal/auth`: 37.2% ⚠️ (Target: 80%)
+-   `internal/rides`: 1.7% ⚠️ (Target: 80%)
+-   `internal/payments`: 0.0% ⚠️ (Target: 80%)
 
 ## Writing Tests
 
@@ -171,28 +178,32 @@ mockRepo.AssertExpectations(t)
 ## Test Categories
 
 ### Unit Tests
-- Test individual functions and methods
-- Use mocks for dependencies
-- Fast execution
-- Location: `internal/*/service_test.go`
+
+-   Test individual functions and methods
+-   Use mocks for dependencies
+-   Fast execution
+-   Location: `internal/*/service_test.go`
 
 ### Integration Tests
-- Test multiple components together
-- Use real database/redis (test containers)
-- Slower execution
-- Location: `test/integration/*_test.go`
+
+-   Test multiple components together
+-   Use real database/redis (test containers)
+-   Slower execution
+-   Location: `test/integration/*_test.go`
 
 ### End-to-End Tests
-- Test complete user flows
-- Use real HTTP requests
-- Slowest execution
-- Location: `test/e2e/*_test.go`
+
+-   Test complete user flows
+-   Use real HTTP requests
+-   Slowest execution
+-   Location: `test/e2e/*_test.go`
 
 ## CI/CD Integration
 
 Tests run automatically on:
-- Push to `main` or `develop` branches
-- Pull requests to `main` or `develop`
+
+-   Push to `main` or `develop` branches
+-   Pull requests to `main` or `develop`
 
 See `.github/workflows/test.yml` for CI configuration.
 
@@ -264,23 +275,26 @@ func TestHandler(t *testing.T) {
 ## Troubleshooting
 
 ### Tests failing locally but passing in CI
-- Check environment variables
-- Verify database migrations are up to date
-- Check for race conditions (run with `-race` flag)
+
+-   Check environment variables
+-   Verify database migrations are up to date
+-   Check for race conditions (run with `-race` flag)
 
 ### Slow tests
-- Use mocks instead of real dependencies
-- Avoid unnecessary sleeps
-- Use test containers for integration tests only
+
+-   Use mocks instead of real dependencies
+-   Avoid unnecessary sleeps
+-   Use test containers for integration tests only
 
 ### Flaky tests
-- Tests that randomly fail/pass
-- Usually caused by timing issues or shared state
-- Use proper synchronization
-- Ensure test isolation
+
+-   Tests that randomly fail/pass
+-   Usually caused by timing issues or shared state
+-   Use proper synchronization
+-   Ensure test isolation
 
 ## Resources
 
-- [Go Testing Documentation](https://golang.org/pkg/testing/)
-- [Testify Documentation](https://github.com/stretchr/testify)
-- [Table-Driven Tests](https://dave.cheney.net/2019/05/07/prefer-table-driven-tests)
+-   [Go Testing Documentation](https://golang.org/pkg/testing/)
+-   [Testify Documentation](https://github.com/stretchr/testify)
+-   [Table-Driven Tests](https://dave.cheney.net/2019/05/07/prefer-table-driven-tests)

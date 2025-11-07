@@ -1,5 +1,5 @@
 # Multi-stage Dockerfile for Go services
-FROM golang:1.23-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git make
@@ -9,6 +9,9 @@ WORKDIR /app
 
 # Copy go mod files
 COPY go.mod go.sum ./
+
+# Copy the replaced dependency so go mod download can see it
+COPY third_party ./third_party
 
 # Download dependencies
 RUN go mod download

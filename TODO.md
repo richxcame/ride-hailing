@@ -44,11 +44,11 @@ Current coverage is insufficient (only 2 test files). Need comprehensive testing
     -   [ ] Test helper utilities (assertions, database setup/teardown)
     -   [ ] CI/CD pipeline configuration (GitHub Actions)
 
--   [ ] **Coverage Reporting**
-    -   [ ] Set up coverage collection (`go test -cover`)
-    -   [ ] Add coverage badge to README
-    -   [ ] Enforce minimum coverage thresholds (80%)
-    -   [ ] Coverage reports in CI/CD
+-   [x] **Coverage Reporting**
+    -   [x] Set up coverage collection (`go test -cover`)
+    -   [x] Add coverage badge to README
+    -   [x] Enforce minimum coverage thresholds (80%)
+    -   [x] Coverage reports in CI/CD
 
 **Files to Create:**
 
@@ -105,6 +105,7 @@ Current coverage is insufficient (only 2 test files). Need comprehensive testing
 -   ✅ `scripts/install-hooks.sh`
 
 **Bonus Additions:**
+
 -   ✅ Input sanitization package with XSS/SQL injection prevention
 -   ✅ Enhanced CI/CD pipeline with security scanning
 -   ✅ Pre-commit hooks for code quality
@@ -162,17 +163,17 @@ Essential for API documentation and client generation.
 
 -   [ ] **Generate OpenAPI Specs**
 
-    -   [ ] Use `swaggo/swag` for annotation-based generation
-    -   [ ] Document all endpoints with examples
-    -   [ ] Include request/response schemas
-    -   [ ] Add authentication requirements
-    -   [ ] Document error responses
+    -   [ ] Use `swaggo/swag` for annotation-based generation _(manual spec maintained in `docs/rides/swagger.yaml` until tooling can be introduced)_
+    -   [x] Document all endpoints with examples
+    -   [x] Include request/response schemas
+    -   [x] Add authentication requirements
+    -   [x] Document error responses
 
--   [ ] **Serve Swagger UI**
+-   [x] **Serve Swagger UI**
 
-    -   [ ] Add Swagger UI endpoint (`/swagger`)
+    -   [x] Add Swagger UI endpoint (`/swagger`)
     -   [ ] Auto-generate on code changes
-    -   [ ] Version API endpoints (`/api/v1`)
+    -   [x] Version API endpoints (`/api/v1`)
 
 -   [ ] **API Versioning**
     -   [ ] Implement URL-based versioning
@@ -194,19 +195,19 @@ Essential for API documentation and client generation.
 
 Kong provides gateway-level limits, but need per-endpoint control.
 
--   [ ] **Implement Rate Limiter**
+-   [x] **Implement Rate Limiter**
 
-    -   [ ] Redis-backed token bucket algorithm
-    -   [ ] Per-user rate limits (authenticated)
-    -   [ ] Per-IP rate limits (anonymous)
-    -   [ ] Per-endpoint configuration
-    -   [ ] Burst allowance
-    -   [ ] Rate limit headers (X-RateLimit-\*)
+    -   [x] Redis-backed token bucket algorithm
+    -   [x] Per-user rate limits (authenticated)
+    -   [x] Per-IP rate limits (anonymous)
+    -   [x] Per-endpoint configuration
+    -   [x] Burst allowance
+    -   [x] Rate limit headers (X-RateLimit-\*)
 
--   [ ] **Add Rate Limit Middleware**
-    -   [ ] Configurable limits per service
-    -   [ ] Return 429 Too Many Requests
-    -   [ ] Include retry-after header
+-   [x] **Add Rate Limit Middleware**
+    -   [x] Configurable limits per service
+    -   [x] Return 429 Too Many Requests
+    -   [x] Include retry-after header
 
 **Example Limits:**
 
@@ -217,9 +218,9 @@ Kong provides gateway-level limits, but need per-endpoint control.
 
 **Files to Create:**
 
--   `pkg/middleware/ratelimit.go`
--   `pkg/ratelimit/redis_limiter.go`
--   `pkg/ratelimit/config.go`
+-   `pkg/middleware/rate_limit.go`
+-   `pkg/ratelimit/limiter.go`
+-   `pkg/config/config.go`
 
 ---
 
@@ -318,17 +319,18 @@ Currently using environment variables directly.
 
 Prevent cascading failures in distributed system.
 
--   [ ] **Implement Circuit Breaker**
+-   [x] **Implement Circuit Breaker**
 
-    -   [ ] Use `github.com/sony/gobreaker`
-    -   [ ] Configure per external dependency
-    -   [ ] States: Closed → Open → Half-Open
-    -   [ ] Threshold: 5 failures in 10 seconds
-    -   [ ] Timeout: 30 seconds before retry
+    -   [x] Use `github.com/sony/gobreaker`
+    -   [x] Configure per external dependency
+    -   [x] States: Closed → Open → Half-Open
+    -   [x] Threshold: 5 failures in 10 seconds
+    -   [x] Timeout: 30 seconds before retry
     -   [ ] Metrics: failure rate, state changes
 
 -   [ ] **Apply to External Services**
 
+    -   [x] Promos service pricing and promo validation (rides service)
     -   [ ] Stripe API calls (payments)
     -   [ ] Firebase FCM (notifications)
     -   [ ] Twilio SMS (notifications)
@@ -340,10 +342,10 @@ Prevent cascading failures in distributed system.
     -   [ ] Payment failures: Return user-friendly error
     -   [ ] ML ETA failures: Fall back to simple distance-based calculation
 
-**Files to Create:**
+**Files Created:**
 
--   `pkg/resilience/circuit_breaker.go`
--   `pkg/resilience/fallback.go`
+-   ✅ `pkg/resilience/circuit_breaker.go`
+-   ✅ `pkg/resilience/fallback.go`
 
 ---
 
@@ -1030,18 +1032,21 @@ These are small improvements with high impact that can be done quickly:
 
 **Correlation IDs:**
 Add to your service's middleware stack:
+
 ```go
 router.Use(middleware.CorrelationID())
 ```
 
 **Security Headers:**
 Add to your service's middleware stack:
+
 ```go
 router.Use(middleware.SecurityHeaders())
 ```
 
 **Health Checks:**
 Add to your service's routes:
+
 ```go
 // Simple liveness probe
 router.GET("/health/live", common.LivenessProbe(serviceName, version))
@@ -1055,11 +1060,13 @@ router.GET("/health/ready", common.ReadinessProbe(serviceName, version, checks))
 ```
 
 **Database Seeding:**
+
 ```bash
 make db-seed
 ```
 
 **Development Workflow:**
+
 ```bash
 # First time setup
 make setup

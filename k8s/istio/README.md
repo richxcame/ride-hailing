@@ -5,10 +5,11 @@ Complete guide for deploying Istio service mesh for the Ride Hailing Platform.
 ## Overview
 
 Istio provides:
-- **Traffic Management** - Smart routing, load balancing, circuit breaking
-- **Security** - mTLS, authentication, authorization
-- **Observability** - Distributed tracing, metrics, logs
-- **Resilience** - Retries, timeouts, circuit breaking, fault injection
+
+-   **Traffic Management** - Smart routing, load balancing, circuit breaking
+-   **Security** - mTLS, authentication, authorization
+-   **Observability** - Distributed tracing, metrics, logs
+-   **Resilience** - Retries, timeouts, circuit breaking, fault injection
 
 ## Architecture
 
@@ -27,10 +28,10 @@ Istio provides:
          ┌───────────────┼───────────────┐
          │               │               │
     ┌────▼────┐    ┌────▼────┐    ┌────▼────┐
-    │  Auth   │    │  Rides  │    │   Geo   │
-    │  Pod    │    │  Pod    │    │  Pod    │
-    │ [Envoy] │    │ [Envoy] │    │ [Envoy] │
-    │ [App]   │    │ [App]   │    │ [App]   │
+    │  Auth   │    │  Rides  │   │   Geo   │
+    │  Pod    │    │  Pod    │   │  Pod    │
+    │ [Envoy] │    │ [Envoy] │   │ [Envoy] │
+    │ [App]   │    │ [App]   │   │ [App]   │
     └────┬────┘    └────┬────┘    └────┬────┘
          │              │              │
          │    mTLS Encrypted Traffic   │
@@ -110,25 +111,29 @@ kubectl get pods -n ridehailing
 The Istio Gateway handles external traffic:
 
 **Hosts:**
-- `api.ridehailing.com` - Main API
-- `admin.ridehailing.com` - Admin API
-- `ws.ridehailing.com` - WebSocket endpoint
+
+-   `api.ridehailing.com` - Main API
+-   `admin.ridehailing.com` - Admin API
+-   `ws.ridehailing.com` - WebSocket endpoint
 
 **Ports:**
-- Port 80: HTTP (redirects to HTTPS)
-- Port 443: HTTPS with TLS
+
+-   Port 80: HTTP (redirects to HTTPS)
+-   Port 443: HTTPS with TLS
 
 ### Virtual Services
 
 Virtual Services define routing rules:
 
 **Features:**
-- Path-based routing
-- Automatic retries
-- Configurable timeouts
-- WebSocket support
+
+-   Path-based routing
+-   Automatic retries
+-   Configurable timeouts
+-   WebSocket support
 
 **Example routes:**
+
 ```yaml
 # Auth Service - 10s timeout, 3 retries
 /api/v1/auth → auth-service:8080
@@ -145,20 +150,23 @@ Virtual Services define routing rules:
 Destination Rules configure traffic policies:
 
 **Circuit Breaking:**
-- Auth: Max 100 connections, 50 pending requests
-- Rides: Max 200 connections, 100 pending requests
-- Geo: Max 300 connections (high throughput)
-- Payments: Max 100 connections (strict limits)
+
+-   Auth: Max 100 connections, 50 pending requests
+-   Rides: Max 200 connections, 100 pending requests
+-   Geo: Max 300 connections (high throughput)
+-   Payments: Max 100 connections (strict limits)
 
 **Load Balancing:**
-- ROUND_ROBIN: Most services
-- LEAST_REQUEST: Auth, Geo, Analytics (better for variable workloads)
-- CONSISTENT_HASH: Real-time (sticky sessions for WebSocket)
+
+-   ROUND_ROBIN: Most services
+-   LEAST_REQUEST: Auth, Geo, Analytics (better for variable workloads)
+-   CONSISTENT_HASH: Real-time (sticky sessions for WebSocket)
 
 **Outlier Detection:**
-- Consecutive errors threshold: 2-5 (depending on service)
-- Ejection time: 15-60 seconds
-- Health checks every 5-30 seconds
+
+-   Consecutive errors threshold: 2-5 (depending on service)
+-   Ejection time: 15-60 seconds
+-   Health checks every 5-30 seconds
 
 ## Security
 
@@ -169,11 +177,12 @@ All service-to-service communication is encrypted with mTLS:
 ```yaml
 # Enforce STRICT mTLS
 spec:
-  mtls:
-    mode: STRICT
+    mtls:
+        mode: STRICT
 ```
 
 **Verify mTLS:**
+
 ```bash
 # Check mTLS status
 istioctl authn tls-check <pod-name> <service-name>
@@ -188,29 +197,33 @@ API requests require valid JWT tokens:
 
 ```yaml
 # JWT issuer
-issuer: "ridehailing-auth-service"
-audiences: ["ridehailing-api"]
+issuer: 'ridehailing-auth-service'
+audiences: ['ridehailing-api']
 ```
 
 **Exempt endpoints:**
-- `/healthz` - Health checks
-- `/metrics` - Monitoring
-- `/api/v1/auth/*` - Login/registration
+
+-   `/healthz` - Health checks
+-   `/metrics` - Monitoring
+-   `/api/v1/auth/*` - Login/registration
 
 ### Authorization Policies
 
 Fine-grained access control:
 
 **Admin Service:**
-- Requires `role=admin` in JWT claims
+
+-   Requires `role=admin` in JWT claims
 
 **Payments Service:**
-- Requires `role=rider|driver|admin`
+
+-   Requires `role=rider|driver|admin`
 
 **Service-to-Service:**
-- Rides → can call Payments, Geo, Promos, Fraud
-- Analytics → can read from all services
-- Notifications → can be called by any service
+
+-   Rides → can call Payments, Geo, Promos, Fraud
+-   Analytics → can read from all services
+-   Notifications → can be called by any service
 
 ## Observability
 
@@ -224,10 +237,11 @@ istioctl dashboard kiali
 ```
 
 **Features:**
-- Service topology graph
-- Traffic flow visualization
-- Configuration validation
-- Health metrics
+
+-   Service topology graph
+-   Traffic flow visualization
+-   Configuration validation
+-   Health metrics
 
 ### Grafana Dashboards
 
@@ -239,10 +253,11 @@ istioctl dashboard grafana
 ```
 
 **Dashboards:**
-- Istio Service Dashboard
-- Istio Workload Dashboard
-- Istio Performance Dashboard
-- Istio Control Plane Dashboard
+
+-   Istio Service Dashboard
+-   Istio Workload Dashboard
+-   Istio Performance Dashboard
+-   Istio Control Plane Dashboard
 
 ### Jaeger Tracing
 
@@ -254,10 +269,11 @@ istioctl dashboard jaeger
 ```
 
 **Use Cases:**
-- Track request through multiple services
-- Identify bottlenecks
-- Debug latency issues
-- Analyze error chains
+
+-   Track request through multiple services
+-   Identify bottlenecks
+-   Debug latency issues
+-   Analyze error chains
 
 ### Prometheus Metrics
 
@@ -269,10 +285,11 @@ istioctl dashboard prometheus
 ```
 
 **Key Metrics:**
-- `istio_requests_total` - Total requests
-- `istio_request_duration_milliseconds` - Latency
-- `istio_tcp_connections_opened_total` - TCP connections
-- `istio_tcp_received_bytes_total` - Bandwidth
+
+-   `istio_requests_total` - Total requests
+-   `istio_request_duration_milliseconds` - Latency
+-   `istio_tcp_connections_opened_total` - TCP connections
+-   `istio_tcp_received_bytes_total` - Bandwidth
 
 ## Advanced Features
 
@@ -284,28 +301,28 @@ Deploy new versions gradually:
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
-  name: rides-canary
+    name: rides-canary
 spec:
-  hosts:
-  - rides-service
-  http:
-  - match:
-    - headers:
-        x-version:
-          exact: "v2"
-    route:
-    - destination:
-        host: rides-service
-        subset: v2
-  - route:
-    - destination:
-        host: rides-service
-        subset: v1
-      weight: 90
-    - destination:
-        host: rides-service
-        subset: v2
-      weight: 10  # 10% to new version
+    hosts:
+        - rides-service
+    http:
+        - match:
+              - headers:
+                    x-version:
+                        exact: 'v2'
+          route:
+              - destination:
+                    host: rides-service
+                    subset: v2
+        - route:
+              - destination:
+                    host: rides-service
+                    subset: v1
+                weight: 90
+              - destination:
+                    host: rides-service
+                    subset: v2
+                weight: 10 # 10% to new version
 ```
 
 ### Fault Injection
@@ -316,23 +333,23 @@ Test resilience:
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
-  name: fault-injection-test
+    name: fault-injection-test
 spec:
-  hosts:
-  - payments-service
-  http:
-  - fault:
-      delay:
-        percentage:
-          value: 10  # 10% of requests
-        fixedDelay: 5s
-      abort:
-        percentage:
-          value: 5  # 5% of requests
-        httpStatus: 500
-    route:
-    - destination:
-        host: payments-service
+    hosts:
+        - payments-service
+    http:
+        - fault:
+              delay:
+                  percentage:
+                      value: 10 # 10% of requests
+                  fixedDelay: 5s
+              abort:
+                  percentage:
+                      value: 5 # 5% of requests
+                  httpStatus: 500
+          route:
+              - destination:
+                    host: payments-service
 ```
 
 ### Request Mirroring
@@ -343,20 +360,20 @@ Shadow traffic to new versions:
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
 metadata:
-  name: mirror-test
+    name: mirror-test
 spec:
-  hosts:
-  - rides-service
-  http:
-  - route:
-    - destination:
-        host: rides-service
-        subset: v1
-    mirror:
-      host: rides-service
-      subset: v2
-    mirrorPercentage:
-      value: 100
+    hosts:
+        - rides-service
+    http:
+        - route:
+              - destination:
+                    host: rides-service
+                    subset: v1
+          mirror:
+              host: rides-service
+              subset: v2
+          mirrorPercentage:
+              value: 100
 ```
 
 ### Circuit Breaking
@@ -366,18 +383,19 @@ Prevent cascading failures:
 ```yaml
 # Already configured in destination-rules.yaml
 connectionPool:
-  tcp:
-    maxConnections: 100
-  http:
-    http1MaxPendingRequests: 50
-    maxRequestsPerConnection: 2
+    tcp:
+        maxConnections: 100
+    http:
+        http1MaxPendingRequests: 50
+        maxRequestsPerConnection: 2
 outlierDetection:
-  consecutiveErrors: 5
-  interval: 30s
-  baseEjectionTime: 30s
+    consecutiveErrors: 5
+    interval: 30s
+    baseEjectionTime: 30s
 ```
 
 **Test Circuit Breaking:**
+
 ```bash
 # Generate load
 kubectl run -it fortio --image=fortio/fortio -- load \
@@ -397,22 +415,23 @@ kubectl apply -f https://raw.githubusercontent.com/slok/sloth/main/deploy/kubern
 ```
 
 **Example SLO:**
+
 ```yaml
 apiVersion: sloth.slok.dev/v1
 kind: PrometheusServiceLevel
 metadata:
-  name: rides-service-slo
+    name: rides-service-slo
 spec:
-  service: "rides-service"
-  slos:
-  - name: "requests-availability"
-    objective: 99.9
-    sli:
-      events:
-        errorQuery: |
-          sum(rate(istio_requests_total{destination_service="rides-service",response_code=~"5.."}[5m]))
-        totalQuery: |
-          sum(rate(istio_requests_total{destination_service="rides-service"}[5m]))
+    service: 'rides-service'
+    slos:
+        - name: 'requests-availability'
+          objective: 99.9
+          sli:
+              events:
+                  errorQuery: |
+                      sum(rate(istio_requests_total{destination_service="rides-service",response_code=~"5.."}[5m]))
+                  totalQuery: |
+                      sum(rate(istio_requests_total{destination_service="rides-service"}[5m]))
 ```
 
 ### Alerts
@@ -421,19 +440,19 @@ Configure Prometheus alerts:
 
 ```yaml
 groups:
-- name: istio
-  rules:
-  - alert: HighErrorRate
-    expr: rate(istio_requests_total{response_code=~"5.."}[5m]) > 0.05
-    for: 5m
-    annotations:
-      summary: "High error rate detected"
+    - name: istio
+      rules:
+          - alert: HighErrorRate
+            expr: rate(istio_requests_total{response_code=~"5.."}[5m]) > 0.05
+            for: 5m
+            annotations:
+                summary: 'High error rate detected'
 
-  - alert: HighLatency
-    expr: histogram_quantile(0.99, istio_request_duration_milliseconds_bucket) > 1000
-    for: 5m
-    annotations:
-      summary: "High latency detected (p99 > 1s)"
+          - alert: HighLatency
+            expr: histogram_quantile(0.99, istio_request_duration_milliseconds_bucket) > 1000
+            for: 5m
+            annotations:
+                summary: 'High latency detected (p99 > 1s)'
 ```
 
 ## Troubleshooting
@@ -504,19 +523,19 @@ kubectl exec <pod-name> -c istio-proxy -- \
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: istio-sidecar-injector
-  namespace: istio-system
+    name: istio-sidecar-injector
+    namespace: istio-system
 data:
-  values: |
-    global:
-      proxy:
-        resources:
-          requests:
-            cpu: 100m
-            memory: 128Mi
-          limits:
-            cpu: 2000m
-            memory: 1Gi
+    values: |
+        global:
+          proxy:
+            resources:
+              requests:
+                cpu: 100m
+                memory: 128Mi
+              limits:
+                cpu: 2000m
+                memory: 1Gi
 ```
 
 ### Connection Pool Tuning
@@ -524,11 +543,11 @@ data:
 ```yaml
 # Increase for high-throughput services
 connectionPool:
-  tcp:
-    maxConnections: 500  # Increase from default 100
-  http:
-    http2MaxRequests: 500
-    maxRequestsPerConnection: 5
+    tcp:
+        maxConnections: 500 # Increase from default 100
+    http:
+        http2MaxRequests: 500
+        maxRequestsPerConnection: 5
 ```
 
 ### Disable Tracing for High-Volume Endpoints
@@ -536,10 +555,10 @@ connectionPool:
 ```yaml
 # Reduce overhead
 spec:
-  meshConfig:
-    defaultConfig:
-      tracing:
-        sampling: 1.0  # Sample 1% instead of 100%
+    meshConfig:
+        defaultConfig:
+            tracing:
+                sampling: 1.0 # Sample 1% instead of 100%
 ```
 
 ## Migration Strategy
@@ -600,13 +619,15 @@ kubectl patch peerauthentication default -n ridehailing \
 ## Cost Optimization
 
 **Sidecar Resource Usage:**
-- Each Envoy sidecar: ~50-100MB RAM, 50-100m CPU
-- For 30 pods: ~1.5-3GB RAM, 1.5-3 CPU cores
+
+-   Each Envoy sidecar: ~50-100MB RAM, 50-100m CPU
+-   For 30 pods: ~1.5-3GB RAM, 1.5-3 CPU cores
 
 **Recommendations:**
-- Use Istio only for critical services
-- Disable sidecar injection for internal tools
-- Use ambient mesh (new Istio feature) for lower overhead
+
+-   Use Istio only for critical services
+-   Disable sidecar injection for internal tools
+-   Use ambient mesh (new Istio feature) for lower overhead
 
 ## Cleanup
 
@@ -631,10 +652,10 @@ kubectl delete namespace istio-system
 
 ## References
 
-- [Istio Documentation](https://istio.io/latest/docs/)
-- [Istio Best Practices](https://istio.io/latest/docs/ops/best-practices/)
-- [Envoy Proxy](https://www.envoyproxy.io/docs/envoy/latest/)
-- [Service Mesh Patterns](https://www.manning.com/books/istio-in-action)
+-   [Istio Documentation](https://istio.io/latest/docs/)
+-   [Istio Best Practices](https://istio.io/latest/docs/ops/best-practices/)
+-   [Envoy Proxy](https://www.envoyproxy.io/docs/envoy/latest/)
+-   [Service Mesh Patterns](https://www.manning.com/books/istio-in-action)
 
 ---
 

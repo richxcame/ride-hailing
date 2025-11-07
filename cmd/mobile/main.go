@@ -61,7 +61,7 @@ func main() {
 	favoritesRepo := favorites.NewRepository(db)
 
 	// Initialize services
-	ridesService := rides.NewService(ridesRepo, promosServiceURL)
+	ridesService := rides.NewService(ridesRepo, promosServiceURL, nil)
 	favoritesService := favorites.NewService(favoritesRepo)
 
 	// Initialize handlers

@@ -11,6 +11,7 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/httpclient"
 	"github.com/richxcame/ride-hailing/pkg/models"
+	"github.com/richxcame/ride-hailing/pkg/resilience"
 )
 
 const (
@@ -24,6 +25,7 @@ const (
 type Service struct {
 	repo            *Repository
 	promosClient    *httpclient.Client
+	promosBreaker   *resilience.CircuitBreaker
 	surgeCalculator SurgeCalculator
 }
 
@@ -34,10 +36,11 @@ type SurgeCalculator interface {
 }
 
 // NewService creates a new rides service
-func NewService(repo *Repository, promosServiceURL string) *Service {
+func NewService(repo *Repository, promosServiceURL string, breaker *resilience.CircuitBreaker) *Service {
 	return &Service{
 		repo:            repo,
 		promosClient:    httpclient.NewClient(promosServiceURL, 10*time.Second),
+		promosBreaker:   breaker,
 		surgeCalculator: nil, // Will be set via SetSurgeCalculator
 	}
 }
@@ -405,7 +408,7 @@ func (s *Service) validatePromoCode(ctx context.Context, code string, riderID uu
 	// In a real scenario, you'd extract the JWT from the context
 	// For now, we'll make a direct service-to-service call
 
-	respBody, err := s.promosClient.Post(ctx, "/api/v1/promo-codes/validate", requestBody, headers)
+	respBody, err := s.postToPromos(ctx, "/api/v1/promo-codes/validate", requestBody, headers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to validate promo code: %w", err)
 	}
@@ -435,7 +438,7 @@ func (s *Service) calculateFareWithRideType(ctx context.Context, rideTypeID uuid
 		"surge_multiplier": surgeMultiplier,
 	}
 
-	respBody, err := s.promosClient.Post(ctx, "/api/v1/ride-types/calculate-fare", requestBody, nil)
+	respBody, err := s.postToPromos(ctx, "/api/v1/ride-types/calculate-fare", requestBody, nil)
 	if err != nil {
 		return 0, fmt.Errorf("failed to calculate fare with ride type: %w", err)
 	}
@@ -446,4 +449,24 @@ func (s *Service) calculateFareWithRideType(ctx context.Context, rideTypeID uuid
 	}
 
 	return fareResp.Fare, nil
+}
+
+func (s *Service) postToPromos(ctx context.Context, path string, body interface{}, headers map[string]string) ([]byte, error) {
+	if s.promosBreaker == nil {
+		return s.promosClient.Post(ctx, path, body, headers)
+	}
+
+	result, err := s.promosBreaker.Execute(ctx, func(ctx context.Context) (interface{}, error) {
+		return s.promosClient.Post(ctx, path, body, headers)
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	bytes, ok := result.([]byte)
+	if !ok {
+		return nil, fmt.Errorf("unexpected response type from promos service")
+	}
+
+	return bytes, nil
 }

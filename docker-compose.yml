@@ -1,9 +1,9 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # PostgreSQL Database
   postgres:
-    image: postgres:15-alpine
+    image: postgis/postgis:15-3.4
     container_name: ridehailing-postgres
     environment:
       POSTGRES_USER: postgres
@@ -58,7 +58,7 @@ services:
 
   # Kong Database Migration
   kong-migration:
-    image: kong:3.4-alpine
+    image: kong:3.9.1
     container_name: ridehailing-kong-migration
     command: kong migrations bootstrap
     environment:
@@ -76,7 +76,7 @@ services:
 
   # Kong API Gateway
   kong:
-    image: kong:3.4-alpine
+    image: kong:3.9.1
     container_name: ridehailing-kong
     environment:
       KONG_DATABASE: postgres
@@ -91,10 +91,10 @@ services:
       KONG_ADMIN_LISTEN: "0.0.0.0:8001"
       KONG_PROXY_LISTEN: "0.0.0.0:8000, 0.0.0.0:8443 ssl"
     ports:
-      - "8000:8000"  # Proxy HTTP
-      - "8443:8443"  # Proxy HTTPS
-      - "8001:8001"  # Admin API HTTP
-      - "8444:8444"  # Admin API HTTPS
+      - "8000:8000" # Proxy HTTP
+      - "8443:8443" # Proxy HTTPS
+      - "8001:8001" # Admin API HTTP
+      - "8444:8444" # Admin API HTTPS
     depends_on:
       kong-database:
         condition: service_healthy
@@ -520,8 +520,8 @@ services:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
     ports:
       - "9090:9090"
     networks:

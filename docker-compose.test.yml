@@ -1,9 +1,9 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Test Database
   postgres-test:
-    image: postgres:15
+    image: postgis/postgis:15-3.4
     container_name: ride-hailing-postgres-test
     environment:
       POSTGRES_USER: testuser

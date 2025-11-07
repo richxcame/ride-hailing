@@ -71,12 +71,13 @@ jobs:
           flags: unittests
           name: codecov-umbrella
 
-      - name: Check test coverage
+      - name: Enforce minimum coverage
         run: |
           coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
           echo "Total test coverage: ${coverage}%"
-          if (( $(echo "$coverage < 70" | bc -l) )); then
-            echo "Warning: Test coverage is below 70%"
+          if (( $(echo "$coverage < 80" | bc -l) )); then
+            echo "Error: Test coverage ${coverage}% is below the required 80% threshold"
+            exit 1
           fi
 
       - name: Archive coverage report

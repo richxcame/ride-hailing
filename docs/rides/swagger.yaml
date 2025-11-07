@@ -1,0 +1,556 @@
+openapi: 3.0.3
+info:
+  title: Rides Service API
+  version: "1.0.0"
+  description: |
+    API documentation for the ride management service. All endpoints require a valid JWT Bearer token
+    unless otherwise noted.
+servers:
+  - url: /api/v1
+    description: Default versioned API base path
+security:
+  - BearerAuth: []
+paths:
+  /rides:
+    post:
+      summary: Request a new ride
+      description: Creates a ride request using pickup and dropoff details. Applies surge pricing and promo validation automatically.
+      tags: [Rides]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RideRequest'
+      responses:
+        '201':
+          description: Ride requested successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RideEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+    get:
+      summary: List rides for the authenticated user
+      description: Returns paginated rides for the caller. Riders receive their ride history, drivers receive rides they have accepted or completed.
+      tags: [Rides]
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            minimum: 1
+          description: Page number (defaults to 1)
+        - in: query
+          name: per_page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+          description: Number of results per page (defaults to 10)
+      responses:
+        '200':
+          description: List of rides returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RideListEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /rides/{id}:
+    get:
+      summary: Get ride details
+      description: Retrieves a single ride by its identifier.
+      tags: [Rides]
+      parameters:
+        - $ref: '#/components/parameters/RideID'
+      responses:
+        '200':
+          description: Ride details returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RideEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /rides/{id}/cancel:
+    post:
+      summary: Cancel a ride request
+      description: Allows a rider or driver to cancel a ride with an optional reason.
+      tags: [Rides]
+      parameters:
+        - $ref: '#/components/parameters/RideID'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelRideRequest'
+      responses:
+        '200':
+          description: Ride cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RideEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /rides/{id}/rate:
+    post:
+      summary: Rate a completed ride
+      description: Submits a rating and optional feedback for a completed ride.
+      tags: [Rides]
+      parameters:
+        - $ref: '#/components/parameters/RideID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RideRatingRequest'
+      responses:
+        '200':
+          description: Rating submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /rides/surge-info:
+    get:
+      summary: Retrieve surge pricing info
+      description: Provides current surge multiplier details for a latitude and longitude.
+      tags: [Rides]
+      parameters:
+        - in: query
+          name: lat
+          required: true
+          schema:
+            type: number
+            format: float
+          description: Latitude of the pickup location
+        - in: query
+          name: lon
+          required: true
+          schema:
+            type: number
+            format: float
+          description: Longitude of the pickup location
+      responses:
+        '200':
+          description: Surge pricing information returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SurgeEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /driver/rides/available:
+    get:
+      summary: List available ride requests
+      description: Returns ride requests that are available for drivers to accept.
+      tags: [Driver Rides]
+      responses:
+        '200':
+          description: Available rides listed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RideListEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /driver/rides/{id}/accept:
+    post:
+      summary: Accept a ride request
+      description: Allows an authenticated driver to accept a pending ride request.
+      tags: [Driver Rides]
+      parameters:
+        - $ref: '#/components/parameters/RideID'
+      responses:
+        '200':
+          description: Ride accepted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RideEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /driver/rides/{id}/start:
+    post:
+      summary: Start an accepted ride
+      description: Marks an accepted ride as in progress for the assigned driver.
+      tags: [Driver Rides]
+      parameters:
+        - $ref: '#/components/parameters/RideID'
+      responses:
+        '200':
+          description: Ride started successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RideEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /driver/rides/{id}/complete:
+    post:
+      summary: Complete a ride
+      description: Marks an in-progress ride as completed and records the actual distance travelled.
+      tags: [Driver Rides]
+      parameters:
+        - $ref: '#/components/parameters/RideID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteRideRequest'
+      responses:
+        '200':
+          description: Ride completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RideEnvelope'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    RideID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Unique identifier of the ride
+  responses:
+    BadRequest:
+      description: Invalid request payload or parameters
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unauthorized:
+      description: Authentication required or failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Forbidden:
+      description: Caller does not have access to the requested resource
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: Resource was not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    ServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    ErrorEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          $ref: '#/components/schemas/ErrorInfo'
+        data:
+          nullable: true
+        meta:
+          nullable: true
+    ErrorInfo:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+        message:
+          type: string
+    RideEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Ride'
+        error:
+          nullable: true
+        meta:
+          nullable: true
+    RideListEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ride'
+        error:
+          nullable: true
+        meta:
+          nullable: true
+    MessageEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            message:
+              type: string
+              example: ride rated successfully
+        error:
+          nullable: true
+        meta:
+          nullable: true
+    SurgeEnvelope:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          additionalProperties: true
+        error:
+          nullable: true
+        meta:
+          nullable: true
+    RideRequest:
+      type: object
+      required: [pickup_latitude, pickup_longitude, pickup_address, dropoff_latitude, dropoff_longitude, dropoff_address]
+      properties:
+        pickup_latitude:
+          type: number
+          format: float
+        pickup_longitude:
+          type: number
+          format: float
+        pickup_address:
+          type: string
+        dropoff_latitude:
+          type: number
+          format: float
+        dropoff_longitude:
+          type: number
+          format: float
+        dropoff_address:
+          type: string
+        ride_type_id:
+          type: string
+          format: uuid
+          nullable: true
+        promo_code:
+          type: string
+        scheduled_at:
+          type: string
+          format: date-time
+          nullable: true
+        is_scheduled:
+          type: boolean
+          default: false
+    RideRatingRequest:
+      type: object
+      required: [rating]
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        feedback:
+          type: string
+          nullable: true
+    CancelRideRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+          description: Optional cancellation reason
+    CompleteRideRequest:
+      type: object
+      required: [actual_distance]
+      properties:
+        actual_distance:
+          type: number
+          format: float
+          description: Actual distance travelled in kilometers
+    Ride:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        rider_id:
+          type: string
+          format: uuid
+        driver_id:
+          type: string
+          format: uuid
+          nullable: true
+        status:
+          type: string
+          enum: [requested, accepted, in_progress, completed, cancelled]
+        pickup_latitude:
+          type: number
+          format: float
+        pickup_longitude:
+          type: number
+          format: float
+        pickup_address:
+          type: string
+        dropoff_latitude:
+          type: number
+          format: float
+        dropoff_longitude:
+          type: number
+          format: float
+        dropoff_address:
+          type: string
+        estimated_distance:
+          type: number
+          format: float
+        estimated_duration:
+          type: integer
+        estimated_fare:
+          type: number
+          format: float
+        actual_distance:
+          type: number
+          format: float
+          nullable: true
+        actual_duration:
+          type: integer
+          nullable: true
+        final_fare:
+          type: number
+          format: float
+          nullable: true
+        surge_multiplier:
+          type: number
+          format: float
+        requested_at:
+          type: string
+          format: date-time
+        accepted_at:
+          type: string
+          format: date-time
+          nullable: true
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        cancelled_at:
+          type: string
+          format: date-time
+          nullable: true
+        cancellation_reason:
+          type: string
+          nullable: true
+        rating:
+          type: integer
+          nullable: true
+        feedback:
+          type: string
+          nullable: true
+        ride_type_id:
+          type: string
+          format: uuid
+          nullable: true
+        promo_code_id:
+          type: string
+          format: uuid
+          nullable: true
+        discount_amount:
+          type: number
+          format: float
+        scheduled_at:
+          type: string
+          format: date-time
+          nullable: true
+        is_scheduled:
+          type: boolean
+        scheduled_notification_sent:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
