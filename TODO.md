@@ -318,17 +318,18 @@ Currently using environment variables directly.
 
 Prevent cascading failures in distributed system.
 
--   [ ] **Implement Circuit Breaker**
+-   [x] **Implement Circuit Breaker**
 
-    -   [ ] Use `github.com/sony/gobreaker`
-    -   [ ] Configure per external dependency
-    -   [ ] States: Closed → Open → Half-Open
-    -   [ ] Threshold: 5 failures in 10 seconds
-    -   [ ] Timeout: 30 seconds before retry
+    -   [x] Use `github.com/sony/gobreaker`
+    -   [x] Configure per external dependency
+    -   [x] States: Closed → Open → Half-Open
+    -   [x] Threshold: 5 failures in 10 seconds
+    -   [x] Timeout: 30 seconds before retry
     -   [ ] Metrics: failure rate, state changes
 
 -   [ ] **Apply to External Services**
 
+    -   [x] Promos service pricing and promo validation (rides service)
     -   [ ] Stripe API calls (payments)
     -   [ ] Firebase FCM (notifications)
     -   [ ] Twilio SMS (notifications)
@@ -340,10 +341,10 @@ Prevent cascading failures in distributed system.
     -   [ ] Payment failures: Return user-friendly error
     -   [ ] ML ETA failures: Fall back to simple distance-based calculation
 
-**Files to Create:**
+**Files Created:**
 
--   `pkg/resilience/circuit_breaker.go`
--   `pkg/resilience/fallback.go`
+-   ✅ `pkg/resilience/circuit_breaker.go`
+-   ✅ `pkg/resilience/fallback.go`
 
 ---
 

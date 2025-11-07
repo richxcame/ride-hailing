@@ -378,6 +378,22 @@ RATE_LIMIT_WINDOW_SECONDS=60
 RATE_LIMIT_ENDPOINTS='{"POST:/api/v1/rides":{"authenticated_limit":30,"anonymous_limit":10,"window_seconds":60}}'
 ```
 
+### Resilience (Circuit Breakers)
+```bash
+# Toggle distributed circuit breakers for outbound calls
+CB_ENABLED=true
+# Consecutive failures required to trip
+CB_FAILURE_THRESHOLD=5
+# Successful requests required in half-open state
+CB_SUCCESS_THRESHOLD=1
+# Seconds before attempting to close the breaker
+CB_TIMEOUT_SECONDS=30
+# Rolling window for failure counts
+CB_INTERVAL_SECONDS=60
+# Optional JSON overrides per upstream (keys match service names)
+CB_SERVICE_OVERRIDES='{"promos-service":{"failure_threshold":3,"timeout_seconds":15}}'
+```
+
 ### Payments Service (Port 8084)
 ```bash
 STRIPE_API_KEY=sk_test_51xxxxx...  # Get from Stripe Dashboard

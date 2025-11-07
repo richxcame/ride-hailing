@@ -23,6 +23,7 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/ratelimit"
 	redisclient "github.com/richxcame/ride-hailing/pkg/redis"
+	"github.com/richxcame/ride-hailing/pkg/resilience"
 	"go.uber.org/zap"
 )
 
@@ -95,8 +96,9 @@ func main() {
 	logger.Info("Connected to database")
 
 	var (
-		redisClient *redisclient.Client
-		limiter     *ratelimit.Limiter
+		redisClient   *redisclient.Client
+		limiter       *ratelimit.Limiter
+		promosBreaker *resilience.CircuitBreaker
 	)
 
 	if cfg.RateLimit.Enabled {
@@ -126,8 +128,26 @@ func main() {
 	}
 	logger.Info("Promos service URL configured", zap.String("url", promosServiceURL))
 
+	if cfg.Resilience.CircuitBreaker.Enabled {
+		breakerCfg := cfg.Resilience.CircuitBreaker.SettingsFor("promos-service")
+		promosBreaker = resilience.NewCircuitBreaker(resilience.Settings{
+			Name:             "promos-service",
+			Interval:         time.Duration(breakerCfg.IntervalSeconds) * time.Second,
+			Timeout:          time.Duration(breakerCfg.TimeoutSeconds) * time.Second,
+			FailureThreshold: uint32(breakerCfg.FailureThreshold),
+			SuccessThreshold: uint32(breakerCfg.SuccessThreshold),
+		}, nil)
+
+		logger.Info("Circuit breaker configured for promos service",
+			zap.Int("failure_threshold", breakerCfg.FailureThreshold),
+			zap.Int("success_threshold", breakerCfg.SuccessThreshold),
+			zap.Int("timeout_seconds", breakerCfg.TimeoutSeconds),
+			zap.Int("interval_seconds", breakerCfg.IntervalSeconds),
+		)
+	}
+
 	repo := rides.NewRepository(db)
-	service := rides.NewService(repo, promosServiceURL)
+	service := rides.NewService(repo, promosServiceURL, promosBreaker)
 
 	// Initialize dynamic surge pricing calculator
 	surgeCalculator := pricing.NewSurgeCalculator(db)

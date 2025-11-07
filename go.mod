@@ -5,25 +5,28 @@ go 1.24.0
 toolchain go1.24.2
 
 require (
-	firebase.google.com/go/v4 v4.14.1
-	github.com/gin-contrib/cors v1.7.6
-	github.com/gin-gonic/gin v1.10.1
-	github.com/go-playground/validator/v10 v10.28.0
-	github.com/golang-jwt/jwt/v5 v5.2.1
-	github.com/google/uuid v1.6.0
-	github.com/gorilla/websocket v1.5.3
-	github.com/jackc/pgx/v5 v5.5.5
-	github.com/joho/godotenv v1.5.1
-	github.com/lib/pq v1.10.9
-	github.com/prometheus/client_golang v1.19.0
-	github.com/redis/go-redis/v9 v9.5.1
-	github.com/stretchr/testify v1.10.0
-	github.com/stripe/stripe-go/v76 v76.25.0
-	github.com/twilio/twilio-go v1.22.3
-	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.42.0
+        firebase.google.com/go/v4 v4.14.1
+        github.com/gin-contrib/cors v1.7.6
+        github.com/gin-gonic/gin v1.10.1
+        github.com/go-playground/validator/v10 v10.28.0
+        github.com/golang-jwt/jwt/v5 v5.2.1
+        github.com/google/uuid v1.6.0
+        github.com/gorilla/websocket v1.5.3
+        github.com/jackc/pgx/v5 v5.5.5
+        github.com/joho/godotenv v1.5.1
+        github.com/lib/pq v1.10.9
+        github.com/prometheus/client_golang v1.19.0
+        github.com/redis/go-redis/v9 v9.5.1
+        github.com/sony/gobreaker v0.0.0
+        github.com/stretchr/testify v1.10.0
+        github.com/stripe/stripe-go/v76 v76.25.0
+        github.com/twilio/twilio-go v1.22.3
+        go.uber.org/zap v1.27.0
+        golang.org/x/crypto v0.42.0
 	google.golang.org/api v0.192.0
 )
+
+replace github.com/sony/gobreaker => ./third_party/gobreaker
 
 require (
 	cloud.google.com/go v0.115.0 // indirect
