@@ -103,7 +103,7 @@ func TestCalculateSurgeMultiplier(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create a time with the specified hour
-			testTime := time.Date(2024, 1, 1, tt.hour, 0, 0, 0, time.UTC)
+			testTime := time.Date(2025, 1, 1, tt.hour, 0, 0, 0, time.UTC)
 
 			multiplier := calculateSurgeMultiplier(testTime)
 
@@ -140,7 +140,7 @@ func TestFareWithSurge(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testTime := time.Date(2024, 1, 1, tt.hour, 0, 0, 0, time.UTC)
+			testTime := time.Date(2025, 1, 1, tt.hour, 0, 0, 0, time.UTC)
 			multiplier := calculateSurgeMultiplier(testTime)
 			finalFare := calculateFare(distance, duration, multiplier)
 

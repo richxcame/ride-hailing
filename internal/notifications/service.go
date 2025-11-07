@@ -199,7 +199,7 @@ func (s *Service) NotifyRideRequested(ctx context.Context, driverID, rideID uuid
 	// Also send SMS for critical notification
 	_, _ = s.SendNotification(ctx, driverID, "ride_requested", "sms",
 		"New Ride Request",
-		fmt.Sprintf("New ride request nearby. Check your app!"),
+		"New ride request nearby. Check your app!",
 		data)
 
 	return nil

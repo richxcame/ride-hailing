@@ -89,7 +89,7 @@ func (f *FirebaseClient) SendMulticastNotification(ctx context.Context, tokens [
 		},
 	}
 
-	response, err := f.client.SendMulticast(ctx, message)
+	response, err := f.client.SendEachForMulticast(ctx, message)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send multicast notification: %w", err)
 	}

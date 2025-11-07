@@ -77,8 +77,8 @@ Register a new user (rider or driver).
 		"role": "rider",
 		"is_active": true,
 		"is_verified": false,
-		"created_at": "2024-01-01T00:00:00Z",
-		"updated_at": "2024-01-01T00:00:00Z"
+		"created_at": "2025-01-01T00:00:00Z",
+		"updated_at": "2025-01-01T00:00:00Z"
 	}
 }
 ```
@@ -137,7 +137,7 @@ Authorization: Bearer <token>
 		"last_name": "Doe",
 		"role": "rider",
 		"is_active": true,
-		"created_at": "2024-01-01T00:00:00Z"
+		"created_at": "2025-01-01T00:00:00Z"
 	}
 }
 ```
@@ -208,7 +208,7 @@ Authorization: Bearer <token>
 		"estimated_duration": 18,
 		"estimated_fare": 12.5,
 		"surge_multiplier": 1.0,
-		"requested_at": "2024-01-01T00:00:00Z"
+		"requested_at": "2025-01-01T00:00:00Z"
 	}
 }
 ```
@@ -240,7 +240,7 @@ Get user's ride history. Supports pagination.
 			"pickup_address": "New York, NY",
 			"dropoff_address": "Times Square, NY",
 			"final_fare": 13.2,
-			"completed_at": "2024-01-01T00:30:00Z"
+			"completed_at": "2025-01-01T00:30:00Z"
 		}
 	]
 }
@@ -370,7 +370,7 @@ Retrieve ride history with rich filtering options.
 			"pickup_address": "New York, NY",
 			"dropoff_address": "Times Square, NY",
 			"final_fare": 18.75,
-			"completed_at": "2024-01-01T00:30:00Z"
+			"completed_at": "2025-01-01T00:30:00Z"
 		}
 	],
 	"total": 42,
@@ -390,7 +390,7 @@ Generate a detailed receipt for a completed ride (rider or driver).
 	"success": true,
 	"data": {
 		"ride_id": "uuid",
-		"date": "2024-01-01T00:30:00Z",
+		"date": "2025-01-01T00:30:00Z",
 		"pickup_address": "New York, NY",
 		"dropoff_address": "Times Square, NY",
 		"distance": 5.4,
@@ -432,8 +432,8 @@ Create a favorite location for the authenticated user.
 	"address": "123 Main St, Springfield",
 	"latitude": 40.7128,
 	"longitude": -74.006,
-	"created_at": "2024-01-01T00:00:00Z",
-	"updated_at": "2024-01-01T00:00:00Z"
+	"created_at": "2025-01-01T00:00:00Z",
+	"updated_at": "2025-01-01T00:00:00Z"
 }
 ```
 
@@ -558,7 +558,7 @@ Get a driver's current location.
 		"driver_id": "uuid",
 		"latitude": 40.7128,
 		"longitude": -74.006,
-		"timestamp": "2024-01-01T00:00:00Z"
+		"timestamp": "2025-01-01T00:00:00Z"
 	}
 }
 ```

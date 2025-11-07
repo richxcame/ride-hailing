@@ -147,7 +147,7 @@ func (w *Worker) getUpcomingScheduledRides(ctx context.Context, minutesAhead int
 		FROM rides
 		WHERE is_scheduled = true
 		  AND status = 'requested'
-		  AND scheduled_at <= NOW() + ($1 || ' minutes')::INTERVAL
+		  AND scheduled_at <= NOW() + make_interval(mins => $1)
 		  AND scheduled_at > NOW()
 		ORDER BY scheduled_at ASC
 	`

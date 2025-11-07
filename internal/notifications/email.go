@@ -107,7 +107,7 @@ const (
             <p>{{.Body}}</p>
         </div>
         <div class="footer">
-            <p>&copy; 2024 RideHailing. All rights reserved.</p>
+            <p>&copy; 2025 RideHailing. All rights reserved.</p>
         </div>
     </div>
 </body>
@@ -147,7 +147,7 @@ const (
             </div>
         </div>
         <div class="footer">
-            <p>&copy; 2024 RideHailing. All rights reserved.</p>
+            <p>&copy; 2025 RideHailing. All rights reserved.</p>
         </div>
     </div>
 </body>
@@ -186,7 +186,7 @@ const (
             </div>
         </div>
         <div class="footer">
-            <p>&copy; 2024 RideHailing. All rights reserved.</p>
+            <p>&copy; 2025 RideHailing. All rights reserved.</p>
         </div>
     </div>
 </body>
