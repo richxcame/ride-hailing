@@ -361,6 +361,23 @@ REDIS_PORT=6379
 REDIS_PASSWORD=
 ```
 
+### Rate Limiting (Rides Service)
+```bash
+# Enable Redis-backed token bucket enforcement
+RATE_LIMIT_ENABLED=true
+# Default authenticated requests per window
+RATE_LIMIT_DEFAULT_LIMIT=120
+# Additional burst capacity above the steady limit
+RATE_LIMIT_DEFAULT_BURST=40
+# Anonymous (IP-based) defaults
+RATE_LIMIT_ANON_LIMIT=60
+RATE_LIMIT_ANON_BURST=20
+# Window size in seconds
+RATE_LIMIT_WINDOW_SECONDS=60
+# Optional JSON overrides per METHOD:PATH pattern
+RATE_LIMIT_ENDPOINTS='{"POST:/api/v1/rides":{"authenticated_limit":30,"anonymous_limit":10,"window_seconds":60}}'
+```
+
 ### Payments Service (Port 8084)
 ```bash
 STRIPE_API_KEY=sk_test_51xxxxx...  # Get from Stripe Dashboard

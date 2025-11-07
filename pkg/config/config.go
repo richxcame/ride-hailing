@@ -1,21 +1,24 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/joho/godotenv"
 )
 
 // Config holds all application configuration
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	Redis    RedisConfig
-	JWT      JWTConfig
-	PubSub   PubSubConfig
-	Firebase FirebaseConfig
+	Server    ServerConfig
+	Database  DatabaseConfig
+	Redis     RedisConfig
+	JWT       JWTConfig
+	PubSub    PubSubConfig
+	Firebase  FirebaseConfig
+	RateLimit RateLimitConfig
 }
 
 // ServerConfig holds server-specific configuration
@@ -46,6 +49,27 @@ type RedisConfig struct {
 	Port     string
 	Password string
 	DB       int
+}
+
+// RateLimitConfig holds rate limiting configuration
+type RateLimitConfig struct {
+	Enabled           bool
+	WindowSeconds     int
+	DefaultLimit      int
+	DefaultBurst      int
+	AnonymousLimit    int
+	AnonymousBurst    int
+	RedisPrefix       string
+	EndpointOverrides map[string]EndpointRateLimitConfig
+}
+
+// EndpointRateLimitConfig allows customizing limits per endpoint
+type EndpointRateLimitConfig struct {
+	AuthenticatedLimit int `json:"authenticated_limit"`
+	AuthenticatedBurst int `json:"authenticated_burst"`
+	AnonymousLimit     int `json:"anonymous_limit"`
+	AnonymousBurst     int `json:"anonymous_burst"`
+	WindowSeconds      int `json:"window_seconds"`
 }
 
 // JWTConfig holds JWT configuration
@@ -110,6 +134,27 @@ func Load(serviceName string) (*Config, error) {
 			CredentialsPath: getEnv("FIREBASE_CREDENTIALS_PATH", ""),
 			Enabled:         getEnvAsBool("FIREBASE_ENABLED", false),
 		},
+		RateLimit: RateLimitConfig{
+			Enabled:        getEnvAsBool("RATE_LIMIT_ENABLED", false),
+			WindowSeconds:  getEnvAsInt("RATE_LIMIT_WINDOW_SECONDS", 60),
+			DefaultLimit:   getEnvAsInt("RATE_LIMIT_DEFAULT_LIMIT", 120),
+			DefaultBurst:   getEnvAsInt("RATE_LIMIT_DEFAULT_BURST", 40),
+			AnonymousLimit: getEnvAsInt("RATE_LIMIT_ANON_LIMIT", 60),
+			AnonymousBurst: getEnvAsInt("RATE_LIMIT_ANON_BURST", 20),
+			RedisPrefix:    getEnv("RATE_LIMIT_REDIS_PREFIX", "rate-limit"),
+		},
+	}
+
+	if overrides := getEnv("RATE_LIMIT_ENDPOINTS", ""); overrides != "" {
+		var endpointConfig map[string]EndpointRateLimitConfig
+		if err := json.Unmarshal([]byte(overrides), &endpointConfig); err != nil {
+			return nil, fmt.Errorf("invalid RATE_LIMIT_ENDPOINTS value: %w", err)
+		}
+		cfg.RateLimit.EndpointOverrides = endpointConfig
+	}
+
+	if cfg.RateLimit.WindowSeconds <= 0 {
+		cfg.RateLimit.WindowSeconds = int((time.Minute).Seconds())
 	}
 
 	return cfg, nil
@@ -150,4 +195,12 @@ func getEnvAsBool(key string, defaultValue bool) bool {
 		return value
 	}
 	return defaultValue
+}
+
+// Window returns the configured rate limit window duration
+func (c RateLimitConfig) Window() time.Duration {
+	if c.WindowSeconds <= 0 {
+		return time.Minute
+	}
+	return time.Duration(c.WindowSeconds) * time.Second
 }

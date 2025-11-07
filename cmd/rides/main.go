@@ -21,6 +21,8 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/database"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
+	"github.com/richxcame/ride-hailing/pkg/ratelimit"
+	redisclient "github.com/richxcame/ride-hailing/pkg/redis"
 	"go.uber.org/zap"
 )
 
@@ -92,6 +94,31 @@ func main() {
 	defer database.Close(db)
 	logger.Info("Connected to database")
 
+	var (
+		redisClient *redisclient.Client
+		limiter     *ratelimit.Limiter
+	)
+
+	if cfg.RateLimit.Enabled {
+		redisClient, err = redisclient.NewRedisClient(&cfg.Redis)
+		if err != nil {
+			logger.Fatal("Failed to initialize redis for rate limiting", zap.Error(err))
+		}
+
+		limiter = ratelimit.NewLimiter(redisClient.Client, cfg.RateLimit)
+		logger.Info("Rate limiting enabled",
+			zap.Int("default_limit", cfg.RateLimit.DefaultLimit),
+			zap.Int("default_burst", cfg.RateLimit.DefaultBurst),
+			zap.Duration("window", cfg.RateLimit.Window()),
+		)
+
+		defer func() {
+			if err := redisClient.Close(); err != nil {
+				logger.Warn("Failed to close redis client", zap.Error(err))
+			}
+		}()
+	}
+
 	// Get Promos service URL from environment
 	promosServiceURL := os.Getenv("PROMOS_SERVICE_URL")
 	if promosServiceURL == "" {
@@ -143,7 +170,7 @@ func main() {
 		c.Data(http.StatusOK, "text/html; charset=utf-8", []byte(fmt.Sprintf(swaggerPage, "/swagger/doc.yaml")))
 	})
 
-	handler.RegisterRoutes(router, cfg.JWT.Secret)
+	handler.RegisterRoutes(router, cfg.JWT.Secret, limiter, cfg.RateLimit)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Server.Port,

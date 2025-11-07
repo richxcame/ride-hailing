@@ -194,19 +194,19 @@ Essential for API documentation and client generation.
 
 Kong provides gateway-level limits, but need per-endpoint control.
 
--   [ ] **Implement Rate Limiter**
+-   [x] **Implement Rate Limiter**
 
-    -   [ ] Redis-backed token bucket algorithm
-    -   [ ] Per-user rate limits (authenticated)
-    -   [ ] Per-IP rate limits (anonymous)
-    -   [ ] Per-endpoint configuration
-    -   [ ] Burst allowance
-    -   [ ] Rate limit headers (X-RateLimit-\*)
+    -   [x] Redis-backed token bucket algorithm
+    -   [x] Per-user rate limits (authenticated)
+    -   [x] Per-IP rate limits (anonymous)
+    -   [x] Per-endpoint configuration
+    -   [x] Burst allowance
+    -   [x] Rate limit headers (X-RateLimit-\*)
 
--   [ ] **Add Rate Limit Middleware**
-    -   [ ] Configurable limits per service
-    -   [ ] Return 429 Too Many Requests
-    -   [ ] Include retry-after header
+-   [x] **Add Rate Limit Middleware**
+    -   [x] Configurable limits per service
+    -   [x] Return 429 Too Many Requests
+    -   [x] Include retry-after header
 
 **Example Limits:**
 
@@ -217,9 +217,9 @@ Kong provides gateway-level limits, but need per-endpoint control.
 
 **Files to Create:**
 
--   `pkg/middleware/ratelimit.go`
--   `pkg/ratelimit/redis_limiter.go`
--   `pkg/ratelimit/config.go`
+-   `pkg/middleware/rate_limit.go`
+-   `pkg/ratelimit/limiter.go`
+-   `pkg/config/config.go`
 
 ---
 

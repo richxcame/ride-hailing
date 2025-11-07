@@ -9,8 +9,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/pkg/common"
+	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/models"
+	"github.com/richxcame/ride-hailing/pkg/ratelimit"
 )
 
 // Handler handles HTTP requests for rides
@@ -633,9 +635,13 @@ func (h *Handler) GetSurgeInfo(c *gin.Context) {
 }
 
 // RegisterRoutes registers ride routes
-func (h *Handler) RegisterRoutes(r *gin.Engine, jwtSecret string) {
+func (h *Handler) RegisterRoutes(r *gin.Engine, jwtSecret string, limiter *ratelimit.Limiter, rateCfg config.RateLimitConfig) {
 	api := r.Group("/api/v1")
 	api.Use(middleware.AuthMiddleware(jwtSecret))
+
+	if rateCfg.Enabled && limiter != nil {
+		api.Use(middleware.RateLimit(limiter, rateCfg))
+	}
 
 	// Rider routes
 	riders := api.Group("/rides")
