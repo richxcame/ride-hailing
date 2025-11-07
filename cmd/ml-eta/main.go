@@ -18,6 +18,8 @@ import (
 	redisClient "github.com/richxcame/ride-hailing/pkg/redis"
 )
 
+const serviceName = "ml-eta"
+
 func main() {
 	// Load configuration
 	cfg, err := config.Load("ml-eta")

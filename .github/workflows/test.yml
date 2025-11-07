@@ -1,86 +1,86 @@
-# name: Tests
+name: Tests
 
-# on:
-#   push:
-#     branches: [main, develop]
-#   pull_request:
-#     branches: [main, develop]
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
 
-# jobs:
-#   test:
-#     name: Run Tests
-#     runs-on: ubuntu-latest
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
 
-#     services:
-#       postgres:
-#         image: postgres:15
-#         env:
-#           POSTGRES_USER: testuser
-#           POSTGRES_PASSWORD: testpassword
-#           POSTGRES_DB: ride_hailing_test
-#         ports:
-#           - 5432:5432
-#         options: >-
-#           --health-cmd pg_isready
-#           --health-interval 10s
-#           --health-timeout 5s
-#           --health-retries 5
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: ride_hailing_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
-#       redis:
-#         image: redis:7-alpine
-#         ports:
-#           - 6379:6379
-#         options: >-
-#           --health-cmd "redis-cli ping"
-#           --health-interval 10s
-#           --health-timeout 5s
-#           --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
 
-#     steps:
-#       - name: Checkout code
-#         uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-#       - name: Set up Go
-#         uses: actions/setup-go@v5
-#         with:
-#           go-version: '1.24'
-#           cache: true
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+          cache: true
 
-#       - name: Install dependencies
-#         run: go mod download
+      - name: Install dependencies
+        run: go mod download
 
-#       - name: Run golangci-lint
-#         uses: golangci/golangci-lint-action@v4
-#         with:
-#           version: latest
-#           args: --timeout=5m
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+          args: --timeout=5m
 
-#       - name: Run tests
-#         env:
-#           DATABASE_URL: postgres://testuser:testpassword@localhost:5432/ride_hailing_test?sslmode=disable
-#           REDIS_URL: redis://localhost:6379
-#         run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+      - name: Run tests
+        env:
+          DATABASE_URL: postgres://testuser:testpassword@localhost:5432/ride_hailing_test?sslmode=disable
+          REDIS_URL: redis://localhost:6379
+        run: go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
-#       - name: Generate coverage report
-#         run: go tool cover -html=coverage.out -o coverage.html
+      - name: Generate coverage report
+        run: go tool cover -html=coverage.out -o coverage.html
 
-#       - name: Upload coverage to Codecov
-#         uses: codecov/codecov-action@v4
-#         with:
-#           files: ./coverage.out
-#           flags: unittests
-#           name: codecov-umbrella
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.out
+          flags: unittests
+          name: codecov-umbrella
 
-#       - name: Check test coverage
-#         run: |
-#           coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-#           echo "Total test coverage: ${coverage}%"
-#           if (( $(echo "$coverage < 70" | bc -l) )); then
-#             echo "Warning: Test coverage is below 70%"
-#           fi
+      - name: Check test coverage
+        run: |
+          coverage=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          echo "Total test coverage: ${coverage}%"
+          if (( $(echo "$coverage < 70" | bc -l) )); then
+            echo "Warning: Test coverage is below 70%"
+          fi
 
-#       - name: Archive coverage report
-#         uses: actions/upload-artifact@v4
-#         with:
-#           name: coverage-report
-#           path: coverage.html
+      - name: Archive coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.html

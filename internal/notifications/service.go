@@ -13,13 +13,23 @@ import (
 )
 
 type Service struct {
-	repo           *Repository
-	firebaseClient *FirebaseClient
-	twilioClient   *TwilioClient
-	emailClient    *EmailClient
+	repo           RepositoryInterface
+	firebaseClient FirebaseClientInterface
+	twilioClient   TwilioClientInterface
+	emailClient    EmailClientInterface
 }
 
-func NewService(repo *Repository, firebaseClient *FirebaseClient, twilioClient *TwilioClient, emailClient *EmailClient) *Service {
+func NewService(repo RepositoryInterface, firebaseClient FirebaseClientInterface, twilioClient TwilioClientInterface, emailClient EmailClientInterface) *Service {
+	return &Service{
+		repo:           repo,
+		firebaseClient: firebaseClient,
+		twilioClient:   twilioClient,
+		emailClient:    emailClient,
+	}
+}
+
+// NewServiceWithClients creates a new Service with production clients (for main.go)
+func NewServiceWithClients(repo *Repository, firebaseClient *FirebaseClient, twilioClient *TwilioClient, emailClient *EmailClient) *Service {
 	return &Service{
 		repo:           repo,
 		firebaseClient: firebaseClient,

@@ -103,7 +103,7 @@ func main() {
 
 	// Initialize notification service
 	notificationRepo := notifications.NewRepository(db)
-	notificationService := notifications.NewService(notificationRepo, firebaseClient, twilioClient, emailClient)
+	notificationService := notifications.NewServiceWithClients(notificationRepo, firebaseClient, twilioClient, emailClient)
 	notificationHandler := notifications.NewHandler(notificationService)
 
 	// Start background worker for processing scheduled notifications
