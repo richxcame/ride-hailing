@@ -82,34 +82,56 @@ A complete, production-ready ride-hailing platform backend built with Go, featur
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                    Client Applications                           │
-│              (Mobile Apps, Web Dashboard, Admin Panel)           │
-└────┬──────────┬──────────┬──────────┬──────────┬───────────────┘
-     │          │          │          │          │
-┌────▼─────┐┌──▼────┐┌───▼───┐┌─────▼────┐┌───▼──────┐
-│   Auth   ││ Rides ││  Geo  ││ Payments ││  Notifs  │
-│  :8081   ││ :8082 ││ :8083 ││  :8084   ││  :8085   │
-└────┬─────┘└───┬───┘└───┬───┘└────┬─────┘└────┬─────┘
-     │         │        │       │          │
-┌────▼─────┐┌──▼────┐┌──▼─────┐
-│ Realtime ││Mobile ││Admin  │
-│  :8086   ││ :8087 ││ :8088 │
-└────┬─────┘└───┬───┘└──┬─────┘
-     │          │       │
-     └──────────┴───────┴──────────────────┐
-                         │                 │
-            ┌────────────▼────────────┐    │
-            │   PostgreSQL Database   │    │
-            │      (Persistent)       │    │
-            └────────────┬────────────┘    │
-                         │                 │
-            ┌────────────▼────────────┐    │
-            │     Redis Cluster       │◄───┘
-            │  (Cache + GeoSpatial +  │
-            │       WebSocket)        │
-            └─────────────────────────┘
+```mermaid
+flowchart TB
+
+    %% Client Layer
+    subgraph Clients[Client Applications]
+        MobileApp[Mobile Apps]
+        WebApp[Web Dashboard]
+        AdminPanel[Admin Panel]
+    end
+
+    %% Core Services
+    Auth[Auth Service :8081]
+    Rides[Rides Service :8082]
+    Geo[Geo Service :8083]
+    Payments[Payments Service :8084]
+    Notifs[Notifications Service :8085]
+
+    %% Secondary Services
+    Realtime[Realtime Service :8086]
+    MobileSvc[Mobile API :8087]
+    AdminSvc[Admin API :8088]
+
+    %% Databases
+    Postgres[(PostgreSQL Database)]
+    Redis[(Redis Cluster\nCache + Geo + WebSocket)]
+
+    %% Connections
+    Clients --> Auth
+    Clients --> Rides
+    Clients --> Geo
+    Clients --> Payments
+    Clients --> Notifs
+
+    Auth --> MobileSvc
+    Rides --> MobileSvc
+    Geo --> MobileSvc
+    Payments --> AdminSvc
+    Notifs --> AdminSvc
+
+    MobileSvc --> Realtime
+    AdminSvc --> Realtime
+
+    Auth --> Postgres
+    Rides --> Postgres
+    Geo --> Postgres
+    Payments --> Postgres
+    Notifs --> Postgres
+
+    Postgres --> Redis
+    Redis --> Realtime
 ```
 
 ---
@@ -611,6 +633,7 @@ Pre-configured dashboards:
 The platform has comprehensive test coverage across all services:
 
 **Unit Tests:**
+
 -   Auth service (JWT validation, RBAC, password hashing)
 -   Geo service (Redis GeoSpatial, distance calculations)
 -   Notifications service (FCM, Twilio, SMTP mocking)
@@ -621,6 +644,7 @@ The platform has comprehensive test coverage across all services:
 -   Promos service (discount calculations, referral logic)
 
 **Integration Tests:**
+
 -   Complete ride flow (request → match → pickup → complete → payment)
 -   Authentication flow (register → login → refresh token)
 -   Payment processing with Stripe webhooks
