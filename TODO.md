@@ -205,18 +205,18 @@ RATE_LIMIT_ENDPOINTS='{"POST:/api/v1/rides":{"authenticated_limit":30}}'
 
 Prevent XSS and injection attacks.
 
--   [ ] **Add Sanitization Layer**
+-   [x] **Add Sanitization Layer**
 
-    -   [ ] HTML entity encoding for text fields
-    -   [ ] Strip dangerous HTML tags
-    -   [ ] Sanitize SQL special characters (already using parameterized queries)
-    -   [ ] Validate JSON payloads against schema
+    -   [x] HTML entity encoding for text fields
+    -   [x] Strip dangerous HTML tags
+    -   [x] Sanitize SQL special characters (already using parameterized queries)
+    -   [x] Validate JSON payloads against schema
 
--   [ ] **Security Headers**
-    -   [ ] Content-Security-Policy
-    -   [ ] X-Content-Type-Options: nosniff
-    -   [ ] X-Frame-Options: DENY
-    -   [ ] X-XSS-Protection: 1; mode=block
+-   [x] **Security Headers**
+    -   [x] Content-Security-Policy
+    -   [x] X-Content-Type-Options: nosniff
+    -   [x] X-Frame-Options: DENY
+    -   [x] X-XSS-Protection: 1; mode=block
 
 **Files to Create:**
 

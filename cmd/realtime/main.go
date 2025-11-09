@@ -60,6 +60,8 @@ func main() {
 	// Set up Gin router
 	router := gin.Default()
 	router.Use(middleware.CorrelationID())
+	router.Use(middleware.SecurityHeaders())
+	router.Use(middleware.SanitizeRequest())
 
 	// CORS configuration
 	corsConfig := cors.DefaultConfig()

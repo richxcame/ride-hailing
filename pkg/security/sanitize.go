@@ -233,6 +233,7 @@ func ContainsXSS(input string) bool {
 func SanitizeInput(input string, maxLength int) string {
 	input = SanitizeString(input)
 	input = SanitizeForXSS(input)
+	input = SanitizeForSQL(input)
 	input = NormalizeWhitespace(input)
 	if maxLength > 0 {
 		input = TruncateString(input, maxLength)

@@ -16,6 +16,7 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/database"
 	"github.com/richxcame/ride-hailing/pkg/logger"
+	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"go.uber.org/zap"
 )
 
@@ -71,6 +72,8 @@ func main() {
 
 	router := gin.New()
 	router.Use(gin.Recovery())
+	router.Use(middleware.SecurityHeaders())
+	router.Use(middleware.SanitizeRequest())
 
 	router.GET("/healthz", common.HealthCheck(serviceName, version))
 	router.GET("/version", func(c *gin.Context) {

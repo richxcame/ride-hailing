@@ -743,6 +743,7 @@ go test ./test/integration/... -v
 -   ✅ Circuit breakers for external dependencies
 -   ✅ Rate limiting (Redis-backed token bucket)
 -   ✅ Comprehensive logging with correlation IDs
+-   ✅ Security headers + input sanitization middleware on every service
 -   ✅ Prometheus metrics on all services
 -   ✅ Health check endpoints (liveness + readiness)
 -   ✅ Database connection pooling + read replicas

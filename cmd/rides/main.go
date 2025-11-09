@@ -124,6 +124,8 @@ func main() {
 	router.Use(middleware.CorrelationID())
 	router.Use(middleware.RequestLogger(serviceName))
 	router.Use(middleware.CORS())
+	router.Use(middleware.SecurityHeaders())
+	router.Use(middleware.SanitizeRequest())
 	router.Use(middleware.Metrics(serviceName))
 
 	router.GET("/healthz", common.HealthCheck(serviceName, version))
