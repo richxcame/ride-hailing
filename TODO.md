@@ -43,13 +43,13 @@ Current coverage is insufficient (only 2 test files). Need comprehensive testing
     -   [x] Geo service (driver location tracking, distance calculation) ✅
     -   [x] E2E ride flow with promo codes and referral bonuses ✅
 
--   [ ] **Test Infrastructure**
+-   [x] **Test Infrastructure**
 
-    -   [ ] Docker compose for test dependencies (Postgres, Redis)
-    -   [ ] Test data fixtures and factory functions
-    -   [ ] Mock implementations for external APIs (Stripe, Firebase, Twilio)
-    -   [ ] Test helper utilities (assertions, database setup/teardown)
-    -   [ ] CI/CD pipeline configuration (GitHub Actions)
+    -   [x] Docker compose for test dependencies (Postgres, Redis)
+    -   [x] Test data fixtures and factory functions
+    -   [x] Mock implementations for external APIs (Stripe, Firebase, Twilio)
+    -   [x] Test helper utilities (assertions, database setup/teardown)
+    -   [x] CI/CD pipeline configuration (GitHub Actions)
 
 -   [x] **Coverage Reporting**
     -   [x] Set up coverage collection (`go test -cover`)

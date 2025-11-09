@@ -8,7 +8,8 @@ This directory contains the testing infrastructure for the ride-hailing backend.
 test/
 ├── helpers/        # Test helper functions and assertions
 │   ├── fixtures.go      # Test data fixtures
-│   └── assertions.go    # Custom assertions
+│   ├── assertions.go    # Custom assertions
+│   └── db.go            # Database setup/reset helpers
 ├── mocks/          # Mock implementations for testing
 │   └── repository.go    # Mock repository implementations
 └── README.md       # This file
@@ -61,14 +62,7 @@ Integration tests require running services. Make sure to:
     docker-compose -f docker-compose.test.yml up -d
     ```
 
-2. Run migrations on test database:
-
-    ```bash
-    DATABASE_URL="postgres://testuser:testpassword@localhost:5433/ride_hailing_test?sslmode=disable" \
-    migrate -path migrations -database $DATABASE_URL up
-    ```
-
-3. Run integration tests:
+2. Run integration tests:
     ```bash
     go test -tags=integration ./test/integration/...
     ```
@@ -123,6 +117,23 @@ func TestService_MethodName_Scenario(t *testing.T) {
 ```
 
 ### Using Test Helpers
+
+#### Database Setup & Reset
+
+```go
+import "github.com/richxcame/ride-hailing/test/helpers"
+
+func TestRepository(t *testing.T) {
+    db := helpers.SetupTestDatabase(t)
+    helpers.ResetTables(t, db, "users", "rides")
+
+    // ... interact with postgres using db ...
+}
+```
+
+`SetupTestDatabase` automatically runs all migrations against the configured test
+database. `ResetTables` truncates tables (and restarts sequences) between tests
+to keep suites deterministic.
 
 #### Fixtures
 

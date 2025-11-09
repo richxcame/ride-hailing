@@ -79,11 +79,12 @@ This directory contains integration tests for the ride-hailing backend services.
      redis:7-alpine
    ```
 
-3. **Run Migrations**
+3. **Run Migrations (optional)**
    ```bash
    # Run database migrations for the test database
    DB_PORT=5433 DB_USER=testuser DB_PASSWORD=testpassword DB_NAME=ride_hailing_test make migrate-up
    ```
+   > Tip: unit tests can now call `helpers.SetupTestDatabase(t)` which runs migrations automatically, so this manual step is only required when exercising services directly from the command line.
 
 ### Running All Integration Tests
 
