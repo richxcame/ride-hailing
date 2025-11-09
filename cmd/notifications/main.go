@@ -15,6 +15,7 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/database"
+	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"go.uber.org/zap"
@@ -31,6 +32,9 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to load config: %v", err))
 	}
+
+	rootCtx, cancelKeys := context.WithCancel(context.Background())
+	defer cancelKeys()
 
 	// Initialize logger
 	if err := logger.Init(cfg.Server.Environment); err != nil {
@@ -142,7 +146,13 @@ func main() {
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Register notification routes
-	notificationHandler.RegisterRoutes(router, cfg.JWT.Secret)
+	jwtProvider, err := jwtkeys.NewManagerFromConfig(rootCtx, cfg.JWT, true)
+	if err != nil {
+		log.Fatal("Failed to initialize JWT key manager", zap.Error(err))
+	}
+	jwtProvider.StartAutoRefresh(rootCtx, time.Duration(cfg.JWT.RefreshMinutes)*time.Minute)
+
+	notificationHandler.RegisterRoutes(router, jwtProvider)
 
 	// Setup HTTP server
 	srv := &http.Server{

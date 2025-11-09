@@ -54,6 +54,7 @@ docker-compose.override.yml
 secrets/
 credentials.json
 serviceAccount.json
+config/jwt_keys.json
 
 # Build artifacts
 tmp/

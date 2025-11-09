@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/richxcame/ride-hailing/pkg/common"
+	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/models"
 )
@@ -110,7 +111,7 @@ func (h *Handler) UpdateProfile(c *gin.Context) {
 }
 
 // RegisterRoutes registers auth routes
-func (h *Handler) RegisterRoutes(r *gin.Engine, jwtSecret string) {
+func (h *Handler) RegisterRoutes(r *gin.Engine, jwtProvider jwtkeys.KeyProvider) {
 	auth := r.Group("/api/v1/auth")
 	{
 		auth.POST("/register", h.Register)
@@ -118,7 +119,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine, jwtSecret string) {
 
 		// Protected routes
 		protected := auth.Group("")
-		protected.Use(middleware.AuthMiddleware(jwtSecret))
+		protected.Use(middleware.AuthMiddlewareWithProvider(jwtProvider))
 		{
 			protected.GET("/profile", h.GetProfile)
 			protected.PUT("/profile", h.UpdateProfile)

@@ -8,6 +8,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/pkg/common"
+	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/models"
 	"golang.org/x/crypto/bcrypt"
@@ -15,17 +16,17 @@ import (
 
 // Service handles authentication business logic
 type Service struct {
-	repo      RepositoryInterface
-	jwtSecret string
-	jwtExpiry int
+	repo       RepositoryInterface
+	keyManager *jwtkeys.Manager
+	jwtExpiry  int
 }
 
 // NewService creates a new auth service
-func NewService(repo RepositoryInterface, jwtSecret string, jwtExpiry int) *Service {
+func NewService(repo RepositoryInterface, keyManager *jwtkeys.Manager, jwtExpiry int) *Service {
 	return &Service{
-		repo:      repo,
-		jwtSecret: jwtSecret,
-		jwtExpiry: jwtExpiry,
+		repo:       repo,
+		keyManager: keyManager,
+		jwtExpiry:  jwtExpiry,
 	}
 }
 
@@ -108,7 +109,7 @@ func (s *Service) Login(ctx context.Context, req *models.LoginRequest) (*models.
 	}
 
 	// Generate JWT token
-	token, err := s.generateToken(user)
+	token, err := s.generateToken(ctx, user)
 	if err != nil {
 		return nil, common.NewInternalServerError("failed to generate token")
 	}
@@ -167,7 +168,25 @@ func (s *Service) UpdateProfile(ctx context.Context, userID uuid.UUID, updates *
 }
 
 // generateToken generates a JWT token for a user
-func (s *Service) generateToken(user *models.User) (string, error) {
+func (s *Service) generateToken(ctx context.Context, user *models.User) (string, error) {
+	if s.keyManager == nil {
+		return "", fmt.Errorf("jwt key manager is not configured")
+	}
+
+	if err := s.keyManager.EnsureRotation(ctx); err != nil {
+		return "", fmt.Errorf("failed to rotate signing key: %w", err)
+	}
+
+	key, err := s.keyManager.CurrentSigningKey()
+	if err != nil {
+		return "", fmt.Errorf("failed to retrieve signing key: %w", err)
+	}
+
+	secretBytes, err := key.SecretBytes()
+	if err != nil {
+		return "", fmt.Errorf("invalid signing key: %w", err)
+	}
+
 	claims := &middleware.Claims{
 		UserID: user.ID,
 		Email:  user.Email,
@@ -179,7 +198,8 @@ func (s *Service) generateToken(user *models.User) (string, error) {
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	tokenString, err := token.SignedString([]byte(s.jwtSecret))
+	token.Header["kid"] = key.ID
+	tokenString, err := token.SignedString(secretBytes)
 	if err != nil {
 		return "", fmt.Errorf("failed to sign token: %w", err)
 	}

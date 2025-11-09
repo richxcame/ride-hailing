@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"log"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/richxcame/ride-hailing/internal/promos"
 	"github.com/richxcame/ride-hailing/pkg/config"
+	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 )
 
@@ -20,10 +22,18 @@ func main() {
 	}
 
 	port := cfg.Server.Port
-	jwtSecret := cfg.JWT.Secret
+
+	rootCtx, cancelKeys := context.WithCancel(context.Background())
+	defer cancelKeys()
+
+	jwtProvider, err := jwtkeys.NewManagerFromConfig(rootCtx, cfg.JWT, true)
+	if err != nil {
+		log.Fatalf("Failed to initialize JWT key manager: %v", err)
+	}
+	jwtProvider.StartAutoRefresh(rootCtx, time.Duration(cfg.JWT.RefreshMinutes)*time.Minute)
 
 	// Connect to PostgreSQL
-	ctx := context.Background()
+	ctx := rootCtx
 	dsn := cfg.Database.DSN()
 	dbConfig, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
@@ -66,7 +76,7 @@ func main() {
 
 		// Authenticated endpoints
 		authenticated := api.Group("")
-		authenticated.Use(middleware.AuthMiddleware(jwtSecret))
+		authenticated.Use(middleware.AuthMiddlewareWithProvider(jwtProvider))
 		{
 			// Promo codes
 			authenticated.POST("/promo-codes/validate", handler.ValidatePromoCode)
@@ -78,7 +88,7 @@ func main() {
 
 		// Admin endpoints
 		admin := api.Group("/admin")
-		admin.Use(middleware.AuthMiddleware(jwtSecret))
+		admin.Use(middleware.AuthMiddlewareWithProvider(jwtProvider))
 		admin.Use(middleware.RequireAdmin())
 		{
 			admin.POST("/promo-codes", handler.CreatePromoCode)

@@ -14,6 +14,7 @@ import (
 	"github.com/richxcame/ride-hailing/internal/analytics"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/database"
+	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"go.uber.org/zap"
@@ -29,6 +30,9 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to load config: %v", err))
 	}
+
+	rootCtx, cancelKeys := context.WithCancel(context.Background())
+	defer cancelKeys()
 
 	if err := logger.Init(cfg.Server.Environment); err != nil {
 		panic(fmt.Sprintf("failed to initialize logger: %v", err))
@@ -51,6 +55,12 @@ func main() {
 	repo := analytics.NewRepository(db)
 	service := analytics.NewService(repo)
 	handler := analytics.NewHandler(service)
+
+	jwtProvider, err := jwtkeys.NewManagerFromConfig(rootCtx, cfg.JWT, true)
+	if err != nil {
+		logger.Fatal("Failed to initialize JWT key manager", zap.Error(err))
+	}
+	jwtProvider.StartAutoRefresh(rootCtx, time.Duration(cfg.JWT.RefreshMinutes)*time.Minute)
 
 	if cfg.Server.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -77,7 +87,7 @@ func main() {
 
 	// Admin-only analytics endpoints
 	api := router.Group("/api/v1/analytics")
-	api.Use(middleware.AuthMiddleware(cfg.JWT.Secret))
+	api.Use(middleware.AuthMiddlewareWithProvider(jwtProvider))
 	api.Use(middleware.RequireAdmin())
 	{
 		api.GET("/dashboard", handler.GetDashboardMetrics)

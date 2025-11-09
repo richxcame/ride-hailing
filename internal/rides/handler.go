@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
+	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/models"
 	"github.com/richxcame/ride-hailing/pkg/ratelimit"
@@ -511,9 +512,9 @@ func (h *Handler) GetSurgeInfo(c *gin.Context) {
 }
 
 // RegisterRoutes registers ride routes
-func (h *Handler) RegisterRoutes(r *gin.Engine, jwtSecret string, limiter *ratelimit.Limiter, rateCfg config.RateLimitConfig) {
+func (h *Handler) RegisterRoutes(r *gin.Engine, jwtProvider jwtkeys.KeyProvider, limiter *ratelimit.Limiter, rateCfg config.RateLimitConfig) {
 	api := r.Group("/api/v1")
-	api.Use(middleware.AuthMiddleware(jwtSecret))
+	api.Use(middleware.AuthMiddlewareWithProvider(jwtProvider))
 
 	if rateCfg.Enabled && limiter != nil {
 		api.Use(middleware.RateLimit(limiter, rateCfg))

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -12,6 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/richxcame/ride-hailing/internal/favorites"
 	"github.com/richxcame/ride-hailing/internal/rides"
+	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 )
 
@@ -24,12 +26,26 @@ func main() {
 	dbName := getEnv("DB_NAME", "ride_hailing")
 	jwtSecret := getEnv("JWT_SECRET", "your-secret-key")
 	port := getEnv("PORT", "8087")
+	rootCtx, cancelKeys := context.WithCancel(context.Background())
+	defer cancelKeys()
+
+	jwtProvider, err := jwtkeys.NewManager(rootCtx, jwtkeys.Config{
+		KeyFilePath:      getEnv("JWT_KEYS_FILE", "config/jwt_keys.json"),
+		RotationInterval: time.Duration(getEnvAsInt("JWT_ROTATION_HOURS", 24*30)) * time.Hour,
+		GracePeriod:      time.Duration(getEnvAsInt("JWT_ROTATION_GRACE_HOURS", 24*30)) * time.Hour,
+		LegacySecret:     jwtSecret,
+		ReadOnly:         true,
+	})
+	if err != nil {
+		log.Fatalf("Failed to initialize JWT key manager: %v", err)
+	}
+	jwtProvider.StartAutoRefresh(rootCtx, time.Duration(getEnvAsInt("JWT_KEY_REFRESH_MINUTES", 5))*time.Minute)
 
 	// Connect to PostgreSQL
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
 		dbUser, dbPassword, dbHost, dbPort, dbName)
 
-	ctx := context.Background()
+	ctx := rootCtx
 	poolConfig, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		log.Fatalf("Failed to parse database config: %v", err)
@@ -82,7 +98,7 @@ func main() {
 
 	// API routes with authentication
 	api := router.Group("/api/v1")
-	api.Use(middleware.AuthMiddleware(jwtSecret))
+	api.Use(middleware.AuthMiddlewareWithProvider(jwtProvider))
 	{
 		// Ride history endpoints
 		rides := api.Group("/rides")
@@ -124,4 +140,15 @@ func getEnv(key, defaultValue string) string {
 		return defaultValue
 	}
 	return value
+}
+
+func getEnvAsInt(key string, defaultValue int) int {
+	value := os.Getenv(key)
+	if value == "" {
+		return defaultValue
+	}
+	if parsed, err := strconv.Atoi(value); err == nil {
+		return parsed
+	}
+	return defaultValue
 }

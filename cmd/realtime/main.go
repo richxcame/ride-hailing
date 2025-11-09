@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"strings"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -11,6 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/richxcame/ride-hailing/internal/realtime"
 	"github.com/richxcame/ride-hailing/pkg/config"
+	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/redis"
 	ws "github.com/richxcame/ride-hailing/pkg/websocket"
@@ -24,7 +27,15 @@ func main() {
 	}
 
 	port := cfg.Server.Port
-	jwtSecret := cfg.JWT.Secret
+
+	rootCtx, cancelKeys := context.WithCancel(context.Background())
+	defer cancelKeys()
+
+	jwtProvider, err := jwtkeys.NewManagerFromConfig(rootCtx, cfg.JWT, true)
+	if err != nil {
+		log.Fatalf("Failed to initialize JWT key manager: %v", err)
+	}
+	jwtProvider.StartAutoRefresh(rootCtx, time.Duration(cfg.JWT.RefreshMinutes)*time.Minute)
 
 	// Connect to PostgreSQL
 	dsn := cfg.Database.DSN()
@@ -92,16 +103,16 @@ func main() {
 	api := router.Group("/api/v1")
 	{
 		// WebSocket connection (requires authentication)
-		api.GET("/ws", middleware.AuthMiddleware(jwtSecret), handler.HandleWebSocket)
+		api.GET("/ws", middleware.AuthMiddlewareWithProvider(jwtProvider), handler.HandleWebSocket)
 
 		// Chat history
-		api.GET("/rides/:ride_id/chat", middleware.AuthMiddleware(jwtSecret), handler.GetChatHistory)
+		api.GET("/rides/:ride_id/chat", middleware.AuthMiddlewareWithProvider(jwtProvider), handler.GetChatHistory)
 
 		// Driver location
-		api.GET("/drivers/:driver_id/location", middleware.AuthMiddleware(jwtSecret), handler.GetDriverLocation)
+		api.GET("/drivers/:driver_id/location", middleware.AuthMiddlewareWithProvider(jwtProvider), handler.GetDriverLocation)
 
 		// Stats (admin only)
-		api.GET("/stats", middleware.AuthMiddleware(jwtSecret), middleware.RequireAdmin(), handler.GetStats)
+		api.GET("/stats", middleware.AuthMiddlewareWithProvider(jwtProvider), middleware.RequireAdmin(), handler.GetStats)
 
 		// Internal endpoints (for other services to broadcast)
 		internal := api.Group("/internal")

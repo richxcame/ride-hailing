@@ -225,29 +225,33 @@ Prevent XSS and injection attacks.
 
 ---
 
-### 2.3 JWT Secret Rotation
+### 2.3 JWT Secret Rotation ✅ COMPLETE
 
 **Impact:** MEDIUM | **Effort:** MEDIUM | **Timeline:** 3 days
 
-Currently using single static secret.
+Multiple signing keys with automatic rotation + per-token KIDs are now supported.
 
--   [ ] **Implement Key Rotation**
+-   [x] **Implement Key Rotation**
 
-    -   [ ] Support multiple active keys (key versioning)
-    -   [ ] Add key ID (kid) to JWT header
-    -   [ ] Automatic rotation schedule (monthly)
-    -   [ ] Graceful key deprecation
-    -   [ ] Key storage in secure vault (AWS Secrets Manager, HashiCorp Vault)
+    -   [x] Support multiple active keys (key versioning)
+    -   [x] Add key ID (kid) to JWT header
+    -   [x] Automatic rotation schedule (monthly)
+    -   [x] Graceful key deprecation
+    -   [x] Key storage in secure file/Vault (pluggable manager)
 
--   [ ] **Update Auth Service**
-    -   [ ] Sign with latest key
-    -   [ ] Verify with any active key
-    -   [ ] Reject tokens with revoked keys
+-   [x] **Update Auth Service**
+    -   [x] Sign with latest key
+    -   [x] Verify with any active key
+    -   [x] Reject tokens with revoked/expired keys
 
-**Files to Modify:**
+**Files Modified/Added:**
 
--   `pkg/auth/jwt.go` (add key rotation support)
--   `internal/auth/service.go` (use versioned keys)
+-   ✅ `pkg/jwtkeys/*` (key manager + helper)
+-   ✅ `pkg/middleware/auth.go`
+-   ✅ `cmd/*/main.go` (all services load providers)
+-   ✅ `internal/*/handler.go` (accept providers)
+-   ✅ `internal/auth/service.go`
+-   ✅ `cmd/config` (new env vars: `JWT_KEYS_FILE`, rotation/grace/refresh)
 
 ---
 

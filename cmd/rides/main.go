@@ -17,6 +17,7 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/database"
+	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/ratelimit"
@@ -35,6 +36,9 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to load config: %v", err))
 	}
+
+	rootCtx, cancelKeys := context.WithCancel(context.Background())
+	defer cancelKeys()
 
 	if err := logger.Init(cfg.Server.Environment); err != nil {
 		panic(fmt.Sprintf("failed to initialize logger: %v", err))
@@ -115,6 +119,12 @@ func main() {
 
 	handler := rides.NewHandler(service)
 
+	jwtProvider, err := jwtkeys.NewManagerFromConfig(rootCtx, cfg.JWT, true)
+	if err != nil {
+		logger.Fatal("Failed to initialize JWT key manager", zap.Error(err))
+	}
+	jwtProvider.StartAutoRefresh(rootCtx, time.Duration(cfg.JWT.RefreshMinutes)*time.Minute)
+
 	if cfg.Server.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -137,7 +147,7 @@ func main() {
 	})
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	handler.RegisterRoutes(router, cfg.JWT.Secret, limiter, cfg.RateLimit)
+	handler.RegisterRoutes(router, jwtProvider, limiter, cfg.RateLimit)
 
 	srv := &http.Server{
 		Addr:         ":" + cfg.Server.Port,

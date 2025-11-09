@@ -456,7 +456,20 @@ JWT_SECRET=your-secret-key-change-in-production
 REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_PASSWORD=
+
+# Optional: JWT key rotation (defaults shown)
+JWT_KEYS_FILE=config/jwt_keys.json
+JWT_ROTATION_HOURS=720        # 30 days
+JWT_ROTATION_GRACE_HOURS=720  # overlap window
+JWT_KEY_REFRESH_MINUTES=5     # how often services reload keys
 ```
+
+Each service loads a shared `config/jwt_keys.json` (gitignored). The auth service
+rotates keys automatically while other services run in read-only mode, polling
+for updates based on `JWT_KEY_REFRESH_MINUTES`. The `JWT_SECRET` value remains as
+the fallback legacy key and initial seed. Start the auth service once to seed
+`config/jwt_keys.json` before launching the rest of the stack, or provide the
+keys file through your secrets manager.
 
 ### Rate Limiting (Rides Service)
 
@@ -744,6 +757,7 @@ go test ./test/integration/... -v
 -   ✅ Rate limiting (Redis-backed token bucket)
 -   ✅ Comprehensive logging with correlation IDs
 -   ✅ Security headers + input sanitization middleware on every service
+-   ✅ JWT signing key rotation with per-token KID headers
 -   ✅ Prometheus metrics on all services
 -   ✅ Health check endpoints (liveness + readiness)
 -   ✅ Database connection pooling + read replicas

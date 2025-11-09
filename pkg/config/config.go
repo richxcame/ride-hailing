@@ -75,8 +75,12 @@ type EndpointRateLimitConfig struct {
 
 // JWTConfig holds JWT configuration
 type JWTConfig struct {
-	Secret     string
-	Expiration int // in hours
+	Secret         string
+	Expiration     int // in hours
+	KeyFile        string
+	RotationHours  int
+	GraceHours     int
+	RefreshMinutes int
 }
 
 // PubSubConfig holds Google Pub/Sub configuration
@@ -146,8 +150,12 @@ func Load(serviceName string) (*Config, error) {
 			DB:       getEnvAsInt("REDIS_DB", 0),
 		},
 		JWT: JWTConfig{
-			Secret:     getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
-			Expiration: getEnvAsInt("JWT_EXPIRATION", 24),
+			Secret:         getEnv("JWT_SECRET", "your-secret-key-change-in-production"),
+			Expiration:     getEnvAsInt("JWT_EXPIRATION", 24),
+			KeyFile:        getEnv("JWT_KEYS_FILE", "config/jwt_keys.json"),
+			RotationHours:  getEnvAsInt("JWT_ROTATION_HOURS", 24*30),
+			GraceHours:     getEnvAsInt("JWT_ROTATION_GRACE_HOURS", 24*30),
+			RefreshMinutes: getEnvAsInt("JWT_KEY_REFRESH_MINUTES", 5),
 		},
 		PubSub: PubSubConfig{
 			ProjectID: getEnv("PUBSUB_PROJECT_ID", ""),

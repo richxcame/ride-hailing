@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/pkg/common"
+	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/models"
 )
@@ -95,9 +96,9 @@ func (h *Handler) CalculateDistance(c *gin.Context) {
 }
 
 // RegisterRoutes registers geo routes
-func (h *Handler) RegisterRoutes(r *gin.Engine, jwtSecret string) {
+func (h *Handler) RegisterRoutes(r *gin.Engine, jwtProvider jwtkeys.KeyProvider) {
 	api := r.Group("/api/v1")
-	api.Use(middleware.AuthMiddleware(jwtSecret))
+	api.Use(middleware.AuthMiddlewareWithProvider(jwtProvider))
 
 	geo := api.Group("/geo")
 	{

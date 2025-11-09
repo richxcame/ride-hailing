@@ -15,6 +15,7 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/database"
+	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"go.uber.org/zap"
@@ -31,6 +32,9 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to load config: %v", err))
 	}
+
+	rootCtx, cancelKeys := context.WithCancel(context.Background())
+	defer cancelKeys()
 
 	// Initialize logger
 	if err := logger.Init(cfg.Server.Environment); err != nil {
@@ -62,6 +66,12 @@ func main() {
 	paymentService := payments.NewServiceWithStripeKey(paymentRepo, stripeAPIKey)
 	paymentHandler := payments.NewHandler(paymentService)
 
+	jwtProvider, err := jwtkeys.NewManagerFromConfig(rootCtx, cfg.JWT, true)
+	if err != nil {
+		log.Fatal("Failed to initialize JWT key manager", zap.Error(err))
+	}
+	jwtProvider.StartAutoRefresh(rootCtx, time.Duration(cfg.JWT.RefreshMinutes)*time.Minute)
+
 	// Setup Gin router
 	if cfg.Server.Environment == "production" {
 		gin.SetMode(gin.ReleaseMode)
@@ -88,7 +98,7 @@ func main() {
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// Register payment routes
-	paymentHandler.RegisterRoutes(router, cfg.JWT.Secret)
+	paymentHandler.RegisterRoutes(router, jwtProvider)
 
 	// Setup HTTP server
 	srv := &http.Server{

@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/pkg/common"
+	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/models"
 )
@@ -20,12 +21,12 @@ func NewHandler(service *Service) *Handler {
 }
 
 // RegisterRoutes registers payment routes
-func (h *Handler) RegisterRoutes(router *gin.Engine, jwtSecret string) {
+func (h *Handler) RegisterRoutes(router *gin.Engine, jwtProvider jwtkeys.KeyProvider) {
 	api := router.Group("/api/v1")
 
 	// Protected routes
 	protected := api.Group("")
-	protected.Use(middleware.AuthMiddleware(jwtSecret))
+	protected.Use(middleware.AuthMiddlewareWithProvider(jwtProvider))
 	{
 		// Wallet routes
 		protected.GET("/wallet", h.GetWallet)

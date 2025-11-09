@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 )
 
@@ -20,9 +21,9 @@ func NewHandler(service *Service) *Handler {
 }
 
 // RegisterRoutes registers fraud detection routes
-func (h *Handler) RegisterRoutes(router *gin.Engine, jwtSecret string) {
+func (h *Handler) RegisterRoutes(router *gin.Engine, jwtProvider jwtkeys.KeyProvider) {
 	api := router.Group("/api/v1/fraud")
-	api.Use(middleware.AuthMiddleware(jwtSecret))
+	api.Use(middleware.AuthMiddlewareWithProvider(jwtProvider))
 	api.Use(middleware.RequireAdmin())
 	{
 		// Fraud alerts

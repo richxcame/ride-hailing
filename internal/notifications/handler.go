@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/pkg/common"
+	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 )
 
@@ -20,12 +21,12 @@ func NewHandler(service *Service) *Handler {
 }
 
 // RegisterRoutes registers notification routes
-func (h *Handler) RegisterRoutes(router *gin.Engine, jwtSecret string) {
+func (h *Handler) RegisterRoutes(router *gin.Engine, jwtProvider jwtkeys.KeyProvider) {
 	api := router.Group("/api/v1")
 
 	// Protected routes
 	protected := api.Group("")
-	protected.Use(middleware.AuthMiddleware(jwtSecret))
+	protected.Use(middleware.AuthMiddlewareWithProvider(jwtProvider))
 	{
 		// Notification management
 		protected.GET("/notifications", h.GetNotifications)
@@ -44,7 +45,7 @@ func (h *Handler) RegisterRoutes(router *gin.Engine, jwtSecret string) {
 
 	// Admin routes
 	admin := api.Group("/admin")
-	admin.Use(middleware.AuthMiddleware(jwtSecret))
+	admin.Use(middleware.AuthMiddlewareWithProvider(jwtProvider))
 	admin.Use(middleware.RequireRole("admin"))
 	{
 		admin.POST("/notifications/bulk", h.SendBulkNotification)

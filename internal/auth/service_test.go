@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/pkg/common"
+	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/models"
 	"github.com/richxcame/ride-hailing/test/helpers"
@@ -17,10 +19,23 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+func newTestService(t *testing.T, repo RepositoryInterface) *Service {
+	t.Helper()
+	manager, err := jwtkeys.NewManager(context.Background(), jwtkeys.Config{
+		RotationInterval: 365 * 24 * time.Hour,
+		GracePeriod:      365 * 24 * time.Hour,
+		LegacySecret:     "test-secret",
+	})
+	if err != nil {
+		t.Fatalf("failed to create jwt manager: %v", err)
+	}
+	return NewService(repo, manager, 24)
+}
+
 func TestService_Register_Success(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	ctx := context.Background()
 	req := helpers.CreateTestRegisterRequest()
 
@@ -47,7 +62,7 @@ func TestService_Register_Success(t *testing.T) {
 func TestService_Register_UserAlreadyExists(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	ctx := context.Background()
 	req := helpers.CreateTestRegisterRequest()
 	existingUser := helpers.CreateTestUser()
@@ -70,7 +85,7 @@ func TestService_Register_UserAlreadyExists(t *testing.T) {
 func TestService_Register_RepositoryError(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	ctx := context.Background()
 	req := helpers.CreateTestRegisterRequest()
 
@@ -93,7 +108,7 @@ func TestService_Register_RepositoryError(t *testing.T) {
 func TestService_RegisterDriver_Success(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	ctx := context.Background()
 	req := &models.RegisterRequest{
 		Email:       "driver@example.com",
@@ -130,7 +145,7 @@ func TestService_RegisterDriver_Success(t *testing.T) {
 func TestService_RegisterDriver_UserCreationFails(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	ctx := context.Background()
 	req := helpers.CreateTestRegisterRequest()
 	req.Role = "driver"
@@ -152,7 +167,7 @@ func TestService_RegisterDriver_UserCreationFails(t *testing.T) {
 func TestService_RegisterDriver_DriverCreationFails(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	ctx := context.Background()
 	req := helpers.CreateTestRegisterRequest()
 	req.Role = "driver"
@@ -178,7 +193,7 @@ func TestService_RegisterDriver_DriverCreationFails(t *testing.T) {
 func TestService_Login_Success(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	ctx := context.Background()
 	req := helpers.CreateTestLoginRequest()
 	testUser := helpers.CreateTestUser()
@@ -202,7 +217,7 @@ func TestService_Login_Success(t *testing.T) {
 func TestService_Login_UserNotFound(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	ctx := context.Background()
 	req := helpers.CreateTestLoginRequest()
 
@@ -224,7 +239,7 @@ func TestService_Login_UserNotFound(t *testing.T) {
 func TestService_Login_InactiveUser(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	ctx := context.Background()
 	req := helpers.CreateTestLoginRequest()
 	testUser := helpers.CreateTestUser()
@@ -248,7 +263,7 @@ func TestService_Login_InactiveUser(t *testing.T) {
 func TestService_Login_InvalidPassword(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	ctx := context.Background()
 	req := helpers.CreateTestLoginRequest()
 	req.Password = "wrongpassword"
@@ -272,7 +287,7 @@ func TestService_Login_InvalidPassword(t *testing.T) {
 func TestService_GetProfile_Success(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	ctx := context.Background()
 	testUser := helpers.CreateTestUser()
 
@@ -293,7 +308,7 @@ func TestService_GetProfile_Success(t *testing.T) {
 func TestService_GetProfile_UserNotFound(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	ctx := context.Background()
 	userID := uuid.New()
 
@@ -315,7 +330,7 @@ func TestService_GetProfile_UserNotFound(t *testing.T) {
 func TestService_UpdateProfile_Success(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	ctx := context.Background()
 	testUser := helpers.CreateTestUser()
 	updates := &models.User{
@@ -344,7 +359,7 @@ func TestService_UpdateProfile_Success(t *testing.T) {
 func TestService_UpdateProfile_UserNotFound(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	ctx := context.Background()
 	userID := uuid.New()
 	updates := &models.User{
@@ -369,7 +384,7 @@ func TestService_UpdateProfile_UserNotFound(t *testing.T) {
 func TestService_UpdateProfile_RepositoryError(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	ctx := context.Background()
 	testUser := helpers.CreateTestUser()
 	updates := &models.User{
@@ -395,11 +410,11 @@ func TestService_UpdateProfile_RepositoryError(t *testing.T) {
 func TestService_GenerateToken_ValidToken(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	testUser := helpers.CreateTestUser()
 
 	// Execute
-	tokenString, err := service.generateToken(testUser)
+	tokenString, err := service.generateToken(context.Background(), testUser)
 
 	// Assert
 	assert.NoError(t, err)
@@ -423,11 +438,11 @@ func TestService_GenerateToken_ValidToken(t *testing.T) {
 func TestService_GenerateToken_ContainsCorrectClaims(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	testUser := helpers.CreateTestUser()
 
 	// Execute
-	tokenString, err := service.generateToken(testUser)
+	tokenString, err := service.generateToken(context.Background(), testUser)
 
 	// Assert
 	assert.NoError(t, err)
@@ -463,7 +478,7 @@ func TestPasswordHashing(t *testing.T) {
 func TestService_UpdateProfile_PartialUpdates(t *testing.T) {
 	// Setup
 	mockRepo := new(mocks.MockAuthRepository)
-	service := NewService(mockRepo, "test-secret", 24)
+	service := newTestService(t, mockRepo)
 	ctx := context.Background()
 	testUser := helpers.CreateTestUser()
 	originalLastName := testUser.LastName

@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"errors"
 	"net/http"
 	"strings"
 
@@ -8,6 +9,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/pkg/common"
+	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/models"
 )
 
@@ -19,8 +21,14 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
-// AuthMiddleware validates JWT tokens
+// AuthMiddleware validates JWT tokens with a static secret (deprecated). Prefer
+// AuthMiddlewareWithProvider to enable key rotation support.
 func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
+	return AuthMiddlewareWithProvider(jwtkeys.NewStaticProvider(jwtSecret))
+}
+
+// AuthMiddlewareWithProvider validates JWT tokens using the supplied key provider.
+func AuthMiddlewareWithProvider(provider jwtkeys.KeyProvider) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
 		if authHeader == "" {
@@ -41,7 +49,7 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 
 		// Parse and validate token
 		token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-			return []byte(jwtSecret), nil
+			return resolveSigningKey(provider, token)
 		})
 
 		if err != nil || !token.Valid {
@@ -64,6 +72,27 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+func resolveSigningKey(provider jwtkeys.KeyProvider, token *jwt.Token) ([]byte, error) {
+	if provider == nil {
+		return nil, errors.New("jwt provider is nil")
+	}
+
+	var kid string
+	if headerKid, ok := token.Header["kid"]; ok {
+		kid, _ = headerKid.(string)
+	}
+
+	if kid != "" {
+		return provider.ResolveKey(kid)
+	}
+
+	legacy := provider.LegacyKey()
+	if len(legacy) == 0 {
+		return nil, jwtkeys.ErrKeyNotFound
+	}
+	return legacy, nil
 }
 
 // RequireRole middleware checks if user has required role

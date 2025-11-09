@@ -14,6 +14,7 @@ import (
 	"github.com/richxcame/ride-hailing/internal/mleta"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/database"
+	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	redisClient "github.com/richxcame/ride-hailing/pkg/redis"
 )
@@ -26,6 +27,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
+
+	rootCtx, cancelKeys := context.WithCancel(context.Background())
+	defer cancelKeys()
 
 	// Initialize database (pgxpool)
 	dbPool, err := database.NewPostgresPool(&cfg.Database)
@@ -46,8 +50,14 @@ func main() {
 	service := mleta.NewService(repo, redis)
 	handler := mleta.NewHandler(service)
 
+	jwtProvider, err := jwtkeys.NewManagerFromConfig(rootCtx, cfg.JWT, true)
+	if err != nil {
+		log.Fatalf("Failed to initialize JWT key manager: %v", err)
+	}
+	jwtProvider.StartAutoRefresh(rootCtx, time.Duration(cfg.JWT.RefreshMinutes)*time.Minute)
+
 	// Start ML model training worker
-	go service.StartModelTrainingWorker(context.Background())
+	go service.StartModelTrainingWorker(rootCtx)
 
 	// Setup Gin router
 	gin.SetMode(gin.ReleaseMode)
@@ -74,7 +84,7 @@ func main() {
 
 		// Admin endpoints (require JWT)
 		admin := api.Group("")
-		admin.Use(middleware.AuthMiddleware(cfg.JWT.Secret))
+		admin.Use(middleware.AuthMiddlewareWithProvider(jwtProvider))
 		admin.Use(middleware.RequireAdmin())
 		{
 			admin.POST("/train", handler.TriggerModelTraining)     // Trigger model retraining
@@ -85,7 +95,7 @@ func main() {
 
 		// Analytics endpoints
 		analytics := api.Group("/analytics")
-		analytics.Use(middleware.AuthMiddleware(cfg.JWT.Secret))
+		analytics.Use(middleware.AuthMiddlewareWithProvider(jwtProvider))
 		{
 			analytics.GET("/predictions", handler.GetPredictionHistory) // Historical predictions
 			analytics.GET("/accuracy", handler.GetAccuracyTrends)       // Accuracy over time
