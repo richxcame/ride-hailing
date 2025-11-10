@@ -261,31 +261,34 @@ Multiple signing keys with automatic rotation + per-token KIDs are now supported
 
 Currently using environment variables directly.
 
--   [ ] **Integrate Secrets Management**
+-   [x] **Integrate Secrets Management**
 
-    -   [ ] HashiCorp Vault integration
-    -   [ ] AWS Secrets Manager (if on AWS)
-    -   [ ] Google Secret Manager (if on GCP)
-    -   [ ] Kubernetes secrets for K8s deployment
+    -   [x] HashiCorp Vault integration
+    -   [x] AWS Secrets Manager (if on AWS)
+    -   [x] Google Secret Manager (if on GCP)
+    -   [x] Kubernetes secrets for K8s deployment
 
--   [ ] **Secret Types to Manage**
+-   [x] **Secret Types to Manage**
 
-    -   [ ] Database credentials
-    -   [ ] JWT signing keys
-    -   [ ] Stripe API keys
-    -   [ ] Firebase credentials
-    -   [ ] Twilio auth tokens
-    -   [ ] SMTP passwords
+    -   [x] Database credentials
+    -   [x] JWT signing keys
+    -   [x] Stripe API keys
+    -   [x] Firebase credentials
+    -   [x] Twilio auth tokens
+    -   [x] SMTP passwords
 
--   [ ] **Rotation Policy**
-    -   [ ] Automatic credential rotation (90 days)
-    -   [ ] Secret versioning
-    -   [ ] Audit logging
+-   [x] **Rotation Policy**
+    -   [x] Automatic credential rotation (90 days)
+    -   [x] Secret versioning
+    -   [x] Audit logging
 
-**Files to Create:**
+**Files Added:**
 
--   `pkg/secrets/vault.go`
 -   `pkg/secrets/manager.go`
+-   `pkg/secrets/vault.go`
+-   `pkg/secrets/aws.go`
+-   `pkg/secrets/gcp.go`
+-   `pkg/secrets/kubernetes.go`
 -   `configs/vault-policy.hcl`
 
 ---

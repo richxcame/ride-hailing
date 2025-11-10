@@ -36,6 +36,7 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to load config: %v", err))
 	}
+	defer cfg.Close()
 
 	rootCtx, cancelKeys := context.WithCancel(context.Background())
 	defer cancelKeys()

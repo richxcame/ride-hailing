@@ -25,6 +25,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
+	defer cfg.Close()
 
 	port := cfg.Server.Port
 

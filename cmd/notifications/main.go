@@ -32,6 +32,7 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to load config: %v", err))
 	}
+	defer cfg.Close()
 
 	rootCtx, cancelKeys := context.WithCancel(context.Background())
 	defer cancelKeys()
@@ -58,23 +59,25 @@ func main() {
 
 	// Firebase Client
 	var firebaseClient *notifications.FirebaseClient
-	firebaseCredPath := os.Getenv("FIREBASE_CREDENTIALS_PATH")
-	if firebaseCredPath != "" {
-		firebaseClient, err = notifications.NewFirebaseClient(firebaseCredPath)
-		if err != nil {
-			log.Warn("Failed to initialize Firebase client", zap.Error(err))
-		} else {
-			log.Info("Firebase client initialized")
-		}
+	switch {
+	case cfg.Firebase.CredentialsJSON != "":
+		firebaseClient, err = notifications.NewFirebaseClientFromJSON([]byte(cfg.Firebase.CredentialsJSON))
+	case cfg.Firebase.CredentialsPath != "":
+		firebaseClient, err = notifications.NewFirebaseClient(cfg.Firebase.CredentialsPath)
+	}
+	if err != nil {
+		log.Warn("Failed to initialize Firebase client", zap.Error(err))
+	} else if firebaseClient != nil {
+		log.Info("Firebase client initialized")
 	} else {
-		log.Warn("FIREBASE_CREDENTIALS_PATH not set, push notifications disabled")
+		log.Warn("Firebase credentials not provided, push notifications disabled")
 	}
 
 	// Twilio Client
 	var twilioClient *notifications.TwilioClient
-	twilioAccountSid := os.Getenv("TWILIO_ACCOUNT_SID")
-	twilioAuthToken := os.Getenv("TWILIO_AUTH_TOKEN")
-	twilioFromNumber := os.Getenv("TWILIO_FROM_NUMBER")
+	twilioAccountSid := cfg.Notifications.TwilioAccountSID
+	twilioAuthToken := cfg.Notifications.TwilioAuthToken
+	twilioFromNumber := cfg.Notifications.TwilioFromNumber
 	if twilioAccountSid != "" && twilioAuthToken != "" && twilioFromNumber != "" {
 		twilioClient = notifications.NewTwilioClient(twilioAccountSid, twilioAuthToken, twilioFromNumber)
 		log.Info("Twilio client initialized")
@@ -84,12 +87,12 @@ func main() {
 
 	// Email Client
 	var emailClient *notifications.EmailClient
-	smtpHost := os.Getenv("SMTP_HOST")
-	smtpPort := os.Getenv("SMTP_PORT")
-	smtpUsername := os.Getenv("SMTP_USERNAME")
-	smtpPassword := os.Getenv("SMTP_PASSWORD")
-	smtpFromEmail := os.Getenv("SMTP_FROM_EMAIL")
-	smtpFromName := os.Getenv("SMTP_FROM_NAME")
+	smtpHost := cfg.Notifications.SMTPHost
+	smtpPort := cfg.Notifications.SMTPPort
+	smtpUsername := cfg.Notifications.SMTPUsername
+	smtpPassword := cfg.Notifications.SMTPPassword
+	smtpFromEmail := cfg.Notifications.SMTPFromEmail
+	smtpFromName := cfg.Notifications.SMTPFromName
 
 	if smtpHost != "" && smtpPort != "" {
 		emailClient = notifications.NewEmailClient(
