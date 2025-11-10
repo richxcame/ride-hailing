@@ -29,10 +29,8 @@ func (s *StripeClient) CreateCustomer(email, name string, metadata map[string]st
 		Name:  stripe.String(name),
 	}
 
-	if metadata != nil {
-		for key, value := range metadata {
-			params.AddMetadata(key, value)
-		}
+	for key, value := range metadata {
+		params.AddMetadata(key, value)
 	}
 
 	cust, err := customer.New(params)
@@ -55,10 +53,8 @@ func (s *StripeClient) CreatePaymentIntent(amount int64, currency, customerID, d
 		},
 	}
 
-	if metadata != nil {
-		for key, value := range metadata {
-			params.AddMetadata(key, value)
-		}
+	for key, value := range metadata {
+		params.AddMetadata(key, value)
 	}
 
 	pi, err := paymentintent.New(params)
@@ -100,10 +96,8 @@ func (s *StripeClient) CreateCharge(amount int64, currency, customerID, descript
 		Description: stripe.String(description),
 	}
 
-	if metadata != nil {
-		for key, value := range metadata {
-			params.AddMetadata(key, value)
-		}
+	for key, value := range metadata {
+		params.AddMetadata(key, value)
 	}
 
 	ch, err := charge.New(params)
@@ -145,10 +139,8 @@ func (s *StripeClient) CreateTransfer(amount int64, currency, destination, descr
 		Description: stripe.String(description),
 	}
 
-	if metadata != nil {
-		for key, value := range metadata {
-			params.AddMetadata(key, value)
-		}
+	for key, value := range metadata {
+		params.AddMetadata(key, value)
 	}
 
 	t, err := transfer.New(params)

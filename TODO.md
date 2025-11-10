@@ -22,40 +22,41 @@ This document outlines improvements for the ride-hailing backend. The codebase h
 
 Current coverage is insufficient (only 2 test files). Need comprehensive testing.
 
--   [x] **Unit Tests for All Services**
+**Unit Tests for All Services**
 
-    -   [x] Auth service tests (JWT validation, password hashing, RBAC) ✅ COMPLETE
-    -   [x] Geo service tests (Redis GeoSpatial queries, distance calculations) ✅ COMPLETE
-    -   [x] Notifications service tests (mocked Firebase, Twilio, SMTP) ✅ COMPLETE
-    -   [x] Real-time service tests (WebSocket hub, message routing) ✅ COMPLETE
-    -   [x] Fraud service tests (risk scoring, alert generation) ✅ COMPLETE
-    -   [x] ML ETA service tests (prediction accuracy, feature weights) ✅ COMPLETE
-    -   [x] Analytics service tests (aggregation queries, metrics) ✅ COMPLETE
-    -   [x] Promos service tests (discount calculations, referral logic) ✅ COMPLETE
+-   [x] Auth service tests (JWT validation, password hashing, RBAC) ✅ COMPLETE
+-   [x] Geo service tests (Redis GeoSpatial queries, distance calculations) ✅ COMPLETE
+-   [x] Notifications service tests (mocked Firebase, Twilio, SMTP) ✅ COMPLETE
+-   [x] Real-time service tests (WebSocket hub, message routing) ✅ COMPLETE
+-   [x] Fraud service tests (risk scoring, alert generation) ✅ COMPLETE
+-   [x] ML ETA service tests (prediction accuracy, feature weights) ✅ COMPLETE
+-   [x] Analytics service tests (aggregation queries, metrics) ✅ COMPLETE
+-   [x] Promos service tests (discount calculations, referral logic) ✅ COMPLETE
 
--   [x] **Integration Tests**
+**Integration Tests**
 
-    -   [x] Complete ride flow (request → match → pickup → complete → payment) ✅
-    -   [x] Authentication flow (register → login → refresh token) ✅
-    -   [x] Payment processing (Stripe webhook handling) ✅
-    -   [x] Promo code application (validation, discount calculation) ✅
-    -   [x] Admin service (user management, driver approval, dashboard) ✅
-    -   [x] Geo service (driver location tracking, distance calculation) ✅
-    -   [x] E2E ride flow with promo codes and referral bonuses ✅
+-   [x] Complete ride flow (request → match → pickup → complete → payment) ✅
+-   [x] Authentication flow (register → login → refresh token) ✅
+-   [x] Payment processing (Stripe webhook handling) ✅
+-   [x] Promo code application (validation, discount calculation) ✅
+-   [x] Admin service (user management, driver approval, dashboard) ✅
+-   [x] Geo service (driver location tracking, distance calculation) ✅
+-   [x] E2E ride flow with promo codes and referral bonuses ✅
 
--   [x] **Test Infrastructure**
+**Test Infrastructure**
 
-    -   [x] Docker compose for test dependencies (Postgres, Redis)
-    -   [x] Test data fixtures and factory functions
-    -   [x] Mock implementations for external APIs (Stripe, Firebase, Twilio)
-    -   [x] Test helper utilities (assertions, database setup/teardown)
-    -   [x] CI/CD pipeline configuration (GitHub Actions)
+-   [x] Docker compose for test dependencies (Postgres, Redis)
+-   [x] Test data fixtures and factory functions
+-   [x] Mock implementations for external APIs (Stripe, Firebase, Twilio)
+-   [x] Test helper utilities (assertions, database setup/teardown)
+-   [x] CI/CD pipeline configuration (GitHub Actions)
 
--   [x] **Coverage Reporting**
-    -   [x] Set up coverage collection (`go test -cover`)
-    -   [x] Add coverage badge to README
-    -   [x] Enforce minimum coverage thresholds (80%)
-    -   [x] Coverage reports in CI/CD
+**Coverage Reporting**
+
+-   [x] Set up coverage collection (`go test -cover`)
+-   [x] Add coverage badge to README
+-   [x] Enforce minimum coverage thresholds (80%)
+-   [x] Coverage reports in CI/CD
 
 **Files to Create:**
 
@@ -344,29 +345,69 @@ CB_SERVICE_OVERRIDES='{"promos-service":{"failure_threshold":3}}'
 
 ---
 
-### 3.2 Retry Logic with Exponential Backoff
+### 3.2 Retry Logic with Exponential Backoff ✅ COMPLETE
 
 **Impact:** MEDIUM | **Effort:** LOW | **Timeline:** 2 days
 
+**Status:** ✅ **DONE**
+
 Handle transient failures gracefully.
 
--   [ ] **Implement Retry Logic**
+-   [x] **Implement Retry Logic**
 
-    -   [ ] Exponential backoff: 1s, 2s, 4s, 8s
-    -   [ ] Max retries: 3-5 depending on operation
-    -   [ ] Jitter to prevent thundering herd
-    -   [ ] Idempotency tokens for safe retries
+    -   [x] Exponential backoff: 1s, 2s, 4s, 8s
+    -   [x] Max retries: 3-5 depending on operation
+    -   [x] Jitter to prevent thundering herd
+    -   [x] Idempotency tokens for safe retries
 
--   [ ] **Apply to Operations**
-    -   [ ] HTTP client calls
-    -   [ ] Database query failures (replica fallback)
-    -   [ ] Redis connection errors
-    -   [ ] External API calls
+-   [x] **Apply to Operations**
+    -   [x] HTTP client calls
+    -   [x] Database query failures (replica fallback)
+    -   [x] Redis connection errors
+    -   [x] External API calls (Stripe, Firebase, Twilio)
 
-**Files to Create:**
+**Files Created:**
 
--   `pkg/resilience/retry.go`
--   `pkg/http/client.go` (with retry support)
+-   ✅ `pkg/resilience/retry.go` (with comprehensive tests)
+-   ✅ `pkg/httpclient/client.go` (enhanced with retry support & idempotency)
+-   ✅ `internal/notifications/resilient_firebase_client.go` (Firebase with retry & circuit breaker)
+-   ✅ `internal/notifications/resilient_twilio_client.go` (Twilio with retry & circuit breaker)
+-   ✅ `pkg/database/retry.go` (database retry helpers)
+-   ✅ `pkg/redis/retry.go` (Redis retry helpers)
+
+**Features Implemented:**
+
+-   Exponential backoff with configurable initial/max backoff
+-   Full jitter algorithm to prevent thundering herd
+-   Smart retry logic for HTTP status codes (408, 429, 5xx)
+-   Idempotency key support for safe POST retries
+-   Context-aware retries (respects cancellation/timeout)
+-   Retryable error detection for PostgreSQL, Redis, Stripe, Firebase, Twilio
+-   Integration with circuit breakers via `RetryWithBreaker`
+-   Three preset configurations: Default, Aggressive, Conservative
+-   Comprehensive test coverage
+
+**Usage Example:**
+
+```go
+// HTTP client with retry
+client := httpclient.NewClient("https://api.example.com", 30*time.Second,
+    httpclient.WithDefaultRetry())
+
+// With idempotency for safe POST retries
+response, err := client.PostWithIdempotency(ctx, "/orders", order, nil, orderID)
+
+// Database query with retry
+result, err := database.RetryableQueryRow(ctx, pool, query, args, scanFunc)
+
+// Redis operation with retry
+value, err := redisClient.RetryableGet(ctx, key)
+
+// External services (Stripe, Firebase, Twilio) automatically have retry logic
+stripeClient := payments.NewResilientStripeClient(apiKey, breaker)
+firebaseClient := notifications.NewResilientFirebaseClient(credPath, breaker)
+twilioClient := notifications.NewResilientTwilioClient(sid, token, from, breaker)
+```
 
 ---
 

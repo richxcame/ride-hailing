@@ -25,12 +25,20 @@ type RepositoryInterface interface {
 
 // FirebaseClientInterface defines the interface for Firebase push notifications
 type FirebaseClientInterface interface {
+	SendPushNotification(ctx context.Context, token, title, body string, data map[string]string) (string, error)
 	SendMulticastNotification(ctx context.Context, tokens []string, title, body string, data map[string]string) (*messaging.BatchResponse, error)
+	SendTopicNotification(ctx context.Context, topic, title, body string, data map[string]string) (string, error)
+	SubscribeToTopic(ctx context.Context, tokens []string, topic string) error
+	UnsubscribeFromTopic(ctx context.Context, tokens []string, topic string) error
 }
 
 // TwilioClientInterface defines the interface for Twilio SMS
 type TwilioClientInterface interface {
 	SendSMS(to, message string) (string, error)
+	SendBulkSMS(recipients []string, body string) ([]string, []error)
+	GetMessageStatus(messageSid string) (string, error)
+	SendOTP(to, otp string) (string, error)
+	SendRideNotification(to, message string) (string, error)
 }
 
 // EmailClientInterface defines the interface for email notifications

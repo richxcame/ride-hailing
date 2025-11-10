@@ -40,8 +40,8 @@ func NewResilientStripeClient(apiKey string, breaker *resilience.CircuitBreaker)
 	// Configure retry with exponential backoff
 	retryConfig := resilience.DefaultRetryConfig()
 	retryConfig.MaxAttempts = 3
-	retryConfig.InitialBackoff = 1000000000 // 1 second
-	retryConfig.MaxBackoff = 10000000000    // 10 seconds
+	retryConfig.InitialBackoff = 1 * time.Second
+	retryConfig.MaxBackoff = 10 * time.Second
 	retryConfig.RetryableChecker = isStripeRetryable
 
 	return &ResilientStripeClient{
