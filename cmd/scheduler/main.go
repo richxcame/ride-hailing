@@ -30,6 +30,7 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to load config: %v", err))
 	}
+	defer cfg.Close()
 
 	if err := logger.Init(cfg.Server.Environment); err != nil {
 		panic(fmt.Sprintf("failed to initialize logger: %v", err))

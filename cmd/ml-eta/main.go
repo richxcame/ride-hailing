@@ -27,6 +27,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
+	defer cfg.Close()
 
 	rootCtx, cancelKeys := context.WithCancel(context.Background())
 	defer cancelKeys()

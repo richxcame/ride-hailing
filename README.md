@@ -532,6 +532,52 @@ SMTP_FROM_EMAIL=noreply@ridehailing.com
 SMTP_FROM_NAME=RideHailing
 ```
 
+### Secrets Management
+
+The platform now supports centralized secret delivery via a pluggable secrets manager (currently Vault-backed). When `SECRETS_PROVIDER` is set, configuration values for the database, Stripe, notifications, and JWT signing keys are pulled from the manager instead of local environment variables.
+
+```bash
+# Enable the secrets manager (currently supports `vault`)
+SECRETS_PROVIDER=vault
+SECRETS_CACHE_TTL_SECONDS=300        # local cache to limit Vault round-trips
+SECRETS_ROTATION_DAYS=90            # rotation reminder window
+SECRETS_AUDIT_ENABLED=true
+
+# Vault connection
+SECRETS_VAULT_ADDR=https://vault.example.com
+SECRETS_VAULT_TOKEN=s.xxxxxx
+SECRETS_VAULT_NAMESPACE=platform
+SECRETS_VAULT_MOUNT=kv
+SECRETS_VAULT_CACERT=/etc/ssl/certs/vault-ca.pem
+# Optional client auth
+SECRETS_VAULT_CLIENT_CERT=/etc/ssl/certs/vault-client.pem
+SECRETS_VAULT_CLIENT_KEY=/etc/ssl/private/vault-client-key.pem
+
+# Secret references ([provider://][mount:]path[@version][#key])
+SECRETS_DB_PATH=kv:ride-hailing/database
+SECRETS_STRIPE_PATH=kv:ride-hailing/stripe#api_key
+SECRETS_TWILIO_PATH=kv:ride-hailing/twilio
+SECRETS_SMTP_PATH=kv:ride-hailing/smtp
+SECRETS_FIREBASE_PATH=kv:ride-hailing/firebase
+SECRETS_JWT_KEYS_PATH=kv:ride-hailing/jwt-keys
+```
+
+Other supported providers:
+
+- **AWS Secrets Manager:** `SECRETS_PROVIDER=aws`, `SECRETS_AWS_REGION=us-east-1`, optional `SECRETS_AWS_ACCESS_KEY_ID`, `SECRETS_AWS_SECRET_ACCESS_KEY`, `SECRETS_AWS_PROFILE`, `SECRETS_AWS_ENDPOINT`.
+- **Google Secret Manager:** `SECRETS_PROVIDER=gcp`, `SECRETS_GCP_PROJECT_ID=ride-hailing-prod`, optional `SECRETS_GCP_CREDENTIALS_JSON` or `SECRETS_GCP_CREDENTIALS_FILE`.
+- **Kubernetes Secrets:** `SECRETS_PROVIDER=kubernetes` with secrets mounted under `SECRETS_K8S_BASE_PATH` (default `/var/run/secrets/ride-hailing`). Each directory/key under that path is treated as a secret payload.
+
+Each referenced secret should store structured values (e.g., the database secret includes `host`, `port`, `username`, `password`, `dbname`, `sslmode`). Firebase secrets can provide either `credentials_json` or a base64 string under `credentials_b64`.
+
+Apply the sample Vault policy in `configs/vault-policy.hcl` to grant the Ride Hailing services least-privilege access and to enable rotation/deletion of old versions:
+
+```bash
+vault policy write ride-hailing configs/vault-policy.hcl
+```
+
+Audit events for every secret fetch are emitted through the shared zap logger so they land in your central log pipeline.
+
 ---
 
 ## API Examples

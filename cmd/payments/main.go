@@ -32,6 +32,7 @@ func main() {
 	if err != nil {
 		panic(fmt.Sprintf("failed to load config: %v", err))
 	}
+	defer cfg.Close()
 
 	rootCtx, cancelKeys := context.WithCancel(context.Background())
 	defer cancelKeys()
@@ -54,8 +55,8 @@ func main() {
 
 	log.Info("Connected to database")
 
-	// Get Stripe API key from environment
-	stripeAPIKey := os.Getenv("STRIPE_API_KEY")
+	// Get Stripe API key from configuration / secrets manager
+	stripeAPIKey := cfg.Payments.StripeAPIKey
 	if stripeAPIKey == "" {
 		log.Warn("STRIPE_API_KEY not set, payment processing will be limited")
 		stripeAPIKey = "sk_test_dummy" // Dummy key for development

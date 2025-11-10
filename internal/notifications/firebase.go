@@ -14,15 +14,28 @@ type FirebaseClient struct {
 	client *messaging.Client
 }
 
-// NewFirebaseClient creates a new Firebase client
+// NewFirebaseClient creates a new Firebase client using a credentials file path.
 func NewFirebaseClient(credentialsPath string) (*FirebaseClient, error) {
-	ctx := context.Background()
-
 	var opt option.ClientOption
 	if credentialsPath != "" {
 		opt = option.WithCredentialsFile(credentialsPath)
-	} else {
-		// Use default credentials from environment
+	}
+	return newFirebaseClient(opt)
+}
+
+// NewFirebaseClientFromJSON creates a Firebase client from raw service account JSON bytes.
+func NewFirebaseClientFromJSON(credentialsJSON []byte) (*FirebaseClient, error) {
+	if len(credentialsJSON) == 0 {
+		return nil, fmt.Errorf("firebase credentials JSON cannot be empty")
+	}
+	return newFirebaseClient(option.WithCredentialsJSON(credentialsJSON))
+}
+
+func newFirebaseClient(opt option.ClientOption) (*FirebaseClient, error) {
+	ctx := context.Background()
+
+	if opt == nil {
+		// Use default credentials from environment when nothing explicit is provided.
 		opt = option.WithCredentialsJSON([]byte{})
 	}
 
