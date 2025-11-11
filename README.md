@@ -365,9 +365,35 @@ flowchart TB
 ### Prerequisites
 
 -   Docker and Docker Compose
--   Go 1.22+ (for local development)
+-   Go 1.24+ (for local development)
 -   PostgreSQL 15
 -   Redis 7
+
+### Development Mode (Recommended)
+
+For active development, run only infrastructure in Docker and services natively:
+
+```bash
+# 1. Start minimal infrastructure (Postgres + Redis)
+make dev-infra
+
+# 2. Run migrations
+make migrate-up
+
+# 3. Run the service(s) you're working on
+make run-auth  # or run-rides, run-geo, etc.
+
+# 4. Check environment health
+make dev-check
+```
+
+**Benefits:**
+- 🚀 Fast startup (~5 seconds vs 2-3 minutes)
+- 💾 Low memory (~500MB vs 4-6GB)
+- ⚡ Instant iteration (no Docker rebuild)
+- 🐛 Easy debugging (native Go debugger)
+
+**See [QUICKSTART.md](QUICKSTART.md) for detailed guide.**
 
 ### Running with Docker Compose
 
@@ -532,11 +558,11 @@ CB_SERVICE_OVERRIDES='{"promos-service":{"failure_threshold":3,"timeout_seconds"
 
 Available override keys:
 
-- `promos-service` (promotions pricing HTTP client)
-- `stripe-api` (payments service calls to Stripe)
-- `firebase-fcm`, `twilio-sms`, `smtp-email` (notifications service channels)
-- `ml-eta-service` (rides service -> ML ETA integration)
-- `database-primary` / `database-replica` (pool creation throttling)
+-   `promos-service` (promotions pricing HTTP client)
+-   `stripe-api` (payments service calls to Stripe)
+-   `firebase-fcm`, `twilio-sms`, `smtp-email` (notifications service channels)
+-   `ml-eta-service` (rides service -> ML ETA integration)
+-   `database-primary` / `database-replica` (pool creation throttling)
 
 Each breaker surfaces Prometheus metrics (`circuit_breaker_state`, `circuit_breaker_requests_total`, `circuit_breaker_failures_total`, `circuit_breaker_fallbacks_total`) so dashboards can track failure rates and state transitions.
 
@@ -606,9 +632,9 @@ SECRETS_JWT_KEYS_PATH=kv:ride-hailing/jwt-keys
 
 Other supported providers:
 
-- **AWS Secrets Manager:** `SECRETS_PROVIDER=aws`, `SECRETS_AWS_REGION=us-east-1`, optional `SECRETS_AWS_ACCESS_KEY_ID`, `SECRETS_AWS_SECRET_ACCESS_KEY`, `SECRETS_AWS_PROFILE`, `SECRETS_AWS_ENDPOINT`.
-- **Google Secret Manager:** `SECRETS_PROVIDER=gcp`, `SECRETS_GCP_PROJECT_ID=ride-hailing-prod`, optional `SECRETS_GCP_CREDENTIALS_JSON` or `SECRETS_GCP_CREDENTIALS_FILE`.
-- **Kubernetes Secrets:** `SECRETS_PROVIDER=kubernetes` with secrets mounted under `SECRETS_K8S_BASE_PATH` (default `/var/run/secrets/ride-hailing`). Each directory/key under that path is treated as a secret payload.
+-   **AWS Secrets Manager:** `SECRETS_PROVIDER=aws`, `SECRETS_AWS_REGION=us-east-1`, optional `SECRETS_AWS_ACCESS_KEY_ID`, `SECRETS_AWS_SECRET_ACCESS_KEY`, `SECRETS_AWS_PROFILE`, `SECRETS_AWS_ENDPOINT`.
+-   **Google Secret Manager:** `SECRETS_PROVIDER=gcp`, `SECRETS_GCP_PROJECT_ID=ride-hailing-prod`, optional `SECRETS_GCP_CREDENTIALS_JSON` or `SECRETS_GCP_CREDENTIALS_FILE`.
+-   **Kubernetes Secrets:** `SECRETS_PROVIDER=kubernetes` with secrets mounted under `SECRETS_K8S_BASE_PATH` (default `/var/run/secrets/ride-hailing`). Each directory/key under that path is treated as a secret payload.
 
 Each referenced secret should store structured values (e.g., the database secret includes `host`, `port`, `username`, `password`, `dbname`, `sslmode`). Firebase secrets can provide either `credentials_json` or a base64 string under `credentials_b64`.
 
@@ -831,6 +857,7 @@ go test ./test/integration/... -v
 -   **[TODO.md](TODO.md)** - Development roadmap and improvement plan
 -   **[docs/API.md](docs/API.md)** - Complete API documentation for all services
 -   **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Deployment guides (Docker, K8s, Cloud)
+-   **[docs/RETRY_LOGIC.md](docs/RETRY_LOGIC.md)** - Retry logic and exponential backoff guide
 -   **[db/migrations/](db/migrations/)** - Database schema migrations (9 migrations)
 
 ---
@@ -842,6 +869,7 @@ go test ./test/integration/... -v
 -   ✅ Kong API Gateway configured with rate limiting
 -   ✅ Istio service mesh with mTLS
 -   ✅ Circuit breakers for external dependencies
+-   ✅ Retry logic with exponential backoff and jitter
 -   ✅ Rate limiting (Redis-backed token bucket)
 -   ✅ Comprehensive logging with correlation IDs
 -   ✅ Security headers + input sanitization middleware on every service

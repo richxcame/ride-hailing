@@ -1,0 +1,289 @@
+groups:
+  - name: ridehailing_system_alerts
+    interval: 30s
+    rules:
+      # High Error Rate Alert
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_requests_total{status=~"5.."}[5m])) by (job)
+            /
+            sum(rate(http_requests_total[5m])) by (job)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "High error rate detected in {{ $labels.job }}"
+          description: "Service {{ $labels.job }} has an error rate of {{ $value | humanizePercentage }} (threshold: 5%)"
+
+      # High Latency Alert
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (job, le)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: performance
+        annotations:
+          summary: "High latency detected in {{ $labels.job }}"
+          description: "P99 latency for {{ $labels.job }} is {{ $value }}s (threshold: 1s)"
+
+      # Service Down Alert
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+          category: availability
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "Service {{ $labels.job }} has been down for more than 1 minute"
+
+      # High CPU Usage
+      - alert: HighCPUUsage
+        expr: |
+          100 - (avg by (job) (rate(process_cpu_seconds_total[5m])) * 100) < 15
+        for: 10m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "High CPU usage on {{ $labels.job }}"
+          description: "CPU usage on {{ $labels.job }} is {{ $value }}% (threshold: <15% available)"
+
+      # High Memory Usage
+      - alert: HighMemoryUsage
+        expr: |
+          (process_resident_memory_bytes / process_virtual_memory_max_bytes) * 100 > 85
+        for: 10m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "High memory usage on {{ $labels.job }}"
+          description: "Memory usage on {{ $labels.job }} is {{ $value }}% (threshold: 85%)"
+
+      # Too Many Goroutines
+      - alert: TooManyGoroutines
+        expr: go_goroutines > 5000
+        for: 5m
+        labels:
+          severity: warning
+          category: resources
+        annotations:
+          summary: "Too many goroutines in {{ $labels.job }}"
+          description: "{{ $labels.job }} has {{ $value }} goroutines (threshold: 5000)"
+
+  - name: ridehailing_business_alerts
+    interval: 30s
+    rules:
+      # Low Driver Availability
+      - alert: LowDriverAvailability
+        expr: sum(drivers_online) < 10
+        for: 5m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "Low driver availability"
+          description: "Only {{ $value }} drivers are online (threshold: 10)"
+
+      # High Ride Cancellation Rate
+      - alert: HighRideCancellationRate
+        expr: |
+          (
+            rate(rides_cancelled_total[1h])
+            /
+            (rate(rides_created_total[1h]) + rate(rides_cancelled_total[1h]))
+          ) > 0.3
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "High ride cancellation rate"
+          description: "Ride cancellation rate is {{ $value | humanizePercentage }} over the last hour (threshold: 30%)"
+
+      # Payment Failure Alert
+      - alert: HighPaymentFailureRate
+        expr: |
+          (
+            rate(payments_failed_total[5m])
+            /
+            (rate(payments_successful_total[5m]) + rate(payments_failed_total[5m]))
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          category: business
+        annotations:
+          summary: "High payment failure rate"
+          description: "Payment failure rate is {{ $value | humanizePercentage }} (threshold: 10%)"
+
+      # No Rides Created
+      - alert: NoRidesCreated
+        expr: rate(rides_created_total[10m]) == 0
+        for: 10m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "No rides being created"
+          description: "No new rides have been created in the last 10 minutes"
+
+      # Revenue Drop
+      - alert: RevenueDrop
+        expr: |
+          (
+            sum(rate(payment_amount_total[1h]))
+            <
+            sum(rate(payment_amount_total[1h] offset 24h)) * 0.5
+          )
+        for: 30m
+        labels:
+          severity: warning
+          category: business
+        annotations:
+          summary: "Significant revenue drop detected"
+          description: "Revenue has dropped by more than 50% compared to the same time yesterday"
+
+  - name: ridehailing_database_alerts
+    interval: 30s
+    rules:
+      # Database Connection Pool Exhaustion
+      - alert: DatabaseConnectionPoolExhaustion
+        expr: |
+          (
+            sum(db_connections_in_use) by (job)
+            /
+            sum(db_max_connections) by (job)
+          ) > 0.9
+        for: 5m
+        labels:
+          severity: critical
+          category: database
+        annotations:
+          summary: "Database connection pool nearly exhausted for {{ $labels.job }}"
+          description: "Database connection pool usage is {{ $value | humanizePercentage }} for {{ $labels.job }} (threshold: 90%)"
+
+      # Slow Database Queries
+      - alert: SlowDatabaseQueries
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(db_query_duration_seconds_bucket[5m])) by (job, le)
+          ) > 1
+        for: 5m
+        labels:
+          severity: warning
+          category: database
+        annotations:
+          summary: "Slow database queries detected in {{ $labels.job }}"
+          description: "P95 database query duration is {{ $value }}s for {{ $labels.job }} (threshold: 1s)"
+
+  - name: ridehailing_redis_alerts
+    interval: 30s
+    rules:
+      # Low Redis Hit Rate
+      - alert: LowRedisHitRate
+        expr: |
+          (
+            rate(redis_cache_hits[5m])
+            /
+            (rate(redis_cache_hits[5m]) + rate(redis_cache_misses[5m]))
+          ) < 0.7
+        for: 10m
+        labels:
+          severity: warning
+          category: cache
+        annotations:
+          summary: "Low Redis cache hit rate"
+          description: "Redis cache hit rate is {{ $value | humanizePercentage }} (threshold: 70%)"
+
+      # High Redis Memory Usage
+      - alert: HighRedisMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          category: cache
+        annotations:
+          summary: "High Redis memory usage"
+          description: "Redis memory usage is {{ $value | humanizePercentage }} (threshold: 90%)"
+
+  - name: ridehailing_circuit_breaker_alerts
+    interval: 30s
+    rules:
+      # Circuit Breaker Open
+      - alert: CircuitBreakerOpen
+        expr: circuit_breaker_state{state="open"} == 1
+        for: 2m
+        labels:
+          severity: critical
+          category: resilience
+        annotations:
+          summary: "Circuit breaker open for {{ $labels.service }}"
+          description: "Circuit breaker for {{ $labels.service }} has been open for more than 2 minutes"
+
+      # High Circuit Breaker Failure Rate
+      - alert: HighCircuitBreakerFailureRate
+        expr: rate(circuit_breaker_failures_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          category: resilience
+        annotations:
+          summary: "High circuit breaker failure rate for {{ $labels.service }}"
+          description: "Circuit breaker for {{ $labels.service }} is experiencing {{ $value }} failures/second"
+
+  - name: ridehailing_rate_limit_alerts
+    interval: 30s
+    rules:
+      # High Rate Limit Rejection Rate
+      - alert: HighRateLimitRejectionRate
+        expr: |
+          (
+            rate(rate_limit_rejections_total[5m])
+            /
+            rate(http_requests_total[5m])
+          ) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          category: traffic
+        annotations:
+          summary: "High rate limit rejection rate for {{ $labels.job }}"
+          description: "Rate limit rejection rate is {{ $value | humanizePercentage }} for {{ $labels.job }} (threshold: 10%)"
+
+  - name: ridehailing_fraud_alerts
+    interval: 30s
+    rules:
+      # High Fraud Detection Rate
+      - alert: HighFraudDetectionRate
+        expr: rate(fraud_alerts_total[10m]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "High fraud detection rate"
+          description: "Fraud detection rate is {{ $value }} alerts/second (threshold: 5)"
+
+      # Blocked User Spike
+      - alert: BlockedUserSpike
+        expr: |
+          (
+            rate(users_blocked_total[5m])
+            >
+            rate(users_blocked_total[5m] offset 1h) * 3
+          )
+        for: 5m
+        labels:
+          severity: warning
+          category: security
+        annotations:
+          summary: "Spike in blocked users"
+          description: "User blocking rate has increased by 3x compared to 1 hour ago"

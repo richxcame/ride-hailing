@@ -15,6 +15,7 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
+	"github.com/richxcame/ride-hailing/pkg/tracing"
 )
 
 func main() {
@@ -75,6 +76,32 @@ func main() {
 	}
 	log.Println("Connected to PostgreSQL database")
 
+	// Initialize OpenTelemetry tracer
+	tracerEnabled := os.Getenv("OTEL_ENABLED") == "true"
+	if tracerEnabled {
+		tracerCfg := tracing.Config{
+			ServiceName:    os.Getenv("OTEL_SERVICE_NAME"),
+			ServiceVersion: os.Getenv("OTEL_SERVICE_VERSION"),
+			Environment:    getEnv("ENVIRONMENT", "development"),
+			OTLPEndpoint:   os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
+			Enabled:        true,
+		}
+
+		tp, err := tracing.InitTracer(tracerCfg, nil)
+		if err != nil {
+			log.Printf("Warning: Failed to initialize tracer: %v", err)
+		} else {
+			defer func() {
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				if err := tp.Shutdown(shutdownCtx); err != nil {
+					log.Printf("Warning: Failed to shutdown tracer: %v", err)
+				}
+			}()
+			log.Println("OpenTelemetry tracing initialized successfully")
+		}
+	}
+
 	// Initialize repository, service, and handler
 	repo := admin.NewRepository(db)
 	service := admin.NewService(repo)
@@ -86,6 +113,11 @@ func main() {
 	router.Use(middleware.RequestTimeout(cfg.Timeout.DefaultRequestTimeoutDuration()))
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.SanitizeRequest())
+
+	// Add tracing middleware if enabled
+	if tracerEnabled {
+		router.Use(middleware.TracingMiddleware("admin-service"))
+	}
 
 	// Health check and metrics (no auth required)
 	router.GET("/healthz", handler.HealthCheck)

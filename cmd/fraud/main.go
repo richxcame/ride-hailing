@@ -18,6 +18,7 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
+	"github.com/richxcame/ride-hailing/pkg/tracing"
 	"go.uber.org/zap"
 )
 
@@ -46,6 +47,33 @@ func main() {
 		zap.String("version", version),
 		zap.String("environment", cfg.Server.Environment),
 	)
+
+	// Initialize OpenTelemetry tracer
+	tracerEnabled := os.Getenv("OTEL_ENABLED") == "true"
+	if tracerEnabled {
+		tracerCfg := tracing.Config{
+			ServiceName:    os.Getenv("OTEL_SERVICE_NAME"),
+			ServiceVersion: os.Getenv("OTEL_SERVICE_VERSION"),
+			Environment:    cfg.Server.Environment,
+			OTLPEndpoint:   os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
+			Enabled:        true,
+		}
+
+		tp, err := tracing.InitTracer(tracerCfg, logger.Get())
+		if err != nil {
+			logger.Warn("Failed to initialize tracer, continuing without tracing", zap.Error(err))
+		} else {
+			defer func() {
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				if err := tp.Shutdown(shutdownCtx); err != nil {
+					logger.Warn("Failed to shutdown tracer", zap.Error(err))
+				}
+			}()
+			logger.Info("OpenTelemetry tracing initialized successfully")
+		}
+	}
+
 
 	db, err := database.NewPostgresPool(&cfg.Database, cfg.Timeout.DatabaseQueryTimeout)
 	if err != nil {
@@ -77,6 +105,12 @@ func main() {
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.SanitizeRequest())
 	router.Use(middleware.Metrics(serviceName))
+
+	// Add tracing middleware if enabled
+	if tracerEnabled {
+		router.Use(middleware.TracingMiddleware(serviceName))
+	}
+
 
 	router.GET("/healthz", common.HealthCheck(serviceName, version))
 	router.GET("/version", func(c *gin.Context) {

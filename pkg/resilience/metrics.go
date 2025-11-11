@@ -10,6 +10,7 @@ import (
 )
 
 var (
+	// Circuit Breaker Metrics
 	breakerStateGauge = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "circuit_breaker_state",
 		Help: "Current state of circuit breakers (0=closed, 0.5=half-open, 1=open)",
@@ -34,6 +35,30 @@ var (
 		Name: "circuit_breaker_state_changes_total",
 		Help: "Total number of circuit breaker state transitions",
 	}, []string{"breaker", "from", "to"})
+
+	// Retry Metrics
+	retryAttemptsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "retry_attempts_total",
+		Help: "Total number of retry attempts across all operations",
+	}, []string{"operation", "result"})
+
+	retryOperationDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "retry_operation_duration_seconds",
+		Help:    "Duration of retry operations including all attempts",
+		Buckets: prometheus.ExponentialBuckets(0.001, 2, 12), // 1ms to ~4s
+	}, []string{"operation", "result"})
+
+	retryAttemptsHistogram = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "retry_attempts_count",
+		Help:    "Number of attempts before success or final failure",
+		Buckets: []float64{1, 2, 3, 4, 5, 10},
+	}, []string{"operation", "result"})
+
+	retryBackoffDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
+		Name:    "retry_backoff_duration_seconds",
+		Help:    "Duration of backoff delays during retries",
+		Buckets: prometheus.ExponentialBuckets(0.01, 2, 10), // 10ms to ~5s
+	}, []string{"operation"})
 
 	breakerIDCounter uint64
 )
@@ -78,4 +103,31 @@ func recordBreakerFailure(name string) {
 
 func recordBreakerFallback(name string) {
 	breakerFallbacksTotal.WithLabelValues(name).Inc()
+}
+
+// Retry metrics recording functions
+
+// RecordRetryAttempt records a retry attempt (success or failure)
+func RecordRetryAttempt(operation string, success bool) {
+	result := "failure"
+	if success {
+		result = "success"
+	}
+	retryAttemptsTotal.WithLabelValues(operation, result).Inc()
+}
+
+// RecordRetryOperation records the overall retry operation duration and attempt count
+func RecordRetryOperation(operation string, durationSeconds float64, attempts int, success bool) {
+	result := "failure"
+	if success {
+		result = "success"
+	}
+
+	retryOperationDuration.WithLabelValues(operation, result).Observe(durationSeconds)
+	retryAttemptsHistogram.WithLabelValues(operation, result).Observe(float64(attempts))
+}
+
+// RecordRetryBackoff records a backoff delay duration
+func RecordRetryBackoff(operation string, durationSeconds float64) {
+	retryBackoffDuration.WithLabelValues(operation).Observe(durationSeconds)
 }

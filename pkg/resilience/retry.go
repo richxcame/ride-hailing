@@ -67,15 +67,23 @@ func ConservativeRetryConfig() RetryConfig {
 
 // Retry executes the given operation with exponential backoff retry logic
 func Retry(ctx context.Context, config RetryConfig, operation Operation) (interface{}, error) {
+	return RetryWithName(ctx, config, operation, "unknown")
+}
+
+// RetryWithName executes the operation with retry logic and records metrics with the given operation name
+func RetryWithName(ctx context.Context, config RetryConfig, operation Operation, operationName string) (interface{}, error) {
 	if config.MaxAttempts <= 0 {
 		config.MaxAttempts = 1
 	}
 
+	startTime := time.Now()
 	var lastErr error
+
 	for attempt := 1; attempt <= config.MaxAttempts; attempt++ {
 		// Check if context is already cancelled
 		select {
 		case <-ctx.Done():
+			RecordRetryOperation(operationName, time.Since(startTime).Seconds(), attempt, false)
 			return nil, ctx.Err()
 		default:
 		}
@@ -83,15 +91,22 @@ func Retry(ctx context.Context, config RetryConfig, operation Operation) (interf
 		// Execute the operation
 		result, err := operation(ctx)
 		if err == nil {
+			// Success - record metrics
+			RecordRetryAttempt(operationName, true)
+			RecordRetryOperation(operationName, time.Since(startTime).Seconds(), attempt, true)
+
 			if attempt > 1 {
 				logger.Get().Info("operation succeeded after retry",
 					zap.Int("attempt", attempt),
 					zap.Int("max_attempts", config.MaxAttempts),
+					zap.String("operation", operationName),
 				)
 			}
 			return result, nil
 		}
 
+		// Failure - record attempt
+		RecordRetryAttempt(operationName, false)
 		lastErr = err
 
 		// Check if we should retry
@@ -99,7 +114,9 @@ func Retry(ctx context.Context, config RetryConfig, operation Operation) (interf
 			logger.Get().Debug("error is not retryable",
 				zap.Error(err),
 				zap.Int("attempt", attempt),
+				zap.String("operation", operationName),
 			)
+			RecordRetryOperation(operationName, time.Since(startTime).Seconds(), attempt, false)
 			return nil, err
 		}
 
@@ -108,29 +125,34 @@ func Retry(ctx context.Context, config RetryConfig, operation Operation) (interf
 			logger.Get().Warn("operation failed after all retry attempts",
 				zap.Error(err),
 				zap.Int("attempts", attempt),
+				zap.String("operation", operationName),
 			)
 			break
 		}
 
 		// Calculate backoff duration
 		backoff := calculateBackoff(attempt, config)
+		RecordRetryBackoff(operationName, backoff.Seconds())
 
 		logger.Get().Info("retrying operation after backoff",
 			zap.Int("attempt", attempt),
 			zap.Int("max_attempts", config.MaxAttempts),
 			zap.Duration("backoff", backoff),
+			zap.String("operation", operationName),
 			zap.Error(err),
 		)
 
 		// Wait for backoff duration or context cancellation
 		select {
 		case <-ctx.Done():
+			RecordRetryOperation(operationName, time.Since(startTime).Seconds(), attempt+1, false)
 			return nil, ctx.Err()
 		case <-time.After(backoff):
 			// Continue to next attempt
 		}
 	}
 
+	RecordRetryOperation(operationName, time.Since(startTime).Seconds(), config.MaxAttempts, false)
 	return nil, lastErr
 }
 
