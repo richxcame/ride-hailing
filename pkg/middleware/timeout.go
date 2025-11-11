@@ -3,15 +3,23 @@ package middleware
 import (
 	"context"
 	"net/http"
-	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"go.uber.org/zap"
 )
 
-func RequestTimeout(timeout time.Duration) gin.HandlerFunc {
+// RequestTimeout applies a timeout to incoming requests
+// Uses route-specific timeouts from config when available, otherwise uses default timeout
+func RequestTimeout(timeoutConfig *config.TimeoutConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		routePath := c.FullPath()
+		if routePath == "" {
+			routePath = c.Request.URL.Path
+		}
+		timeout := timeoutConfig.TimeoutForRoute(c.Request.Method, routePath)
+
 		ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
 		defer cancel()
 

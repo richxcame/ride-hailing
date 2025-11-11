@@ -101,7 +101,7 @@ func main() {
 
 	router := gin.New()
 	router.Use(gin.Recovery())
-	router.Use(middleware.RequestTimeout(cfg.Timeout.DefaultRequestTimeoutDuration()))
+	router.Use(middleware.RequestTimeout(&cfg.Timeout))
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.SanitizeRequest())
 

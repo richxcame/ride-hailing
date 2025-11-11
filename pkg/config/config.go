@@ -206,6 +206,7 @@ type TimeoutConfig struct {
 	RedisOperationTimeout    int
 	WebSocketConnectionTimeout int
 	DefaultRequestTimeout    int
+	RouteOverrides           map[string]int // Route pattern -> timeout in seconds (e.g., "POST:/api/v1/rides" -> 60)
 }
 
 func (t TimeoutConfig) HTTPClientTimeoutDuration() time.Duration {
@@ -226,6 +227,22 @@ func (t TimeoutConfig) WebSocketConnectionTimeoutDuration() time.Duration {
 
 func (t TimeoutConfig) DefaultRequestTimeoutDuration() time.Duration {
 	return time.Duration(t.DefaultRequestTimeout) * time.Second
+}
+
+// TimeoutForRoute returns the timeout duration for a specific route
+// Route format: "METHOD:/path" (e.g., "POST:/api/v1/rides")
+// Returns the route-specific timeout if found, otherwise returns the default timeout
+func (t TimeoutConfig) TimeoutForRoute(method, path string) time.Duration {
+	if t.RouteOverrides == nil {
+		return t.DefaultRequestTimeoutDuration()
+	}
+
+	routeKey := fmt.Sprintf("%s:%s", method, path)
+	if timeoutSeconds, ok := t.RouteOverrides[routeKey]; ok && timeoutSeconds > 0 {
+		return time.Duration(timeoutSeconds) * time.Second
+	}
+
+	return t.DefaultRequestTimeoutDuration()
 }
 
 // Load loads configuration from environment variables
@@ -326,6 +343,7 @@ func Load(serviceName string) (*Config, error) {
 			RedisOperationTimeout:      getEnvAsInt("REDIS_OPERATION_TIMEOUT", DefaultRedisOperationTimeout),
 			WebSocketConnectionTimeout: getEnvAsInt("WS_CONNECTION_TIMEOUT", DefaultWebSocketConnectionTimeout),
 			DefaultRequestTimeout:      getEnvAsInt("DEFAULT_REQUEST_TIMEOUT", DefaultRequestTimeout),
+			RouteOverrides:             make(map[string]int),
 		},
 		Secrets: SecretsSettings{
 			Provider:        secrets.ProviderType(getEnv("SECRETS_PROVIDER", "")),
@@ -376,6 +394,14 @@ func Load(serviceName string) (*Config, error) {
 			return nil, fmt.Errorf("invalid CB_SERVICE_OVERRIDES value: %w", err)
 		}
 		cfg.Resilience.CircuitBreaker.ServiceOverrides = serviceConfig
+	}
+
+	if timeoutOverrides := getEnv("ROUTE_TIMEOUT_OVERRIDES", ""); timeoutOverrides != "" {
+		var routeTimeouts map[string]int
+		if err := json.Unmarshal([]byte(timeoutOverrides), &routeTimeouts); err != nil {
+			return nil, fmt.Errorf("invalid ROUTE_TIMEOUT_OVERRIDES value: %w", err)
+		}
+		cfg.Timeout.RouteOverrides = routeTimeouts
 	}
 
 	if cfg.RateLimit.WindowSeconds <= 0 {
