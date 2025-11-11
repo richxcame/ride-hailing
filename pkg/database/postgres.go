@@ -193,7 +193,7 @@ func NewDBPool(cfg *config.DatabaseConfig, replicaDSNs []string, serviceName str
 			poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
 				timeoutSeconds := queryTimeoutSeconds
 				if timeoutSeconds <= 0 {
-					timeoutSeconds = 10 // Default to 10 seconds
+					timeoutSeconds = config.DefaultDatabaseQueryTimeout // Default to config value
 				}
 				_, err := conn.Exec(ctx, fmt.Sprintf("SET statement_timeout = '%ds'", timeoutSeconds))
 				return err
