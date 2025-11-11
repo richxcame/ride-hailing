@@ -95,7 +95,7 @@ func TestMain(m *testing.M) {
 	gin.DefaultWriter = io.Discard
 
 	var err error
-	dbPool, err = database.NewPostgresPool(&cfgAuth.Database, 10)
+	dbPool, err = database.NewPostgresPool(&cfgAuth.Database, cfgAuth.Timeout.DatabaseQueryTimeout)
 	if err != nil {
 		panic(fmt.Sprintf("failed to connect database: %v", err))
 	}

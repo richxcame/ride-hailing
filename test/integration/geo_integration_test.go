@@ -34,7 +34,7 @@ func startGeoService() *serviceInstance {
 				DB:       1, // Use DB 1 for testing
 			},
 		}
-		client, err := redisClient.NewRedisClient(&cfg.Redis, 5)
+		client, err := redisClient.NewRedisClient(&cfg.Redis, cfg.Timeout.RedisOperationTimeout)
 		if err != nil {
 			panic("Failed to connect to Redis: " + err.Error())
 		}
