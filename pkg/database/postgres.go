@@ -62,7 +62,8 @@ func NewDBMetrics(serviceName string) *DBMetrics {
 }
 
 // NewPostgresPool creates a new PostgreSQL connection pool with optimized settings
-func NewPostgresPool(cfg *config.DatabaseConfig, queryTimeoutSeconds int) (*pgxpool.Pool, error) {
+// If queryTimeoutSeconds is 0 or negative, uses config.DefaultDatabaseQueryTimeout
+func NewPostgresPool(cfg *config.DatabaseConfig, queryTimeoutSeconds ...int) (*pgxpool.Pool, error) {
 	dsn := cfg.DSN()
 
 	poolConfig, err := pgxpool.ParseConfig(dsn)
@@ -93,13 +94,14 @@ func NewPostgresPool(cfg *config.DatabaseConfig, queryTimeoutSeconds int) (*pgxp
 	poolConfig.ConnConfig.RuntimeParams["work_mem"] = "16MB"
 
 	// Connection callback for additional setup
+	timeoutSeconds := config.DefaultDatabaseQueryTimeout
+	if len(queryTimeoutSeconds) > 0 && queryTimeoutSeconds[0] > 0 {
+		timeoutSeconds = queryTimeoutSeconds[0]
+	}
+	finalTimeoutSeconds := timeoutSeconds
 	poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
 		// Set statement timeout to prevent long-running queries
-		timeoutSeconds := queryTimeoutSeconds
-		if timeoutSeconds <= 0 {
-			timeoutSeconds = config.DefaultDatabaseQueryTimeout
-		}
-		_, err := conn.Exec(ctx, fmt.Sprintf("SET statement_timeout = '%ds'", timeoutSeconds))
+		_, err := conn.Exec(ctx, fmt.Sprintf("SET statement_timeout = '%ds'", finalTimeoutSeconds))
 		return err
 	}
 
@@ -154,9 +156,10 @@ func NewPostgresPool(cfg *config.DatabaseConfig, queryTimeoutSeconds int) (*pgxp
 }
 
 // NewDBPool creates a DBPool with primary and optional read replicas
-func NewDBPool(cfg *config.DatabaseConfig, replicaDSNs []string, serviceName string, queryTimeoutSeconds int) (*DBPool, error) {
+// If queryTimeoutSeconds is 0 or negative, uses config.DefaultDatabaseQueryTimeout
+func NewDBPool(cfg *config.DatabaseConfig, replicaDSNs []string, serviceName string, queryTimeoutSeconds ...int) (*DBPool, error) {
 	// Create primary pool
-	primary, err := NewPostgresPool(cfg, queryTimeoutSeconds)
+	primary, err := NewPostgresPool(cfg, queryTimeoutSeconds...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create primary pool: %w", err)
 	}
@@ -190,12 +193,13 @@ func NewDBPool(cfg *config.DatabaseConfig, replicaDSNs []string, serviceName str
 			poolConfig.ConnConfig.RuntimeParams["work_mem"] = "16MB"
 			poolConfig.ConnConfig.RuntimeParams["default_transaction_read_only"] = "on"
 
+			replicaTimeoutSeconds := config.DefaultDatabaseQueryTimeout
+			if len(queryTimeoutSeconds) > 0 && queryTimeoutSeconds[0] > 0 {
+				replicaTimeoutSeconds = queryTimeoutSeconds[0]
+			}
+			finalReplicaTimeoutSeconds := replicaTimeoutSeconds
 			poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-				timeoutSeconds := queryTimeoutSeconds
-				if timeoutSeconds <= 0 {
-					timeoutSeconds = config.DefaultDatabaseQueryTimeout // Default to config value
-				}
-				_, err := conn.Exec(ctx, fmt.Sprintf("SET statement_timeout = '%ds'", timeoutSeconds))
+				_, err := conn.Exec(ctx, fmt.Sprintf("SET statement_timeout = '%ds'", finalReplicaTimeoutSeconds))
 				return err
 			}
 

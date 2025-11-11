@@ -80,7 +80,7 @@ func main() {
 		}
 	}
 
-	db, err := database.NewPostgresPool(&cfg.Database, cfg.Timeout.DatabaseQueryTimeout)
+	db, err := database.NewPostgresPool(&cfg.Database)
 	if err != nil {
 		logger.Fatal("Failed to connect to database", zap.Error(err))
 	}
@@ -96,7 +96,7 @@ func main() {
 	)
 
 	if cfg.RateLimit.Enabled {
-		redisClient, err = redisclient.NewRedisClient(&cfg.Redis, cfg.Timeout.RedisOperationTimeout)
+		redisClient, err = redisclient.NewRedisClient(&cfg.Redis)
 		if err != nil {
 			logger.Fatal("Failed to initialize redis for rate limiting", zap.Error(err))
 		}
@@ -142,7 +142,7 @@ func main() {
 
 	mlEtaURL := os.Getenv("ML_ETA_SERVICE_URL")
 	if mlEtaURL != "" {
-		mlEtaClient = httpclient.NewClient(mlEtaURL, cfg.Timeout.HTTPClientTimeoutDuration())
+		mlEtaClient = httpclient.NewClient(mlEtaURL)
 		if cfg.Resilience.CircuitBreaker.Enabled {
 			cbCfg := cfg.Resilience.CircuitBreaker.SettingsFor("ml-eta-service")
 			mlEtaBreaker = resilience.NewCircuitBreaker(
@@ -154,7 +154,7 @@ func main() {
 	}
 
 	repo := rides.NewRepository(db)
-	service := rides.NewService(repo, promosServiceURL, promosBreaker, cfg.Timeout.HTTPClientTimeoutDuration())
+	service := rides.NewService(repo, promosServiceURL, promosBreaker)
 	if mlEtaClient != nil {
 		service.EnableMLPredictions(mlEtaClient, mlEtaBreaker)
 	}

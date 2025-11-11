@@ -15,10 +15,11 @@ type Client struct {
 }
 
 // NewRedisClient creates a new Redis client
-func NewRedisClient(cfg *config.RedisConfig, operationTimeoutSeconds int) (*Client, error) {
-	timeoutSeconds := operationTimeoutSeconds
-	if timeoutSeconds <= 0 {
-		timeoutSeconds = config.DefaultRedisOperationTimeout
+// If operationTimeoutSeconds is 0 or negative, uses config.DefaultRedisOperationTimeout
+func NewRedisClient(cfg *config.RedisConfig, operationTimeoutSeconds ...int) (*Client, error) {
+	timeoutSeconds := config.DefaultRedisOperationTimeout
+	if len(operationTimeoutSeconds) > 0 && operationTimeoutSeconds[0] > 0 {
+		timeoutSeconds = operationTimeoutSeconds[0]
 	}
 	timeout := time.Duration(timeoutSeconds) * time.Second
 

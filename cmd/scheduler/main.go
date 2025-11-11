@@ -71,7 +71,7 @@ func main() {
 	}
 
 
-	db, err := database.NewPostgresPool(&cfg.Database, cfg.Timeout.DatabaseQueryTimeout)
+	db, err := database.NewPostgresPool(&cfg.Database)
 	if err != nil {
 		logger.Fatal("Failed to connect to database", zap.Error(err))
 	}
@@ -86,7 +86,7 @@ func main() {
 	logger.Info("Notifications service URL configured", zap.String("url", notificationsServiceURL))
 
 	// Create scheduler worker
-	worker := scheduler.NewWorker(db, logger.Get(), notificationsServiceURL, cfg.Timeout.HTTPClientTimeoutDuration())
+	worker := scheduler.NewWorker(db, logger.Get(), notificationsServiceURL)
 
 	// Start worker in background
 	ctx, cancel := context.WithCancel(context.Background())

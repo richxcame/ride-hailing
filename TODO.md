@@ -422,31 +422,23 @@ Prevent indefinite blocking.
 
 -   [x] **Standardize Timeouts**
 
-    -   [x] HTTP client timeout: 30s (configurable via `HTTP_CLIENT_TIMEOUT`)
-    -   [x] Database query timeout: 10s (configurable via `DB_QUERY_TIMEOUT`, sets PostgreSQL `statement_timeout`)
-    -   [x] Redis operation timeout: 5s (configurable via `REDIS_OPERATION_TIMEOUT`)
-    -   [x] WebSocket connection timeout: 60s (configurable via `WS_CONNECTION_TIMEOUT`)
-    -   [x] Default request timeout: 30s (configurable via `DEFAULT_REQUEST_TIMEOUT`)
+    -   [x] HTTP client timeout: 30s
+    -   [x] Database query timeout: 10s (already set to 30s)
+    -   [x] Redis operation timeout: 5s
+    -   [x] WebSocket connection timeout: 60s
+    -   [x] Context timeouts for all operations
 
--   [x] **Add Request Timeout Middleware**
-    -   [x] Created `pkg/middleware/timeout.go` with `RequestTimeout` middleware
-    -   [x] Applied to all services via `middleware.RequestTimeout()`
-    -   [x] Returns 504 Gateway Timeout when exceeded
-    -   [x] Logs timeout events with correlation IDs
+-   [x] **Add Context Propagation**
 
--   [x] **Timeout Configuration**
-    -   [x] Added `TimeoutConfig` struct to `pkg/config/config.go`
-    -   [x] All services use configurable timeouts from environment variables
-    -   [x] Database and Redis clients accept timeout parameters
-    -   [x] HTTP clients use configurable timeouts
+    -   [x] Pass context through all service layers
+    -   [x] Respect parent context cancellation
 
-**Files Created/Modified:**
+-   [x] **Add timeout middleware**
 
--   ✅ `pkg/middleware/timeout.go` - Request timeout middleware
--   ✅ `pkg/config/config.go` - Added `TimeoutConfig` with defaults
--   ✅ `pkg/database/postgres.go` - Updated to accept query timeout parameter
--   ✅ `pkg/redis/redis.go` - Updated to accept operation timeout parameter
--   ✅ All service `main.go` files - Added timeout middleware and timeout configuration
+**Files to Modify:**
+
+-   [x] All service methods (add context.Context parameter)
+-   [x] `pkg/middleware/timeout.go` (create)
 
 ---
 

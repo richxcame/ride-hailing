@@ -74,7 +74,7 @@ func main() {
 	}
 
 
-	db, err := database.NewPostgresPool(&cfg.Database, cfg.Timeout.DatabaseQueryTimeout)
+	db, err := database.NewPostgresPool(&cfg.Database)
 	if err != nil {
 		logger.Fatal("Failed to connect to database", zap.Error(err))
 	}

@@ -10,8 +10,6 @@ import (
 	"go.uber.org/zap"
 )
 
-// RequestTimeout creates a middleware that sets a timeout on the request context
-// If the timeout expires, it returns a 504 Gateway Timeout response
 func RequestTimeout(timeout time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), timeout)
@@ -20,14 +18,34 @@ func RequestTimeout(timeout time.Duration) gin.HandlerFunc {
 		c.Request = c.Request.WithContext(ctx)
 
 		done := make(chan struct{})
+		panicChan := make(chan interface{}, 1)
+
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					panicChan <- r
+				}
+				close(done)
+			}()
 			c.Next()
-			close(done)
 		}()
 
 		select {
 		case <-done:
-			// Request completed before timeout
+			// Request completed successfully
+			return
+		case p := <-panicChan:
+			// Handler panicked
+			if !c.Writer.Written() {
+				c.Abort()
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"error": "Internal server error",
+				})
+			}
+			logger.WithContext(ctx).Error("Handler panic",
+				zap.Any("panic", p),
+				zap.String("path", c.Request.URL.Path),
+			)
 		case <-ctx.Done():
 			// Timeout expired
 			if ctx.Err() == context.DeadlineExceeded {
@@ -38,7 +56,7 @@ func RequestTimeout(timeout time.Duration) gin.HandlerFunc {
 						"message": "The request took too long to process",
 					})
 
-					logger.WithContext(c.Request.Context()).Warn("Request timeout",
+					logger.WithContext(ctx).Warn("Request timeout",
 						zap.String("path", c.Request.URL.Path),
 						zap.String("method", c.Request.Method),
 						zap.Duration("timeout", timeout),
@@ -48,4 +66,3 @@ func RequestTimeout(timeout time.Duration) gin.HandlerFunc {
 		}
 	}
 }
-

@@ -40,10 +40,10 @@ type SurgeCalculator interface {
 }
 
 // NewService creates a new rides service
-func NewService(repo *Repository, promosServiceURL string, breaker *resilience.CircuitBreaker, httpClientTimeout time.Duration) *Service {
+func NewService(repo *Repository, promosServiceURL string, breaker *resilience.CircuitBreaker, httpClientTimeout ...time.Duration) *Service {
 	return &Service{
 		repo:            repo,
-		promosClient:    httpclient.NewClient(promosServiceURL, httpClientTimeout),
+		promosClient:    httpclient.NewClient(promosServiceURL, httpClientTimeout...),
 		promosBreaker:   breaker,
 		surgeCalculator: nil, // Will be set via SetSurgeCalculator
 	}

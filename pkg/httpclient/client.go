@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/resilience"
@@ -42,16 +43,17 @@ func WithDefaultRetry() Option {
 }
 
 // NewClient creates a new HTTP client
-func NewClient(baseURL string, timeout time.Duration, opts ...Option) *Client {
+// If timeout is not provided or is 0, uses config.DefaultHTTPClientTimeout
+func NewClient(baseURL string, timeout ...time.Duration) *Client {
+	timeoutDuration := time.Duration(config.DefaultHTTPClientTimeout) * time.Second
+	if len(timeout) > 0 && timeout[0] > 0 {
+		timeoutDuration = timeout[0]
+	}
 	client := &Client{
 		httpClient: &http.Client{
-			Timeout: timeout,
+			Timeout: timeoutDuration,
 		},
 		baseURL: baseURL,
-	}
-
-	for _, opt := range opts {
-		opt(client)
 	}
 
 	return client

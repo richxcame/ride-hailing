@@ -73,7 +73,7 @@ func main() {
 	}
 
 
-	redis, err := redisClient.NewRedisClient(&cfg.Redis, cfg.Timeout.RedisOperationTimeout)
+	redis, err := redisClient.NewRedisClient(&cfg.Redis)
 	if err != nil {
 		logger.Fatal("Failed to connect to Redis", zap.Error(err))
 	}

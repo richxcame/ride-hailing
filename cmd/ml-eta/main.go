@@ -33,14 +33,14 @@ func main() {
 	defer cancelKeys()
 
 	// Initialize database (pgxpool)
-	dbPool, err := database.NewPostgresPool(&cfg.Database, cfg.Timeout.DatabaseQueryTimeout)
+	dbPool, err := database.NewPostgresPool(&cfg.Database)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 	defer database.Close(dbPool)
 
 	// Initialize Redis
-	redis, err := redisClient.NewRedisClient(&cfg.Redis, cfg.Timeout.RedisOperationTimeout)
+	redis, err := redisClient.NewRedisClient(&cfg.Redis)
 	if err != nil {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
