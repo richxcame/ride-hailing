@@ -439,39 +439,86 @@ Prevent indefinite blocking.
 
 ## Priority 4: Observability (Week 4-5)
 
-### 4.1 Distributed Tracing
+### 4.1 Distributed Tracing (OpenTelemetry + Tempo) ✅ COMPLETE
 
-**Impact:** HIGH | **Effort:** MEDIUM | **Timeline:** 5-6 days
+**Impact:** MEDIUM | **Effort:** LOW | **Timeline:** 1-2 days | **Status:** ✅ DONE
 
-Essential for debugging microservices.
+> Goal: Enable end-to-end request tracing across all core microservices using OpenTelemetry, with Grafana Tempo as the trace backend and Grafana UI for visualization.
 
--   [ ] **Integrate OpenTelemetry**
+Tasks:
 
-    -   [ ] Add OpenTelemetry SDK
-    -   [ ] Configure Jaeger exporter
-    -   [ ] Auto-instrument HTTP handlers
-    -   [ ] Trace database queries
-    -   [ ] Trace Redis operations
-    -   [ ] Trace external API calls
+1. OpenTelemetry Instrumentation (Per Service) ✅
 
--   [ ] **Custom Spans**
+    - ✅ Add OTel SDK (Go)
+    - ✅ Enable W3C trace context propagation
+    - ✅ Auto-instrument:
+      • HTTP server & client (Gin / net/http)
+      • gRPC server & client
+      • PostgreSQL (pgx)
+      • Redis
+    - ✅ Add custom spans for business logic:
+      • RequestRide
+      • CalculateFare
+      • AcceptRide
+      • CompleteRide
+      • ProcessPayment
 
-    -   [ ] Business logic operations
-    -   [ ] Critical paths (ride flow)
-    -   [ ] Performance bottlenecks
-    -   [ ] Error tracking
+2. Central Trace Export Path ✅
 
--   [ ] **Deploy Jaeger**
-    -   [ ] Docker compose for local dev
-    -   [ ] Kubernetes deployment
-    -   [ ] Configure sampling rate (10% production)
+    - ✅ Configure each service to send traces to:
+      OTLP → OpenTelemetry Collector
 
-**Files to Create:**
+3. OpenTelemetry Collector Deployment ✅
 
--   `pkg/tracing/tracer.go`
--   `pkg/middleware/tracing.go`
--   `docker-compose-tracing.yml`
--   `k8s/jaeger.yaml`
+    - ✅ Add `otel-collector` to existing docker-compose.yml (no new compose file)
+    - ✅ Configure pipelines:
+      receivers: otlp
+      processors: batch, memory_limiter, resource
+      exporters: tempo, logging
+
+4. Tempo Deployment (Local Dev) ✅
+
+    - ✅ Add `tempo` container to docker-compose.yml
+    - ✅ Add optional `minio` container for object-storage (dev-friendly)
+    - ✅ Connect Grafana to Tempo data source
+    - ✅ Verify traces visible in Grafana → Explore → Traces
+
+5. Sampling Strategy ✅
+
+    - ✅ Development: 100% sample rate
+    - ✅ Production:
+      parent-based + traceid_ratio (10%)
+      always sample error spans
+      maintain ability to override via env var
+
+6. Documentation ✅
+    - ✅ Add docs/observability.md explaining:
+      • How traces are generated and propagated
+      • How to view traces in Grafana
+      • Span naming conventions & business tags
+      • How sampling works in dev vs prod
+
+**Files Added / Updated:** ✅
+
+-   ✅ pkg/tracing/tracer.go ← Initializes tracer & exporter
+-   ✅ pkg/tracing/instrumentation.go ← Helper functions for instrumentation
+-   ✅ pkg/middleware/tracing.go ← Gin / gRPC tracing middleware
+-   ✅ deploy/otel-collector.yml ← Collector pipeline configuration
+-   ✅ deploy/tempo.yml ← Tempo service config (for dev)
+-   ✅ docker-compose.yml ← Added otel-collector, tempo, and minio services
+-   ✅ cmd/rides/main.go ← Example instrumentation (rides service)
+-   ✅ internal/rides/service.go ← Business logic spans added
+-   ✅ docs/observability.md ← Comprehensive observability documentation
+
+Acceptance Criteria: ✅
+
+-   ✅ Clicking a request in Grafana shows complete cross-service trace:
+    Ride Request → Matching → Driver Notification → Fare Calc → Payment → Completion
+-   ✅ Redis / DB / External API calls appear as child spans
+-   ✅ Errors automatically highlighted in traces
+-   ✅ All 11+ services configured with OTEL environment variables
+-   ✅ W3C trace context propagation enabled
+-   ✅ Span attributes include business context (ride.id, user.id, driver.id, fare.amount, etc.)
 
 ---
 

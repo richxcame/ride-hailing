@@ -1,0 +1,89 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 1024
+    send_batch_max_size: 2048
+
+  # Memory limiter to prevent OOM
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+    spike_limit_mib: 128
+
+  # Resource attributes processor
+  resource:
+    attributes:
+      - key: deployment.environment
+        value: ${env:ENVIRONMENT}
+        action: upsert
+
+  # Tail sampling for production (commented out for dev)
+  # tail_sampling:
+  #   decision_wait: 10s
+  #   num_traces: 100
+  #   expected_new_traces_per_sec: 10
+  #   policies:
+  #     # Always sample error traces
+  #     - name: error-traces
+  #       type: status_code
+  #       status_code:
+  #         status_codes:
+  #           - ERROR
+  #     # Sample 10% of successful traces
+  #     - name: probabilistic-policy
+  #       type: probabilistic
+  #       probabilistic:
+  #         sampling_percentage: 10
+  #     # Always sample slow traces (> 2s)
+  #     - name: slow-traces
+  #       type: latency
+  #       latency:
+  #         threshold_ms: 2000
+
+exporters:
+  # Tempo exporter
+  otlp:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  # Debug exporter for debugging (dev only)
+  debug:
+    verbosity: detailed
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+  # Prometheus exporter for metrics (future use)
+  prometheus:
+    endpoint: 0.0.0.0:8889
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+  pprof:
+    endpoint: 0.0.0.0:1777
+  zpages:
+    endpoint: 0.0.0.0:55679
+
+service:
+  extensions: [health_check, pprof, zpages]
+
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [otlp, debug]
+
+  telemetry:
+    logs:
+      level: info
+    metrics:
+      level: detailed

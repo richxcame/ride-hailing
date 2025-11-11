@@ -11,6 +11,8 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/models"
+	"github.com/richxcame/ride-hailing/pkg/tracing"
+	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -32,15 +34,26 @@ func NewService(repo RepositoryInterface, keyManager *jwtkeys.Manager, jwtExpiry
 
 // Register registers a new user
 func (s *Service) Register(ctx context.Context, req *models.RegisterRequest) (*models.User, error) {
+	ctx, span := tracing.StartSpan(ctx, "auth-service", "Register")
+	defer span.End()
+
+	tracing.AddSpanAttributes(ctx,
+		attribute.String("user.email", req.Email),
+		attribute.String("user.role", string(req.Role)),
+	)
+
 	// Check if user already exists
 	existingUser, _ := s.repo.GetUserByEmail(ctx, req.Email)
 	if existingUser != nil {
+		err := fmt.Errorf("user already exists")
+		tracing.RecordError(ctx, err)
 		return nil, common.NewConflictError("user with this email already exists")
 	}
 
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
+		tracing.RecordError(ctx, err)
 		return nil, common.NewInternalServerError("failed to hash password")
 	}
 
@@ -58,11 +71,18 @@ func (s *Service) Register(ctx context.Context, req *models.RegisterRequest) (*m
 	}
 
 	if err := s.repo.CreateUser(ctx, user); err != nil {
+		tracing.RecordError(ctx, err)
 		return nil, common.NewInternalServerError("failed to create user")
 	}
 
 	// Clear password hash from response
 	user.PasswordHash = ""
+
+	tracing.AddSpanAttributes(ctx, tracing.UserIDKey.String(user.ID.String()))
+	tracing.AddSpanEvent(ctx, "user_registered",
+		attribute.String("user_id", user.ID.String()),
+		attribute.String("role", string(user.Role)),
+	)
 
 	return user, nil
 }
@@ -92,9 +112,15 @@ func (s *Service) RegisterDriver(ctx context.Context, req *models.RegisterReques
 
 // Login authenticates a user and returns a JWT token
 func (s *Service) Login(ctx context.Context, req *models.LoginRequest) (*models.LoginResponse, error) {
+	ctx, span := tracing.StartSpan(ctx, "auth-service", "Login")
+	defer span.End()
+
+	tracing.AddSpanAttributes(ctx, attribute.String("user.email", req.Email))
+
 	// Get user by email
 	user, err := s.repo.GetUserByEmail(ctx, req.Email)
 	if err != nil {
+		tracing.RecordError(ctx, err)
 		return nil, common.NewUnauthorizedError("invalid credentials")
 	}
 

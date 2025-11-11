@@ -12,6 +12,8 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/httpclient"
 	"github.com/richxcame/ride-hailing/pkg/models"
 	"github.com/richxcame/ride-hailing/pkg/resilience"
+	"github.com/richxcame/ride-hailing/pkg/tracing"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -60,6 +62,15 @@ func (s *Service) EnableMLPredictions(client *httpclient.Client, breaker *resili
 
 // RequestRide creates a new ride request
 func (s *Service) RequestRide(ctx context.Context, riderID uuid.UUID, req *models.RideRequest) (*models.Ride, error) {
+	ctx, span := tracing.StartSpan(ctx, "rides-service", "RequestRide")
+	defer span.End()
+
+	tracing.AddSpanAttributes(ctx,
+		tracing.UserIDKey.String(riderID.String()),
+		tracing.LocationLatKey.Float64(req.PickupLatitude),
+		tracing.LocationLonKey.Float64(req.PickupLongitude),
+	)
+
 	// Calculate estimated values
 	distance := calculateDistance(
 		req.PickupLatitude, req.PickupLongitude,
@@ -142,8 +153,18 @@ func (s *Service) RequestRide(ctx context.Context, riderID uuid.UUID, req *model
 	}
 
 	if err := s.repo.CreateRide(ctx, ride); err != nil {
+		tracing.RecordError(ctx, err)
 		return nil, common.NewInternalServerError("failed to create ride request")
 	}
+
+	// Add final ride attributes to span
+	tracing.AddSpanAttributes(ctx,
+		tracing.RideIDKey.String(ride.ID.String()),
+		tracing.FareAmountKey.Float64(fare),
+		tracing.DistanceKey.Float64(distance),
+		tracing.DurationKey.Int(duration),
+		attribute.Float64("surge_multiplier", surgeMultiplier),
+	)
 
 	return ride, nil
 }
@@ -160,16 +181,28 @@ func (s *Service) GetRide(ctx context.Context, rideID uuid.UUID) (*models.Ride, 
 
 // AcceptRide allows a driver to accept a ride request
 func (s *Service) AcceptRide(ctx context.Context, rideID, driverID uuid.UUID) (*models.Ride, error) {
+	ctx, span := tracing.StartSpan(ctx, "rides-service", "AcceptRide")
+	defer span.End()
+
+	tracing.AddSpanAttributes(ctx,
+		tracing.RideIDKey.String(rideID.String()),
+		tracing.DriverIDKey.String(driverID.String()),
+	)
+
 	ride, err := s.repo.GetRideByID(ctx, rideID)
 	if err != nil {
+		tracing.RecordError(ctx, err)
 		return nil, common.NewNotFoundError("ride not found", nil)
 	}
 
 	if ride.Status != models.RideStatusRequested {
+		err := fmt.Errorf("ride status is %s, not requested", ride.Status)
+		tracing.RecordError(ctx, err)
 		return nil, common.NewBadRequestError("ride is not available for acceptance", nil)
 	}
 
 	if err := s.repo.UpdateRideStatus(ctx, rideID, models.RideStatusAccepted, &driverID); err != nil {
+		tracing.RecordError(ctx, err)
 		return nil, common.NewInternalServerError("failed to accept ride")
 	}
 
@@ -177,6 +210,11 @@ func (s *Service) AcceptRide(ctx context.Context, rideID, driverID uuid.UUID) (*
 	ride.DriverID = &driverID
 	now := time.Now()
 	ride.AcceptedAt = &now
+
+	tracing.AddSpanEvent(ctx, "ride_accepted",
+		attribute.String("ride_id", rideID.String()),
+		attribute.String("driver_id", driverID.String()),
+	)
 
 	return ride, nil
 }
@@ -209,16 +247,30 @@ func (s *Service) StartRide(ctx context.Context, rideID, driverID uuid.UUID) (*m
 
 // CompleteRide marks a ride as completed
 func (s *Service) CompleteRide(ctx context.Context, rideID, driverID uuid.UUID, actualDistance float64) (*models.Ride, error) {
+	ctx, span := tracing.StartSpan(ctx, "rides-service", "CompleteRide")
+	defer span.End()
+
+	tracing.AddSpanAttributes(ctx,
+		tracing.RideIDKey.String(rideID.String()),
+		tracing.DriverIDKey.String(driverID.String()),
+		tracing.DistanceKey.Float64(actualDistance),
+	)
+
 	ride, err := s.repo.GetRideByID(ctx, rideID)
 	if err != nil {
+		tracing.RecordError(ctx, err)
 		return nil, common.NewNotFoundError("ride not found", nil)
 	}
 
 	if ride.Status != models.RideStatusInProgress {
+		err := fmt.Errorf("ride status is %s, not in progress", ride.Status)
+		tracing.RecordError(ctx, err)
 		return nil, common.NewBadRequestError("ride is not in progress", nil)
 	}
 
 	if ride.DriverID == nil || *ride.DriverID != driverID {
+		err := fmt.Errorf("unauthorized driver")
+		tracing.RecordError(ctx, err)
 		return nil, common.NewBadRequestError("unauthorized driver", nil)
 	}
 
@@ -228,11 +280,19 @@ func (s *Service) CompleteRide(ctx context.Context, rideID, driverID uuid.UUID, 
 	// Calculate final fare based on actual distance and duration
 	finalFare := calculateFare(actualDistance, actualDuration, ride.SurgeMultiplier)
 
+	tracing.AddSpanAttributes(ctx,
+		tracing.DurationKey.Int(actualDuration),
+		tracing.FareAmountKey.Float64(finalFare),
+		attribute.Float64("estimated_fare", ride.EstimatedFare),
+	)
+
 	if err := s.repo.UpdateRideCompletion(ctx, rideID, actualDistance, actualDuration, finalFare); err != nil {
+		tracing.RecordError(ctx, err)
 		return nil, common.NewInternalServerError("failed to update ride completion")
 	}
 
 	if err := s.repo.UpdateRideStatus(ctx, rideID, models.RideStatusCompleted, nil); err != nil {
+		tracing.RecordError(ctx, err)
 		return nil, common.NewInternalServerError("failed to complete ride")
 	}
 
