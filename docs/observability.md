@@ -198,6 +198,59 @@ Metrics are service-specific. Example for rides-service:
 - **Prometheus UI**: http://localhost:9090
 - **Grafana Dashboards**: http://localhost:3000
 
+### Grafana Dashboards
+
+The platform includes three pre-configured dashboards that automatically load when Grafana starts:
+
+#### 1. System Overview Dashboard
+**UID**: `ridehailing-overview`
+
+Provides a high-level view of the entire system:
+- **Request Rate**: req/s by service
+- **Request Latency**: P95 & P99 latency across all services
+- **Error Rate**: 5xx error rate by service
+- **Traffic Distribution**: Pie chart showing request distribution
+- **Status Code Distribution**: Breakdown of HTTP status codes
+- **System Resources**: CPU, memory, goroutines
+- **Key Metrics**: Total request rate, global P99 latency, global error rate
+
+**Best for**: Operations team, quick health checks, incident response
+
+#### 2. Rides Service Dashboard
+**UID**: `ridehailing-rides`
+
+Business metrics for the rides service:
+- **Key Stats**: Rides created/completed/cancelled per hour, cancellation rate
+- **Driver Metrics**: Drivers online, active rides, drivers by region
+- **Performance**: Ride duration percentiles, ride distance percentiles
+- **Business Insights**: Rides by type, cancellation reasons, driver matching time
+- **Trends**: Rides per minute over time
+
+**Best for**: Product managers, business analysts, operations
+
+#### 3. Payments Service Dashboard
+**UID**: `ridehailing-payments`
+
+Financial and payment metrics:
+- **Revenue**: Revenue per hour, revenue trends
+- **Success/Failure**: Payment success/failure rates
+- **Performance**: Payment processing duration percentiles
+- **Payment Methods**: Distribution of payment methods
+- **Refunds**: Refund counts and amounts
+- **Failure Analysis**: Payment failure reasons
+- **Transaction Stats**: Median and P95 payment amounts
+
+**Best for**: Finance team, operations, business analysts
+
+### Accessing Dashboards
+
+1. **Open Grafana**: http://localhost:3000
+2. **Login**: admin / admin (change in production)
+3. **Navigate**: Dashboards → Browse → RideHailing folder
+4. **Select**: Choose from Overview, Rides, or Payments dashboard
+
+Dashboards auto-refresh every 10 seconds and show data from the last hour (configurable).
+
 ### Example PromQL Queries
 
 ```promql
@@ -212,6 +265,12 @@ rate(http_requests_total{status=~"5.."}[5m])
 
 # Rides per hour
 increase(rides_created_total[1h])
+
+# Payment failure rate
+rate(payments_failed_total[5m]) / (rate(payments_successful_total[5m]) + rate(payments_failed_total[5m]))
+
+# Revenue per minute
+sum(rate(payment_amount_total[5m])) * 60
 ```
 
 ---
@@ -490,9 +549,102 @@ Set in `deploy/otel-collector.yml` and `deploy/tempo.yml`
 
 ---
 
+## Alerting
+
+### Alert Rules
+
+Prometheus is configured with comprehensive alerting rules organized into six categories:
+
+#### System Alerts
+Monitor system health and performance:
+- **HighErrorRate**: 5xx error rate > 5% for 5 minutes
+- **HighLatency**: P99 latency > 1s for 5 minutes
+- **ServiceDown**: Service unavailable for > 1 minute
+- **HighCPUUsage**: CPU usage > 85% for 10 minutes
+- **HighMemoryUsage**: Memory usage > 85% for 10 minutes
+- **TooManyGoroutines**: > 5000 goroutines for 5 minutes
+
+#### Business Alerts
+Monitor business metrics:
+- **LowDriverAvailability**: < 10 drivers online for 5 minutes
+- **HighRideCancellationRate**: > 30% cancellation rate for 10 minutes
+- **HighPaymentFailureRate**: > 10% payment failure rate for 5 minutes
+- **NoRidesCreated**: No rides created for 10 minutes
+- **RevenueDrop**: Revenue dropped > 50% compared to same time yesterday
+
+#### Database Alerts
+Monitor database health:
+- **DatabaseConnectionPoolExhaustion**: > 90% pool usage for 5 minutes
+- **SlowDatabaseQueries**: P95 query time > 1s for 5 minutes
+
+#### Redis Alerts
+Monitor cache performance:
+- **LowRedisHitRate**: < 70% cache hit rate for 10 minutes
+- **HighRedisMemoryUsage**: > 90% memory usage for 5 minutes
+
+#### Circuit Breaker Alerts
+Monitor resilience patterns:
+- **CircuitBreakerOpen**: Circuit breaker open for > 2 minutes
+- **HighCircuitBreakerFailureRate**: > 10 failures/second for 5 minutes
+
+#### Rate Limit Alerts
+Monitor traffic control:
+- **HighRateLimitRejectionRate**: > 10% rejection rate for 5 minutes
+
+#### Fraud Alerts
+Monitor security:
+- **HighFraudDetectionRate**: > 5 fraud alerts/second for 5 minutes
+- **BlockedUserSpike**: 3x increase in blocked users compared to 1 hour ago
+
+### Alert Configuration
+
+Alert rules are defined in [monitoring/prometheus/alerts.yml](../monitoring/prometheus/alerts.yml)
+
+### Viewing Alerts in Prometheus
+
+1. **Open Prometheus**: http://localhost:9090
+2. **Navigate**: Alerts tab
+3. **View**: See all configured alerts and their current state
+   - **Green (Inactive)**: Alert condition not met
+   - **Yellow (Pending)**: Alert condition met, waiting for duration
+   - **Red (Firing)**: Alert actively firing
+
+### Alert Severity Levels
+
+- **Critical**: Immediate action required (service down, high error rate, payment failures)
+- **Warning**: Investigation needed (high resource usage, low driver availability)
+
+### Future: AlertManager Integration
+
+To receive alert notifications (email, Slack, PagerDuty):
+
+1. Deploy Alertmanager:
+   ```yaml
+   alertmanager:
+     image: prom/alertmanager:latest
+     ports:
+       - "9093:9093"
+     volumes:
+       - ./monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+   ```
+
+2. Update Prometheus config:
+   ```yaml
+   alerting:
+     alertmanagers:
+       - static_configs:
+           - targets: ['alertmanager:9093']
+   ```
+
+3. Configure notification receivers in `alertmanager.yml`
+
+---
+
 ## Further Reading
 
 - [OpenTelemetry Documentation](https://opentelemetry.io/docs/)
 - [Grafana Tempo Documentation](https://grafana.com/docs/tempo/latest/)
 - [W3C Trace Context Specification](https://www.w3.org/TR/trace-context/)
 - [Prometheus Best Practices](https://prometheus.io/docs/practices/)
+- [Prometheus Alerting Rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/)
+- [Grafana Dashboard Best Practices](https://grafana.com/docs/grafana/latest/dashboards/build-dashboards/best-practices/)

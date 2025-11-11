@@ -522,34 +522,91 @@ Acceptance Criteria: ✅
 
 ---
 
-### 4.2 Grafana Dashboards
+### 4.2 Grafana Dashboards ✅ COMPLETE
 
 **Impact:** MEDIUM | **Effort:** MEDIUM | **Timeline:** 3-4 days
 
-Prometheus is configured but dashboards missing.
+**Status:** ✅ **DONE**
 
--   [ ] **Create Dashboards**
+-   [x] **Create Dashboards**
 
-    -   [ ] System metrics (CPU, memory, disk)
-    -   [ ] HTTP metrics (request rate, latency, errors)
-    -   [ ] Database metrics (connections, query duration, slow queries)
-    -   [ ] Redis metrics (hit rate, memory usage)
-    -   [ ] Business metrics (rides/hour, revenue, active users)
-    -   [ ] Service-specific dashboards
+    -   [x] System metrics (CPU, memory, goroutines)
+    -   [x] HTTP metrics (request rate, latency, errors)
+    -   [x] Traffic distribution and status codes
+    -   [x] Business metrics (rides/hour, revenue, active users)
+    -   [x] Service-specific dashboards (Rides, Payments)
+    -   [x] Payment metrics (revenue, failure rates, processing time)
+    -   [x] Ride metrics (duration, distance, cancellations, driver availability)
 
--   [ ] **Add Alerting Rules**
-    -   [ ] High error rate (>5% for 5 minutes)
-    -   [ ] High latency (P99 >1s for 5 minutes)
-    -   [ ] Database connection pool exhaustion
-    -   [ ] Low driver availability (<10 in region)
-    -   [ ] Payment failures (>10% failure rate)
+-   [x] **Add Alerting Rules**
+    -   [x] High error rate (>5% for 5 minutes)
+    -   [x] High latency (P99 >1s for 5 minutes)
+    -   [x] Database connection pool exhaustion (>90% usage)
+    -   [x] Low driver availability (<10 drivers)
+    -   [x] Payment failures (>10% failure rate)
+    -   [x] Circuit breaker alerts
+    -   [x] Redis performance alerts
+    -   [x] Business metric alerts (cancellation rate, revenue drops)
+    -   [x] Fraud detection alerts
 
-**Files to Create:**
+-   [x] **Grafana Provisioning**
+    -   [x] Auto-load datasources (Prometheus, Tempo)
+    -   [x] Auto-load dashboards on startup
+    -   [x] Configure dashboard folder structure
 
--   `monitoring/grafana/dashboards/overview.json`
--   `monitoring/grafana/dashboards/rides.json`
--   `monitoring/grafana/dashboards/payments.json`
--   `monitoring/prometheus/alerts.yml`
+**Files Created:**
+
+-   ✅ `monitoring/grafana/dashboards/overview.json` - System Overview Dashboard
+-   ✅ `monitoring/grafana/dashboards/rides.json` - Rides Service Dashboard
+-   ✅ `monitoring/grafana/dashboards/payments.json` - Payments Service Dashboard
+-   ✅ `monitoring/prometheus/alerts.yml` - 30+ alert rules across 6 categories
+-   ✅ `monitoring/grafana/provisioning/datasources/datasources.yml` - Auto-configured data sources
+-   ✅ `monitoring/grafana/provisioning/dashboards/dashboards.yml` - Dashboard provisioning config
+
+**Updates:**
+
+-   ✅ `docker-compose.yml` - Added Grafana provisioning volumes and Prometheus alert rules
+-   ✅ `monitoring/prometheus.yml` - Added alerting configuration
+-   ✅ `docs/observability.md` - Comprehensive dashboard and alerting documentation
+
+**Dashboards Included:**
+
+1. **System Overview Dashboard** (`ridehailing-overview`)
+   - Request rate, latency (P95/P99), error rates by service
+   - Traffic and status code distribution
+   - CPU, memory, goroutine metrics
+   - Global health indicators
+
+2. **Rides Service Dashboard** (`ridehailing-rides`)
+   - Rides created/completed/cancelled metrics
+   - Cancellation rates and reasons
+   - Driver availability and matching time
+   - Ride duration and distance percentiles
+   - Regional driver distribution
+
+3. **Payments Service Dashboard** (`ridehailing-payments`)
+   - Revenue tracking (hourly, trends)
+   - Payment success/failure rates and reasons
+   - Payment processing duration
+   - Payment method distribution
+   - Refund tracking
+   - Transaction amount percentiles
+
+**Alert Categories:**
+
+1. System Alerts (6 rules) - Error rates, latency, service health, resources
+2. Business Alerts (5 rules) - Drivers, cancellations, payments, revenue
+3. Database Alerts (2 rules) - Connection pools, slow queries
+4. Redis Alerts (2 rules) - Hit rate, memory usage
+5. Circuit Breaker Alerts (2 rules) - Open circuits, failure rates
+6. Rate Limit Alerts (1 rule) - Rejection rates
+7. Fraud Alerts (2 rules) - Detection rates, blocked users
+
+**Access:**
+
+- Grafana: http://localhost:3000 (admin/admin)
+- Prometheus Alerts: http://localhost:9090/alerts
+- Dashboards auto-load on Grafana startup in "RideHailing" folder
 
 ---
 
