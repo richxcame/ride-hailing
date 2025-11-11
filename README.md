@@ -467,6 +467,13 @@ JWT_KEYS_FILE=config/jwt_keys.json
 JWT_ROTATION_HOURS=720        # 30 days
 JWT_ROTATION_GRACE_HOURS=720  # overlap window
 JWT_KEY_REFRESH_MINUTES=5     # how often services reload keys
+
+# Timeout configuration (defaults shown)
+HTTP_CLIENT_TIMEOUT=30              # HTTP client timeout in seconds
+DB_QUERY_TIMEOUT=10                 # Database query timeout in seconds
+REDIS_OPERATION_TIMEOUT=5           # Redis operation timeout in seconds
+WS_CONNECTION_TIMEOUT=60            # WebSocket connection timeout in seconds
+DEFAULT_REQUEST_TIMEOUT=30          # Default HTTP request timeout in seconds
 ```
 
 Each service loads a shared `config/jwt_keys.json` (gitignored). The auth service
@@ -475,6 +482,18 @@ for updates based on `JWT_KEY_REFRESH_MINUTES`. The `JWT_SECRET` value remains a
 the fallback legacy key and initial seed. Start the auth service once to seed
 `config/jwt_keys.json` before launching the rest of the stack, or provide the
 keys file through your secrets manager.
+
+**Timeout Configuration:**
+
+All services now use configurable timeouts for better reliability and resource management:
+
+- **HTTP Client Timeout**: Controls timeout for outbound HTTP requests (e.g., service-to-service calls)
+- **Database Query Timeout**: Sets PostgreSQL `statement_timeout` to prevent long-running queries
+- **Redis Operation Timeout**: Configures read/write timeouts for Redis operations
+- **WebSocket Connection Timeout**: Timeout for WebSocket connection establishment
+- **Default Request Timeout**: HTTP request timeout middleware applied to all endpoints (returns 504 Gateway Timeout if exceeded)
+
+These timeouts are applied automatically via middleware and client initialization. The request timeout middleware logs timeout events with correlation IDs for debugging.
 
 ### Rate Limiting (Rides Service)
 
@@ -830,6 +849,7 @@ go test ./test/integration/... -v
 -   ✅ Prometheus metrics on all services
 -   ✅ Health check endpoints (liveness + readiness)
 -   ✅ Database connection pooling + read replicas
+-   ✅ Configurable timeouts (HTTP clients, database queries, Redis operations, request middleware)
 -   ✅ Kubernetes manifests with HPA
 -   ✅ Docker Compose for local/staging
 

@@ -54,7 +54,7 @@ func main() {
 	log.Println("Connected to PostgreSQL database")
 
 	// Connect to Redis
-	redisClient, err := redis.NewRedisClient(&cfg.Redis)
+	redisClient, err := redis.NewRedisClient(&cfg.Redis, cfg.Timeout.RedisOperationTimeout)
 	if err != nil {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
@@ -72,6 +72,7 @@ func main() {
 	// Set up Gin router
 	router := gin.Default()
 	router.Use(middleware.CorrelationID())
+	router.Use(middleware.RequestTimeout(cfg.Timeout.DefaultRequestTimeoutDuration()))
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.SanitizeRequest())
 

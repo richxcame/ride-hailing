@@ -26,6 +26,7 @@ type Config struct {
 	Notifications NotificationsConfig
 	RateLimit     RateLimitConfig
 	Resilience    ResilienceConfig
+	Timeout       TimeoutConfig
 	Secrets       SecretsSettings
 }
 
@@ -190,6 +191,43 @@ type CircuitBreakerSettings struct {
 	IntervalSeconds  int `json:"interval_seconds"`
 }
 
+const (
+	DefaultHTTPClientTimeout = 30
+	DefaultDatabaseQueryTimeout = 10
+	DefaultRedisOperationTimeout = 5
+	DefaultWebSocketConnectionTimeout = 60
+	DefaultRequestTimeout = 30
+)
+
+// TimeoutConfig holds timeout configuration for various operations
+type TimeoutConfig struct {
+	HTTPClientTimeout         int
+	DatabaseQueryTimeout     int
+	RedisOperationTimeout    int
+	WebSocketConnectionTimeout int
+	DefaultRequestTimeout    int
+}
+
+func (t TimeoutConfig) HTTPClientTimeoutDuration() time.Duration {
+	return time.Duration(t.HTTPClientTimeout) * time.Second
+}
+
+func (t TimeoutConfig) DatabaseQueryTimeoutDuration() time.Duration {
+	return time.Duration(t.DatabaseQueryTimeout) * time.Second
+}
+
+func (t TimeoutConfig) RedisOperationTimeoutDuration() time.Duration {
+	return time.Duration(t.RedisOperationTimeout) * time.Second
+}
+
+func (t TimeoutConfig) WebSocketConnectionTimeoutDuration() time.Duration {
+	return time.Duration(t.WebSocketConnectionTimeout) * time.Second
+}
+
+func (t TimeoutConfig) DefaultRequestTimeoutDuration() time.Duration {
+	return time.Duration(t.DefaultRequestTimeout) * time.Second
+}
+
 // Load loads configuration from environment variables
 func Load(serviceName string) (*Config, error) {
 	// Load .env file if it exists
@@ -281,6 +319,13 @@ func Load(serviceName string) (*Config, error) {
 				TimeoutSeconds:   getEnvAsInt("CB_TIMEOUT_SECONDS", 30),
 				IntervalSeconds:  getEnvAsInt("CB_INTERVAL_SECONDS", 60),
 			},
+		},
+		Timeout: TimeoutConfig{
+			HTTPClientTimeout:         getEnvAsInt("HTTP_CLIENT_TIMEOUT", DefaultHTTPClientTimeout),
+			DatabaseQueryTimeout:      getEnvAsInt("DB_QUERY_TIMEOUT", DefaultDatabaseQueryTimeout),
+			RedisOperationTimeout:      getEnvAsInt("REDIS_OPERATION_TIMEOUT", DefaultRedisOperationTimeout),
+			WebSocketConnectionTimeout: getEnvAsInt("WS_CONNECTION_TIMEOUT", DefaultWebSocketConnectionTimeout),
+			DefaultRequestTimeout:      getEnvAsInt("DEFAULT_REQUEST_TIMEOUT", DefaultRequestTimeout),
 		},
 		Secrets: SecretsSettings{
 			Provider:        secrets.ProviderType(getEnv("SECRETS_PROVIDER", "")),

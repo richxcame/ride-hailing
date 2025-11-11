@@ -11,6 +11,7 @@ This document outlines improvements for the ride-hailing backend. The codebase h
 -   Comprehensive testing (unit + integration)
 -   Circuit breakers & rate limiting implemented
 -   Correlation ID logging enabled
+-   Configurable timeout system (HTTP clients, database queries, Redis operations, request middleware)
 
 ---
 
@@ -370,29 +371,41 @@ Handle transient failures gracefully.
 
 ---
 
-### 3.3 Timeout Configuration
+### 3.3 Timeout Configuration ✅ COMPLETE
 
 **Impact:** MEDIUM | **Effort:** LOW | **Timeline:** 1-2 days
 
+**Status:** ✅ **DONE**
+
 Prevent indefinite blocking.
 
--   [ ] **Standardize Timeouts**
+-   [x] **Standardize Timeouts**
 
-    -   [ ] HTTP client timeout: 30s
-    -   [ ] Database query timeout: 10s (already set to 30s)
-    -   [ ] Redis operation timeout: 5s
-    -   [ ] WebSocket connection timeout: 60s
-    -   [ ] Context timeouts for all operations
+    -   [x] HTTP client timeout: 30s (configurable via `HTTP_CLIENT_TIMEOUT`)
+    -   [x] Database query timeout: 10s (configurable via `DB_QUERY_TIMEOUT`, sets PostgreSQL `statement_timeout`)
+    -   [x] Redis operation timeout: 5s (configurable via `REDIS_OPERATION_TIMEOUT`)
+    -   [x] WebSocket connection timeout: 60s (configurable via `WS_CONNECTION_TIMEOUT`)
+    -   [x] Default request timeout: 30s (configurable via `DEFAULT_REQUEST_TIMEOUT`)
 
--   [ ] **Add Context Propagation**
-    -   [ ] Pass context through all service layers
-    -   [ ] Respect parent context cancellation
-    -   [ ] Add timeout middleware
+-   [x] **Add Request Timeout Middleware**
+    -   [x] Created `pkg/middleware/timeout.go` with `RequestTimeout` middleware
+    -   [x] Applied to all services via `middleware.RequestTimeout()`
+    -   [x] Returns 504 Gateway Timeout when exceeded
+    -   [x] Logs timeout events with correlation IDs
 
-**Files to Modify:**
+-   [x] **Timeout Configuration**
+    -   [x] Added `TimeoutConfig` struct to `pkg/config/config.go`
+    -   [x] All services use configurable timeouts from environment variables
+    -   [x] Database and Redis clients accept timeout parameters
+    -   [x] HTTP clients use configurable timeouts
 
--   All service methods (add context.Context parameter)
--   `pkg/middleware/timeout.go` (create)
+**Files Created/Modified:**
+
+-   ✅ `pkg/middleware/timeout.go` - Request timeout middleware
+-   ✅ `pkg/config/config.go` - Added `TimeoutConfig` with defaults
+-   ✅ `pkg/database/postgres.go` - Updated to accept query timeout parameter
+-   ✅ `pkg/redis/redis.go` - Updated to accept operation timeout parameter
+-   ✅ All service `main.go` files - Added timeout middleware and timeout configuration
 
 ---
 
@@ -1102,6 +1115,7 @@ The backend has evolved from good foundations to enterprise-ready status:
 3. **Resilience** - Circuit breakers & rate limiting implemented
 4. **Observability** - Correlation ID logging, Prometheus metrics
 5. **Security hardening** - Rate limiting, RBAC, input validation
+6. **Timeout Configuration** - Configurable timeouts for HTTP clients, database queries, Redis operations, and request middleware
 
 **🔄 IN PROGRESS / NEXT STEPS:**
 

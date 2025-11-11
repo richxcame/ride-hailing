@@ -62,7 +62,7 @@ func NewDBMetrics(serviceName string) *DBMetrics {
 }
 
 // NewPostgresPool creates a new PostgreSQL connection pool with optimized settings
-func NewPostgresPool(cfg *config.DatabaseConfig) (*pgxpool.Pool, error) {
+func NewPostgresPool(cfg *config.DatabaseConfig, queryTimeoutSeconds int) (*pgxpool.Pool, error) {
 	dsn := cfg.DSN()
 
 	poolConfig, err := pgxpool.ParseConfig(dsn)
@@ -95,7 +95,11 @@ func NewPostgresPool(cfg *config.DatabaseConfig) (*pgxpool.Pool, error) {
 	// Connection callback for additional setup
 	poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
 		// Set statement timeout to prevent long-running queries
-		_, err := conn.Exec(ctx, "SET statement_timeout = '30s'")
+		timeoutSeconds := queryTimeoutSeconds
+		if timeoutSeconds <= 0 {
+			timeoutSeconds = config.DefaultDatabaseQueryTimeout
+		}
+		_, err := conn.Exec(ctx, fmt.Sprintf("SET statement_timeout = '%ds'", timeoutSeconds))
 		return err
 	}
 
@@ -150,9 +154,9 @@ func NewPostgresPool(cfg *config.DatabaseConfig) (*pgxpool.Pool, error) {
 }
 
 // NewDBPool creates a DBPool with primary and optional read replicas
-func NewDBPool(cfg *config.DatabaseConfig, replicaDSNs []string, serviceName string) (*DBPool, error) {
+func NewDBPool(cfg *config.DatabaseConfig, replicaDSNs []string, serviceName string, queryTimeoutSeconds int) (*DBPool, error) {
 	// Create primary pool
-	primary, err := NewPostgresPool(cfg)
+	primary, err := NewPostgresPool(cfg, queryTimeoutSeconds)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create primary pool: %w", err)
 	}
@@ -187,7 +191,11 @@ func NewDBPool(cfg *config.DatabaseConfig, replicaDSNs []string, serviceName str
 			poolConfig.ConnConfig.RuntimeParams["default_transaction_read_only"] = "on"
 
 			poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-				_, err := conn.Exec(ctx, "SET statement_timeout = '30s'")
+				timeoutSeconds := queryTimeoutSeconds
+				if timeoutSeconds <= 0 {
+					timeoutSeconds = 10 // Default to 10 seconds
+				}
+				_, err := conn.Exec(ctx, fmt.Sprintf("SET statement_timeout = '%ds'", timeoutSeconds))
 				return err
 			}
 

@@ -15,14 +15,22 @@ type Client struct {
 }
 
 // NewRedisClient creates a new Redis client
-func NewRedisClient(cfg *config.RedisConfig) (*Client, error) {
+func NewRedisClient(cfg *config.RedisConfig, operationTimeoutSeconds int) (*Client, error) {
+	timeoutSeconds := operationTimeoutSeconds
+	if timeoutSeconds <= 0 {
+		timeoutSeconds = config.DefaultRedisOperationTimeout
+	}
+	timeout := time.Duration(timeoutSeconds) * time.Second
+
 	client := redis.NewClient(&redis.Options{
-		Addr:     cfg.RedisAddr(),
-		Password: cfg.Password,
-		DB:       cfg.DB,
+		Addr:         cfg.RedisAddr(),
+		Password:     cfg.Password,
+		DB:           cfg.DB,
+		ReadTimeout:  timeout,
+		WriteTimeout: timeout,
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
 	if err := client.Ping(ctx).Err(); err != nil {

@@ -43,7 +43,7 @@ func main() {
 		zap.String("environment", cfg.Server.Environment),
 	)
 
-	db, err := database.NewPostgresPool(&cfg.Database)
+	db, err := database.NewPostgresPool(&cfg.Database, cfg.Timeout.DatabaseQueryTimeout)
 	if err != nil {
 		logger.Fatal("Failed to connect to database", zap.Error(err))
 	}
@@ -58,7 +58,7 @@ func main() {
 	logger.Info("Notifications service URL configured", zap.String("url", notificationsServiceURL))
 
 	// Create scheduler worker
-	worker := scheduler.NewWorker(db, logger.Get(), notificationsServiceURL)
+	worker := scheduler.NewWorker(db, logger.Get(), notificationsServiceURL, cfg.Timeout.HTTPClientTimeoutDuration())
 
 	// Start worker in background
 	ctx, cancel := context.WithCancel(context.Background())
@@ -73,6 +73,7 @@ func main() {
 
 	router := gin.New()
 	router.Use(gin.Recovery())
+	router.Use(middleware.RequestTimeout(cfg.Timeout.DefaultRequestTimeoutDuration()))
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.SanitizeRequest())
 

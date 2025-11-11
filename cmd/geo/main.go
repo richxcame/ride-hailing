@@ -46,7 +46,7 @@ func main() {
 		zap.String("version", version),
 	)
 
-	redis, err := redisClient.NewRedisClient(&cfg.Redis)
+	redis, err := redisClient.NewRedisClient(&cfg.Redis, cfg.Timeout.RedisOperationTimeout)
 	if err != nil {
 		logger.Fatal("Failed to connect to Redis", zap.Error(err))
 	}
@@ -69,6 +69,7 @@ func main() {
 	router := gin.New()
 	router.Use(middleware.Recovery())
 	router.Use(middleware.CorrelationID())
+	router.Use(middleware.RequestTimeout(cfg.Timeout.DefaultRequestTimeoutDuration()))
 	router.Use(middleware.RequestLogger(serviceName))
 	router.Use(middleware.CORS())
 	router.Use(middleware.SecurityHeaders())

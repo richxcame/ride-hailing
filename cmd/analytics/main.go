@@ -46,7 +46,7 @@ func main() {
 		zap.String("environment", cfg.Server.Environment),
 	)
 
-	db, err := database.NewPostgresPool(&cfg.Database)
+	db, err := database.NewPostgresPool(&cfg.Database, cfg.Timeout.DatabaseQueryTimeout)
 	if err != nil {
 		logger.Fatal("Failed to connect to database", zap.Error(err))
 	}
@@ -70,6 +70,7 @@ func main() {
 	router := gin.New()
 	router.Use(middleware.Recovery())
 	router.Use(middleware.CorrelationID())
+	router.Use(middleware.RequestTimeout(cfg.Timeout.DefaultRequestTimeoutDuration()))
 	router.Use(middleware.RequestLogger(serviceName))
 	router.Use(middleware.CORS())
 	router.Use(middleware.SecurityHeaders())
