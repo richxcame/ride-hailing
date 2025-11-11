@@ -137,6 +137,11 @@ services:
       REDIS_PORT: 6379
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
       JWT_EXPIRATION: 24
+      # OpenTelemetry
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: auth-service
+      OTEL_SERVICE_VERSION: "1.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
     ports:
       - "8081:8080"
     depends_on:
@@ -144,6 +149,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - ridehailing-network
     restart: unless-stopped
@@ -169,6 +176,11 @@ services:
       REDIS_PORT: 6379
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
       PROMOS_SERVICE_URL: http://promos-service:8080
+      # OpenTelemetry
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: rides-service
+      OTEL_SERVICE_VERSION: "1.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
     ports:
       - "8082:8080"
     depends_on:
@@ -176,6 +188,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - ridehailing-network
     restart: unless-stopped
@@ -194,11 +208,18 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      # OpenTelemetry
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: geo-service
+      OTEL_SERVICE_VERSION: "1.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
     ports:
       - "8083:8080"
     depends_on:
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - ridehailing-network
     restart: unless-stopped
@@ -224,6 +245,11 @@ services:
       REDIS_PORT: 6379
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
       STRIPE_API_KEY: ${STRIPE_API_KEY:-sk_test_dummy}
+      # OpenTelemetry
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: payments-service
+      OTEL_SERVICE_VERSION: "1.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
     ports:
       - "8084:8080"
     depends_on:
@@ -231,6 +257,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - ridehailing-network
     restart: unless-stopped
@@ -265,6 +293,11 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL:-noreply@ridehailing.com}
       SMTP_FROM_NAME: ${SMTP_FROM_NAME:-RideHailing}
+      # OpenTelemetry
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: notifications-service
+      OTEL_SERVICE_VERSION: "1.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
     ports:
       - "8085:8080"
     depends_on:
@@ -272,6 +305,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - ridehailing-network
     restart: unless-stopped
@@ -304,6 +339,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - ridehailing-network
     restart: unless-stopped
@@ -325,11 +362,18 @@ services:
       DB_PASSWORD: postgres
       DB_NAME: ridehailing
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      # OpenTelemetry
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: mobile-service
+      OTEL_SERVICE_VERSION: "1.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
     ports:
       - "8087:8080"
     depends_on:
       postgres:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - ridehailing-network
     restart: unless-stopped
@@ -351,11 +395,18 @@ services:
       DB_PASSWORD: postgres
       DB_NAME: ridehailing
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      # OpenTelemetry
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: admin-service
+      OTEL_SERVICE_VERSION: "1.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
     ports:
       - "8088:8080"
     depends_on:
       postgres:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - ridehailing-network
     restart: unless-stopped
@@ -377,11 +428,18 @@ services:
       DB_PASSWORD: postgres
       DB_NAME: ridehailing
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      # OpenTelemetry
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: promos-service
+      OTEL_SERVICE_VERSION: "1.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
     ports:
       - "8089:8080"
     depends_on:
       postgres:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - ridehailing-network
     restart: unless-stopped
@@ -403,11 +461,18 @@ services:
       DB_PASSWORD: postgres
       DB_NAME: ridehailing
       DB_SSLMODE: disable
+      # OpenTelemetry
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: scheduler-service
+      OTEL_SERVICE_VERSION: "1.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
     ports:
       - "8090:8080"
     depends_on:
       postgres:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - ridehailing-network
     restart: unless-stopped
@@ -430,11 +495,18 @@ services:
       DB_NAME: ridehailing
       DB_SSLMODE: disable
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      # OpenTelemetry
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: analytics-service
+      OTEL_SERVICE_VERSION: "1.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
     ports:
       - "8091:8080"
     depends_on:
       postgres:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - ridehailing-network
     restart: unless-stopped
@@ -457,11 +529,18 @@ services:
       DB_NAME: ridehailing
       DB_SSLMODE: disable
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      # OpenTelemetry
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: fraud-service
+      OTEL_SERVICE_VERSION: "1.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
     ports:
       - "8092:8080"
     depends_on:
       postgres:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - ridehailing-network
     restart: unless-stopped
@@ -494,6 +573,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      otel-collector:
+        condition: service_started
     networks:
       - ridehailing-network
     restart: unless-stopped
@@ -504,10 +585,12 @@ services:
     container_name: ridehailing-prometheus
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
     ports:
       - "9090:9090"
     networks:
@@ -521,15 +604,75 @@ services:
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+      GF_INSTALL_PLUGINS: ""
     ports:
       - "3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
     depends_on:
       - prometheus
+      - tempo
     networks:
       - ridehailing-network
     restart: unless-stopped
+
+  # MinIO for Tempo storage (optional, for production-like setup)
+  minio:
+    image: minio/minio:latest
+    container_name: ridehailing-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - ridehailing-network
+    restart: unless-stopped
+
+  # Grafana Tempo for distributed tracing
+  tempo:
+    image: grafana/tempo:latest
+    container_name: ridehailing-tempo
+    command: ["-config.file=/etc/tempo.yml"]
+    user: "root"
+    volumes:
+      - ./deploy/tempo.yml:/etc/tempo.yml
+      - tempo_data:/tmp/tempo
+    ports:
+      - "3200:3200" # Tempo HTTP
+      - "9096:9096" # Tempo gRPC
+    networks:
+      - ridehailing-network
+    restart: unless-stopped
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: ridehailing-otel-collector
+    command: ["--config=/etc/otel-collector.yml"]
+    volumes:
+      - ./deploy/otel-collector.yml:/etc/otel-collector.yml
+    ports:
+      - "4317:4317" # OTLP gRPC receiver
+      - "4318:4318" # OTLP HTTP receiver
+      - "8888:8888" # Prometheus metrics exposed by the collector
+      - "8889:8889" # Prometheus exporter
+      - "13133:13133" # Health check
+      - "55679:55679" # zpages
+    depends_on:
+      - tempo
+    networks:
+      - ridehailing-network
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: development
 
 volumes:
   postgres_data:
@@ -537,6 +680,8 @@ volumes:
   kong_data:
   prometheus_data:
   grafana_data:
+  minio_data:
+  tempo_data:
 
 networks:
   ridehailing-network:

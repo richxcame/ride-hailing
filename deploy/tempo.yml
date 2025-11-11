@@ -1,0 +1,57 @@
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9096
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: 48h
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /tmp/tempo/wal
+    local:
+      path: /tmp/tempo/blocks
+    pool:
+      max_workers: 100
+      queue_depth: 10000
+
+    # For production with MinIO (commented out for simple local dev)
+    # backend: s3
+    # s3:
+    #   bucket: tempo-traces
+    #   endpoint: minio:9000
+    #   access_key: minioadmin
+    #   secret_key: minioadmin
+    #   insecure: true
+
+# Disable metrics generator for simpler setup
+# metrics_generator:
+#   registry:
+#     external_labels:
+#       source: tempo
+#       cluster: ride-hailing-dev
+#   storage:
+#     path: /tmp/tempo/generator/wal
+#     remote_write:
+#       - url: http://prometheus:9090/api/v1/write
+#         send_exemplars: true
+
+# overrides:
+#   defaults:
+#     metrics_generator:
+#       processors: [service-graphs, span-metrics]
+#       generate_native_histograms: both

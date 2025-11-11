@@ -1,4 +1,4 @@
-.PHONY: help setup dev build build-all test test-unit test-integration test-coverage lint fmt vet \
+.PHONY: help setup dev dev-infra dev-infra-full dev-stop dev-check build build-all test test-unit test-integration test-coverage lint fmt vet \
 	run-auth run-rides run-geo run-payments run-notifications run-realtime run-fraud run-analytics \
 	docker-up docker-down docker-build docker-logs docker-restart \
 	migrate-up migrate-down migrate-create migrate-force migrate-version \
@@ -33,14 +33,42 @@ help: ## Display this help screen
 setup: install-tools tidy ## Initial project setup
 	@echo "$(GREEN)✓ Project setup complete!$(NC)"
 	@echo "Next steps:"
-	@echo "  1. Run 'make docker-up' to start dependencies"
+	@echo "  1. Run 'make dev-infra' to start dependencies (Postgres + Redis only)"
 	@echo "  2. Run 'make migrate-up' to run database migrations"
 	@echo "  3. Run 'make db-seed' to seed the database"
 	@echo "  4. Run 'make run-auth' (or any service) to start developing"
 
-dev: docker-up migrate-up ## Start development environment
+dev: dev-infra migrate-up ## Start lightweight development environment (Postgres + Redis only)
 	@echo "$(GREEN)✓ Development environment ready!$(NC)"
 	@echo "Run 'make run-<service>' to start a service"
+
+dev-infra: ## Start only infrastructure dependencies (Postgres + Redis)
+	@echo "Starting infrastructure dependencies..."
+	@docker-compose -f docker-compose.dev.yml up -d postgres redis
+	@echo "$(GREEN)✓ Infrastructure started (Postgres + Redis)$(NC)"
+	@echo "$(YELLOW)Services running on:$(NC)"
+	@echo "  - PostgreSQL: localhost:5432"
+	@echo "  - Redis: localhost:6379"
+
+dev-infra-full: ## Start infrastructure + observability (Postgres + Redis + Prometheus + Grafana + Tempo)
+	@echo "Starting infrastructure + observability..."
+	@docker-compose -f docker-compose.dev.yml --profile observability up -d
+	@echo "$(GREEN)✓ Infrastructure + Observability started$(NC)"
+	@echo "$(YELLOW)Services running on:$(NC)"
+	@echo "  - PostgreSQL: localhost:5432"
+	@echo "  - Redis: localhost:6379"
+	@echo "  - Prometheus: http://localhost:9090"
+	@echo "  - Grafana: http://localhost:3000 (admin/admin)"
+	@echo "  - Tempo: localhost:3200"
+	@echo "  - OTEL Collector: localhost:4317 (gRPC), localhost:4318 (HTTP)"
+
+dev-stop: ## Stop all development infrastructure
+	@echo "Stopping development infrastructure..."
+	@docker-compose -f docker-compose.dev.yml --profile observability --profile gateway down
+	@echo "$(GREEN)✓ Infrastructure stopped!$(NC)"
+
+dev-check: ## Check development environment health
+	@./scripts/check-dev-env.sh
 
 #==========================================
 # Build

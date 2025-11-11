@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log"
+	"os"
 	"strings"
 	"time"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/redis"
+	"github.com/richxcame/ride-hailing/pkg/tracing"
 	ws "github.com/richxcame/ride-hailing/pkg/websocket"
 )
 
@@ -53,6 +55,33 @@ func main() {
 	}
 	log.Println("Connected to PostgreSQL database")
 
+	// Initialize OpenTelemetry tracer
+	tracerEnabled := os.Getenv("OTEL_ENABLED") == "true"
+	if tracerEnabled {
+		tracerCfg := tracing.Config{
+			ServiceName:    os.Getenv("OTEL_SERVICE_NAME"),
+			ServiceVersion: os.Getenv("OTEL_SERVICE_VERSION"),
+			Environment:    cfg.Server.Environment,
+			OTLPEndpoint:   os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
+			Enabled:        true,
+		}
+
+		// Use a simple logger for tracing (since this service uses standard log)
+		tp, err := tracing.InitTracer(tracerCfg, nil)
+		if err != nil {
+			log.Printf("Warning: Failed to initialize tracer: %v", err)
+		} else {
+			defer func() {
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				defer cancel()
+				if err := tp.Shutdown(shutdownCtx); err != nil {
+					log.Printf("Warning: Failed to shutdown tracer: %v", err)
+				}
+			}()
+			log.Println("OpenTelemetry tracing initialized successfully")
+		}
+	}
+
 	// Connect to Redis
 	redisClient, err := redis.NewRedisClient(&cfg.Redis)
 	if err != nil {
@@ -74,6 +103,11 @@ func main() {
 	router.Use(middleware.CorrelationID())
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.SanitizeRequest())
+
+	// Add tracing middleware if enabled
+	if tracerEnabled {
+		router.Use(middleware.TracingMiddleware("realtime-service"))
+	}
 
 	// CORS configuration
 	corsConfig := cors.DefaultConfig()
