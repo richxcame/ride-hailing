@@ -1,0 +1,214 @@
+version: "3.8"
+
+# Lightweight Docker Compose for Local Development
+# Only runs infrastructure dependencies (no application services)
+# Run your Go services locally with: make run-<service>
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgis/postgis:15-3.4
+    container_name: ridehailing-postgres-dev
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ridehailing
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ridehailing-dev
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: ridehailing-redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ridehailing-dev
+
+  # Optional: Kong Database (PostgreSQL)
+  kong-database:
+    image: postgres:15-alpine
+    container_name: ridehailing-kong-db-dev
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kong
+      POSTGRES_DB: kong
+    volumes:
+      - kong_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kong"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ridehailing-dev
+    profiles:
+      - gateway
+
+  # Optional: Kong Database Migration
+  kong-migration:
+    image: kong:3.9.1
+    container_name: ridehailing-kong-migration-dev
+    command: kong migrations bootstrap
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-database
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+      KONG_PG_DATABASE: kong
+    depends_on:
+      kong-database:
+        condition: service_healthy
+    networks:
+      - ridehailing-dev
+    restart: on-failure
+    profiles:
+      - gateway
+
+  # Optional: Kong API Gateway
+  kong:
+    image: kong:3.9.1
+    container_name: ridehailing-kong-dev
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-database
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+      KONG_PG_DATABASE: kong
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_PROXY_LISTEN: "0.0.0.0:8000, 0.0.0.0:8443 ssl"
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001, 0.0.0.0:8444 ssl"
+      KONG_ADMIN_GUI_LISTEN: "0.0.0.0:8002"
+      KONG_ADMIN_GUI_URL: "http://localhost:8002"
+    ports:
+      - "8000:8000"
+      - "8443:8443"
+      - "8001:8001"
+      - "8444:8444"
+      - "8002:8002"
+    depends_on:
+      kong-database:
+        condition: service_healthy
+      kong-migration:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "kong", "health"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+    networks:
+      - ridehailing-dev
+    profiles:
+      - gateway
+
+  # Optional: Observability Stack
+  # Grafana Tempo for distributed tracing
+  tempo:
+    image: grafana/tempo:latest
+    container_name: ridehailing-tempo-dev
+    command: ["-config.file=/etc/tempo.yml"]
+    user: "root"
+    volumes:
+      - ./deploy/tempo.yml:/etc/tempo.yml
+      - tempo_dev_data:/tmp/tempo
+    ports:
+      - "3200:3200"
+      - "9096:9096"
+    networks:
+      - ridehailing-dev
+    profiles:
+      - observability
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: ridehailing-otel-collector-dev
+    command: ["--config=/etc/otel-collector.yml"]
+    volumes:
+      - ./deploy/otel-collector.yml:/etc/otel-collector.yml
+    ports:
+      - "4317:4317"  # OTLP gRPC receiver
+      - "4318:4318"  # OTLP HTTP receiver
+      - "8888:8888"  # Prometheus metrics
+      - "13133:13133" # Health check
+    depends_on:
+      - tempo
+    networks:
+      - ridehailing-dev
+    environment:
+      ENVIRONMENT: development
+    profiles:
+      - observability
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ridehailing-prometheus-dev
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml
+      - prometheus_dev_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.enable-lifecycle"
+    ports:
+      - "9090:9090"
+    networks:
+      - ridehailing-dev
+    profiles:
+      - observability
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ridehailing-grafana-dev
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_PATHS_PROVISIONING: /etc/grafana/provisioning
+      GF_INSTALL_PLUGINS: ""
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_dev_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
+      - tempo
+    networks:
+      - ridehailing-dev
+    profiles:
+      - observability
+
+volumes:
+  postgres_dev_data:
+  redis_dev_data:
+  kong_dev_data:
+  prometheus_dev_data:
+  grafana_dev_data:
+  tempo_dev_data:
+
+networks:
+  ridehailing-dev:
+    driver: bridge

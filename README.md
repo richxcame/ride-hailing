@@ -365,9 +365,35 @@ flowchart TB
 ### Prerequisites
 
 -   Docker and Docker Compose
--   Go 1.22+ (for local development)
+-   Go 1.24+ (for local development)
 -   PostgreSQL 15
 -   Redis 7
+
+### Development Mode (Recommended)
+
+For active development, run only infrastructure in Docker and services natively:
+
+```bash
+# 1. Start minimal infrastructure (Postgres + Redis)
+make dev-infra
+
+# 2. Run migrations
+make migrate-up
+
+# 3. Run the service(s) you're working on
+make run-auth  # or run-rides, run-geo, etc.
+
+# 4. Check environment health
+make dev-check
+```
+
+**Benefits:**
+- 🚀 Fast startup (~5 seconds vs 2-3 minutes)
+- 💾 Low memory (~500MB vs 4-6GB)
+- ⚡ Instant iteration (no Docker rebuild)
+- 🐛 Easy debugging (native Go debugger)
+
+**See [QUICKSTART.md](QUICKSTART.md) for detailed guide.**
 
 ### Running with Docker Compose
 
