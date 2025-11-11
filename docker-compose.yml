@@ -611,7 +611,7 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
     depends_on:
       - prometheus
       - tempo
@@ -646,8 +646,8 @@ services:
       - ./deploy/tempo.yml:/etc/tempo.yml
       - tempo_data:/tmp/tempo
     ports:
-      - "3200:3200"   # Tempo HTTP
-      - "9096:9096"   # Tempo gRPC
+      - "3200:3200" # Tempo HTTP
+      - "9096:9096" # Tempo gRPC
     networks:
       - ridehailing-network
     restart: unless-stopped
@@ -660,10 +660,10 @@ services:
     volumes:
       - ./deploy/otel-collector.yml:/etc/otel-collector.yml
     ports:
-      - "4317:4317"   # OTLP gRPC receiver
-      - "4318:4318"   # OTLP HTTP receiver
-      - "8888:8888"   # Prometheus metrics exposed by the collector
-      - "8889:8889"   # Prometheus exporter
+      - "4317:4317" # OTLP gRPC receiver
+      - "4318:4318" # OTLP HTTP receiver
+      - "8888:8888" # Prometheus metrics exposed by the collector
+      - "8889:8889" # Prometheus exporter
       - "13133:13133" # Health check
       - "55679:55679" # zpages
     depends_on:

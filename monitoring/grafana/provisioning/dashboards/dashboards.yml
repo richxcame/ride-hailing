@@ -1,13 +1,11 @@
 apiVersion: 1
 
 providers:
-  - name: 'RideHailing Dashboards'
-    orgId: 1
-    folder: 'RideHailing'
-    type: file
-    disableDeletion: false
-    updateIntervalSeconds: 30
-    allowUiUpdates: true
-    options:
-      path: /etc/grafana/provisioning/dashboards
-      foldersFromFilesStructure: false
+    - name: 'RideHailing Dashboards'
+      folder: RideHailing
+      type: file
+      disableDeletion: false
+      updateIntervalSeconds: 30
+      allowUiUpdates: true
+      options:
+          path: /var/lib/grafana/dashboards
