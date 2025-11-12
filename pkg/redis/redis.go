@@ -15,23 +15,36 @@ type Client struct {
 }
 
 // NewRedisClient creates a new Redis client
-// If operationTimeoutSeconds is 0 or negative, uses config.DefaultRedisOperationTimeout
-func NewRedisClient(cfg *config.RedisConfig, operationTimeoutSeconds ...int) (*Client, error) {
-	timeoutSeconds := config.DefaultRedisOperationTimeout
-	if len(operationTimeoutSeconds) > 0 && operationTimeoutSeconds[0] > 0 {
-		timeoutSeconds = operationTimeoutSeconds[0]
+// If readTimeout or writeTimeout are not provided or zero, uses config.DefaultRedisReadTimeoutDuration and config.DefaultRedisWriteTimeoutDuration
+func NewRedisClient(cfg *config.RedisConfig, timeouts ...time.Duration) (*Client, error) {
+	var readTimeout, writeTimeout time.Duration
+	
+	if len(timeouts) >= 1 && timeouts[0] > 0 {
+		readTimeout = timeouts[0]
+	} else {
+		readTimeout = config.DefaultRedisReadTimeoutDuration()
 	}
-	timeout := time.Duration(timeoutSeconds) * time.Second
+	
+	if len(timeouts) >= 2 && timeouts[1] > 0 {
+		writeTimeout = timeouts[1]
+	} else {
+		writeTimeout = config.DefaultRedisWriteTimeoutDuration()
+	}
 
 	client := redis.NewClient(&redis.Options{
 		Addr:         cfg.RedisAddr(),
 		Password:     cfg.Password,
 		DB:           cfg.DB,
-		ReadTimeout:  timeout,
-		WriteTimeout: timeout,
+		ReadTimeout:  readTimeout,
+		WriteTimeout: writeTimeout,
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	pingTimeout := readTimeout
+	if writeTimeout > readTimeout {
+		pingTimeout = writeTimeout
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), pingTimeout)
 	defer cancel()
 
 	if err := client.Ping(ctx).Err(); err != nil {

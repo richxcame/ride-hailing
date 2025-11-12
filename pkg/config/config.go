@@ -195,6 +195,8 @@ const (
 	DefaultHTTPClientTimeout = 30
 	DefaultDatabaseQueryTimeout = 10
 	DefaultRedisOperationTimeout = 5
+	DefaultRedisReadTimeout = 5
+	DefaultRedisWriteTimeout = 5
 	DefaultWebSocketConnectionTimeout = 60
 	DefaultRequestTimeout = 30
 )
@@ -204,6 +206,8 @@ type TimeoutConfig struct {
 	HTTPClientTimeout         int
 	DatabaseQueryTimeout     int
 	RedisOperationTimeout    int
+	RedisReadTimeout         int
+	RedisWriteTimeout        int
 	WebSocketConnectionTimeout int
 	DefaultRequestTimeout    int
 	RouteOverrides           map[string]int // Route pattern -> timeout in seconds (e.g., "POST:/api/v1/rides" -> 60)
@@ -219,6 +223,28 @@ func (t TimeoutConfig) DatabaseQueryTimeoutDuration() time.Duration {
 
 func (t TimeoutConfig) RedisOperationTimeoutDuration() time.Duration {
 	return time.Duration(t.RedisOperationTimeout) * time.Second
+}
+
+func (t TimeoutConfig) RedisReadTimeoutDuration() time.Duration {
+	if t.RedisReadTimeout > 0 {
+		return time.Duration(t.RedisReadTimeout) * time.Second
+	}
+	return t.RedisOperationTimeoutDuration()
+}
+
+func (t TimeoutConfig) RedisWriteTimeoutDuration() time.Duration {
+	if t.RedisWriteTimeout > 0 {
+		return time.Duration(t.RedisWriteTimeout) * time.Second
+	}
+	return t.RedisOperationTimeoutDuration()
+}
+
+func DefaultRedisReadTimeoutDuration() time.Duration {
+	return time.Duration(DefaultRedisReadTimeout) * time.Second
+}
+
+func DefaultRedisWriteTimeoutDuration() time.Duration {
+	return time.Duration(DefaultRedisWriteTimeout) * time.Second
 }
 
 func (t TimeoutConfig) WebSocketConnectionTimeoutDuration() time.Duration {
@@ -341,6 +367,8 @@ func Load(serviceName string) (*Config, error) {
 			HTTPClientTimeout:         getEnvAsInt("HTTP_CLIENT_TIMEOUT", DefaultHTTPClientTimeout),
 			DatabaseQueryTimeout:      getEnvAsInt("DB_QUERY_TIMEOUT", DefaultDatabaseQueryTimeout),
 			RedisOperationTimeout:      getEnvAsInt("REDIS_OPERATION_TIMEOUT", DefaultRedisOperationTimeout),
+			RedisReadTimeout:          getEnvAsInt("REDIS_READ_TIMEOUT", DefaultRedisReadTimeout),
+			RedisWriteTimeout:         getEnvAsInt("REDIS_WRITE_TIMEOUT", DefaultRedisWriteTimeout),
 			WebSocketConnectionTimeout: getEnvAsInt("WS_CONNECTION_TIMEOUT", DefaultWebSocketConnectionTimeout),
 			DefaultRequestTimeout:      getEnvAsInt("DEFAULT_REQUEST_TIMEOUT", DefaultRequestTimeout),
 			RouteOverrides:             make(map[string]int),
