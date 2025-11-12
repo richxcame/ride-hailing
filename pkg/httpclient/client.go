@@ -45,7 +45,7 @@ func WithDefaultRetry() Option {
 // NewClient creates a new HTTP client
 // If timeout is not provided or is 0, uses config.DefaultHTTPClientTimeout
 func NewClient(baseURL string, timeout ...time.Duration) *Client {
-	timeoutDuration := time.Duration(config.DefaultHTTPClientTimeout) * time.Second
+	timeoutDuration := config.DefaultHTTPClientTimeoutDuration()
 	if len(timeout) > 0 && timeout[0] > 0 {
 		timeoutDuration = timeout[0]
 	}

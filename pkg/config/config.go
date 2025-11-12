@@ -247,6 +247,10 @@ func DefaultRedisWriteTimeoutDuration() time.Duration {
 	return time.Duration(DefaultRedisWriteTimeout) * time.Second
 }
 
+func DefaultHTTPClientTimeoutDuration() time.Duration {
+	return time.Duration(DefaultHTTPClientTimeout) * time.Second
+}
+
 func (t TimeoutConfig) WebSocketConnectionTimeoutDuration() time.Duration {
 	return time.Duration(t.WebSocketConnectionTimeout) * time.Second
 }
@@ -429,6 +433,11 @@ func Load(serviceName string) (*Config, error) {
 		if err := json.Unmarshal([]byte(timeoutOverrides), &routeTimeouts); err != nil {
 			return nil, fmt.Errorf("invalid ROUTE_TIMEOUT_OVERRIDES value: %w", err)
 		}
+		for route, timeout := range routeTimeouts {
+			if timeout <= 0 {
+				delete(routeTimeouts, route)
+			}
+		}
 		cfg.Timeout.RouteOverrides = routeTimeouts
 	}
 
@@ -450,6 +459,34 @@ func Load(serviceName string) (*Config, error) {
 
 	if cfg.Resilience.CircuitBreaker.SuccessThreshold <= 0 {
 		cfg.Resilience.CircuitBreaker.SuccessThreshold = 1
+	}
+
+	if cfg.Timeout.HTTPClientTimeout <= 0 {
+		cfg.Timeout.HTTPClientTimeout = DefaultHTTPClientTimeout
+	}
+
+	if cfg.Timeout.DatabaseQueryTimeout <= 0 {
+		cfg.Timeout.DatabaseQueryTimeout = DefaultDatabaseQueryTimeout
+	}
+
+	if cfg.Timeout.RedisOperationTimeout <= 0 {
+		cfg.Timeout.RedisOperationTimeout = DefaultRedisOperationTimeout
+	}
+
+	if cfg.Timeout.RedisReadTimeout <= 0 {
+		cfg.Timeout.RedisReadTimeout = DefaultRedisReadTimeout
+	}
+
+	if cfg.Timeout.RedisWriteTimeout <= 0 {
+		cfg.Timeout.RedisWriteTimeout = DefaultRedisWriteTimeout
+	}
+
+	if cfg.Timeout.WebSocketConnectionTimeout <= 0 {
+		cfg.Timeout.WebSocketConnectionTimeout = DefaultWebSocketConnectionTimeout
+	}
+
+	if cfg.Timeout.DefaultRequestTimeout <= 0 {
+		cfg.Timeout.DefaultRequestTimeout = DefaultRequestTimeout
 	}
 
 	if err := cfg.populateSecretReferences(); err != nil {

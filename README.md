@@ -497,7 +497,9 @@ JWT_KEY_REFRESH_MINUTES=5     # how often services reload keys
 # Timeout configuration (defaults shown)
 HTTP_CLIENT_TIMEOUT=30              # HTTP client timeout in seconds
 DB_QUERY_TIMEOUT=10                 # Database query timeout in seconds
-REDIS_OPERATION_TIMEOUT=5           # Redis operation timeout in seconds
+REDIS_OPERATION_TIMEOUT=5           # Redis operation timeout in seconds (fallback if read/write not set)
+REDIS_READ_TIMEOUT=5                # Redis read timeout in seconds (defaults to REDIS_OPERATION_TIMEOUT if not set)
+REDIS_WRITE_TIMEOUT=5               # Redis write timeout in seconds (defaults to REDIS_OPERATION_TIMEOUT if not set)
 WS_CONNECTION_TIMEOUT=60            # WebSocket connection timeout in seconds
 DEFAULT_REQUEST_TIMEOUT=30          # Default HTTP request timeout in seconds
 ```
@@ -515,7 +517,9 @@ All services now use configurable timeouts for better reliability and resource m
 
 - **HTTP Client Timeout**: Controls timeout for outbound HTTP requests (e.g., service-to-service calls)
 - **Database Query Timeout**: Sets PostgreSQL `statement_timeout` to prevent long-running queries
-- **Redis Operation Timeout**: Configures read/write timeouts for Redis operations
+- **Redis Operation Timeout**: Base timeout for Redis operations (used as fallback)
+- **Redis Read Timeout**: Timeout for Redis read operations (defaults to Redis Operation Timeout if not set)
+- **Redis Write Timeout**: Timeout for Redis write operations (defaults to Redis Operation Timeout if not set)
 - **WebSocket Connection Timeout**: Timeout for WebSocket connection establishment
 - **Default Request Timeout**: HTTP request timeout middleware applied to all endpoints (returns 504 Gateway Timeout if exceeded)
 
