@@ -14,6 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/richxcame/ride-hailing/internal/realtime"
 	"github.com/richxcame/ride-hailing/pkg/config"
+	"github.com/richxcame/ride-hailing/pkg/errors"
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/redis"
@@ -54,6 +55,17 @@ func main() {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 	log.Println("Connected to PostgreSQL database")
+
+	// Initialize Sentry for error tracking
+	sentryConfig := errors.DefaultSentryConfig()
+	sentryConfig.ServerName = "realtime-service"
+	sentryConfig.Release = "1.0.0"
+	if err := errors.InitSentry(sentryConfig); err != nil {
+		log.Printf("Warning: Failed to initialize Sentry, continuing without error tracking: %v", err)
+	} else {
+		defer errors.Flush(2 * time.Second)
+		log.Println("Sentry error tracking initialized successfully")
+	}
 
 	// Initialize OpenTelemetry tracer
 	tracerEnabled := os.Getenv("OTEL_ENABLED") == "true"
@@ -99,7 +111,9 @@ func main() {
 	handler := realtime.NewHandler(service)
 
 	// Set up Gin router
-	router := gin.Default()
+	router := gin.New()
+	router.Use(middleware.RecoveryWithSentry()) // Custom recovery with Sentry
+	router.Use(middleware.SentryMiddleware())   // Sentry integration
 	router.Use(middleware.CorrelationID())
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.SanitizeRequest())
@@ -108,6 +122,9 @@ func main() {
 	if tracerEnabled {
 		router.Use(middleware.TracingMiddleware("realtime-service"))
 	}
+
+	// Add Sentry error handler (should be near the end of middleware chain)
+	router.Use(middleware.ErrorHandler())
 
 	// CORS configuration
 	corsConfig := cors.DefaultConfig()

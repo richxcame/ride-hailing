@@ -15,6 +15,7 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/database"
+	"github.com/richxcame/ride-hailing/pkg/errors"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/tracing"
@@ -43,6 +44,17 @@ func main() {
 		zap.String("version", version),
 		zap.String("environment", cfg.Server.Environment),
 	)
+
+	// Initialize Sentry for error tracking
+	sentryConfig := errors.DefaultSentryConfig()
+	sentryConfig.ServerName = serviceName
+	sentryConfig.Release = version
+	if err := errors.InitSentry(sentryConfig); err != nil {
+		logger.Warn("Failed to initialize Sentry, continuing without error tracking", zap.Error(err))
+	} else {
+		defer errors.Flush(2 * time.Second)
+		logger.Info("Sentry error tracking initialized successfully")
+	}
 
 	// Initialize OpenTelemetry tracer
 	tracerEnabled := os.Getenv("OTEL_ENABLED") == "true"
@@ -100,9 +112,13 @@ func main() {
 	}
 
 	router := gin.New()
-	router.Use(gin.Recovery())
+	router.Use(middleware.RecoveryWithSentry()) // Custom recovery with Sentry
+	router.Use(middleware.SentryMiddleware())   // Sentry integration
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.SanitizeRequest())
+
+	// Add Sentry error handler (should be near the end of middleware chain)
+	router.Use(middleware.ErrorHandler())
 
 	router.GET("/healthz", common.HealthCheck(serviceName, version))
 	router.GET("/version", func(c *gin.Context) {
