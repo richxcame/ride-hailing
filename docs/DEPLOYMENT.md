@@ -263,6 +263,16 @@ WRITE_TIMEOUT=10
 DB_MAX_CONNS=25
 DB_MIN_CONNS=5
 
+# Timeout Configuration
+HTTP_CLIENT_TIMEOUT=30              # HTTP client timeout in seconds (default: 30)
+DB_QUERY_TIMEOUT=10                 # Database query timeout in seconds (default: 10)
+REDIS_OPERATION_TIMEOUT=5          # Redis operation timeout in seconds (default: 5, fallback if read/write not set)
+REDIS_READ_TIMEOUT=5                # Redis read timeout in seconds (default: 5, defaults to REDIS_OPERATION_TIMEOUT if not set)
+REDIS_WRITE_TIMEOUT=5               # Redis write timeout in seconds (default: 5, defaults to REDIS_OPERATION_TIMEOUT if not set)
+WS_CONNECTION_TIMEOUT=60           # WebSocket connection timeout in seconds (default: 60)
+DEFAULT_REQUEST_TIMEOUT=30         # Default HTTP request timeout in seconds (default: 30)
+ROUTE_TIMEOUT_OVERRIDES='{"POST:/api/v1/rides": 60, "GET:/api/v1/analytics/reports": 120}'  # Optional: JSON map of route-specific timeouts (format: "METHOD:/path": seconds)
+
 # Pub/Sub
 PUBSUB_PROJECT_ID=your-project
 PUBSUB_ENABLED=true

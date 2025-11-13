@@ -17,8 +17,8 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
-	"github.com/richxcame/ride-hailing/pkg/tracing"
 	redisClient "github.com/richxcame/ride-hailing/pkg/redis"
+	"github.com/richxcame/ride-hailing/pkg/tracing"
 	"go.uber.org/zap"
 )
 
@@ -46,7 +46,6 @@ func main() {
 		zap.String("service", serviceName),
 		zap.String("version", version),
 	)
-
 	// Initialize OpenTelemetry tracer
 	tracerEnabled := os.Getenv("OTEL_ENABLED") == "true"
 	if tracerEnabled {
@@ -97,6 +96,7 @@ func main() {
 	router := gin.New()
 	router.Use(middleware.Recovery())
 	router.Use(middleware.CorrelationID())
+	router.Use(middleware.RequestTimeout(&cfg.Timeout))
 	router.Use(middleware.RequestLogger(serviceName))
 	router.Use(middleware.CORS())
 	router.Use(middleware.SecurityHeaders())

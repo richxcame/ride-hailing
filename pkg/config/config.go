@@ -26,6 +26,7 @@ type Config struct {
 	Notifications NotificationsConfig
 	RateLimit     RateLimitConfig
 	Resilience    ResilienceConfig
+	Timeout       TimeoutConfig
 	Secrets       SecretsSettings
 }
 
@@ -190,6 +191,90 @@ type CircuitBreakerSettings struct {
 	IntervalSeconds  int `json:"interval_seconds"`
 }
 
+const (
+	DefaultHTTPClientTimeout = 30
+	DefaultDatabaseQueryTimeout = 10
+	DefaultRedisOperationTimeout = 5
+	DefaultRedisReadTimeout = 5
+	DefaultRedisWriteTimeout = 5
+	DefaultWebSocketConnectionTimeout = 60
+	DefaultRequestTimeout = 30
+)
+
+// TimeoutConfig holds timeout configuration for various operations
+type TimeoutConfig struct {
+	HTTPClientTimeout         int
+	DatabaseQueryTimeout     int
+	RedisOperationTimeout    int
+	RedisReadTimeout         int
+	RedisWriteTimeout        int
+	WebSocketConnectionTimeout int
+	DefaultRequestTimeout    int
+	RouteOverrides           map[string]int // Route pattern -> timeout in seconds (e.g., "POST:/api/v1/rides" -> 60)
+}
+
+func (t TimeoutConfig) HTTPClientTimeoutDuration() time.Duration {
+	return time.Duration(t.HTTPClientTimeout) * time.Second
+}
+
+func (t TimeoutConfig) DatabaseQueryTimeoutDuration() time.Duration {
+	return time.Duration(t.DatabaseQueryTimeout) * time.Second
+}
+
+func (t TimeoutConfig) RedisOperationTimeoutDuration() time.Duration {
+	return time.Duration(t.RedisOperationTimeout) * time.Second
+}
+
+func (t TimeoutConfig) RedisReadTimeoutDuration() time.Duration {
+	if t.RedisReadTimeout > 0 {
+		return time.Duration(t.RedisReadTimeout) * time.Second
+	}
+	return t.RedisOperationTimeoutDuration()
+}
+
+func (t TimeoutConfig) RedisWriteTimeoutDuration() time.Duration {
+	if t.RedisWriteTimeout > 0 {
+		return time.Duration(t.RedisWriteTimeout) * time.Second
+	}
+	return t.RedisOperationTimeoutDuration()
+}
+
+func DefaultRedisReadTimeoutDuration() time.Duration {
+	return time.Duration(DefaultRedisReadTimeout) * time.Second
+}
+
+func DefaultRedisWriteTimeoutDuration() time.Duration {
+	return time.Duration(DefaultRedisWriteTimeout) * time.Second
+}
+
+func DefaultHTTPClientTimeoutDuration() time.Duration {
+	return time.Duration(DefaultHTTPClientTimeout) * time.Second
+}
+
+func (t TimeoutConfig) WebSocketConnectionTimeoutDuration() time.Duration {
+	return time.Duration(t.WebSocketConnectionTimeout) * time.Second
+}
+
+func (t TimeoutConfig) DefaultRequestTimeoutDuration() time.Duration {
+	return time.Duration(t.DefaultRequestTimeout) * time.Second
+}
+
+// TimeoutForRoute returns the timeout duration for a specific route
+// Route format: "METHOD:/path" (e.g., "POST:/api/v1/rides")
+// Returns the route-specific timeout if found, otherwise returns the default timeout
+func (t TimeoutConfig) TimeoutForRoute(method, path string) time.Duration {
+	if t.RouteOverrides == nil {
+		return t.DefaultRequestTimeoutDuration()
+	}
+
+	routeKey := fmt.Sprintf("%s:%s", method, path)
+	if timeoutSeconds, ok := t.RouteOverrides[routeKey]; ok && timeoutSeconds > 0 {
+		return time.Duration(timeoutSeconds) * time.Second
+	}
+
+	return t.DefaultRequestTimeoutDuration()
+}
+
 // Load loads configuration from environment variables
 func Load(serviceName string) (*Config, error) {
 	// Load .env file if it exists
@@ -282,6 +367,16 @@ func Load(serviceName string) (*Config, error) {
 				IntervalSeconds:  getEnvAsInt("CB_INTERVAL_SECONDS", 60),
 			},
 		},
+		Timeout: TimeoutConfig{
+			HTTPClientTimeout:         getEnvAsInt("HTTP_CLIENT_TIMEOUT", DefaultHTTPClientTimeout),
+			DatabaseQueryTimeout:      getEnvAsInt("DB_QUERY_TIMEOUT", DefaultDatabaseQueryTimeout),
+			RedisOperationTimeout:      getEnvAsInt("REDIS_OPERATION_TIMEOUT", DefaultRedisOperationTimeout),
+			RedisReadTimeout:          getEnvAsInt("REDIS_READ_TIMEOUT", DefaultRedisReadTimeout),
+			RedisWriteTimeout:         getEnvAsInt("REDIS_WRITE_TIMEOUT", DefaultRedisWriteTimeout),
+			WebSocketConnectionTimeout: getEnvAsInt("WS_CONNECTION_TIMEOUT", DefaultWebSocketConnectionTimeout),
+			DefaultRequestTimeout:      getEnvAsInt("DEFAULT_REQUEST_TIMEOUT", DefaultRequestTimeout),
+			RouteOverrides:             make(map[string]int),
+		},
 		Secrets: SecretsSettings{
 			Provider:        secrets.ProviderType(getEnv("SECRETS_PROVIDER", "")),
 			CacheTTLSeconds: getEnvAsInt("SECRETS_CACHE_TTL_SECONDS", 300),
@@ -333,6 +428,19 @@ func Load(serviceName string) (*Config, error) {
 		cfg.Resilience.CircuitBreaker.ServiceOverrides = serviceConfig
 	}
 
+	if timeoutOverrides := getEnv("ROUTE_TIMEOUT_OVERRIDES", ""); timeoutOverrides != "" {
+		var routeTimeouts map[string]int
+		if err := json.Unmarshal([]byte(timeoutOverrides), &routeTimeouts); err != nil {
+			return nil, fmt.Errorf("invalid ROUTE_TIMEOUT_OVERRIDES value: %w", err)
+		}
+		for route, timeout := range routeTimeouts {
+			if timeout <= 0 {
+				delete(routeTimeouts, route)
+			}
+		}
+		cfg.Timeout.RouteOverrides = routeTimeouts
+	}
+
 	if cfg.RateLimit.WindowSeconds <= 0 {
 		cfg.RateLimit.WindowSeconds = int((time.Minute).Seconds())
 	}
@@ -351,6 +459,34 @@ func Load(serviceName string) (*Config, error) {
 
 	if cfg.Resilience.CircuitBreaker.SuccessThreshold <= 0 {
 		cfg.Resilience.CircuitBreaker.SuccessThreshold = 1
+	}
+
+	if cfg.Timeout.HTTPClientTimeout <= 0 {
+		cfg.Timeout.HTTPClientTimeout = DefaultHTTPClientTimeout
+	}
+
+	if cfg.Timeout.DatabaseQueryTimeout <= 0 {
+		cfg.Timeout.DatabaseQueryTimeout = DefaultDatabaseQueryTimeout
+	}
+
+	if cfg.Timeout.RedisOperationTimeout <= 0 {
+		cfg.Timeout.RedisOperationTimeout = DefaultRedisOperationTimeout
+	}
+
+	if cfg.Timeout.RedisReadTimeout <= 0 {
+		cfg.Timeout.RedisReadTimeout = DefaultRedisReadTimeout
+	}
+
+	if cfg.Timeout.RedisWriteTimeout <= 0 {
+		cfg.Timeout.RedisWriteTimeout = DefaultRedisWriteTimeout
+	}
+
+	if cfg.Timeout.WebSocketConnectionTimeout <= 0 {
+		cfg.Timeout.WebSocketConnectionTimeout = DefaultWebSocketConnectionTimeout
+	}
+
+	if cfg.Timeout.DefaultRequestTimeout <= 0 {
+		cfg.Timeout.DefaultRequestTimeout = DefaultRequestTimeout
 	}
 
 	if err := cfg.populateSecretReferences(); err != nil {

@@ -142,7 +142,7 @@ func main() {
 
 	mlEtaURL := os.Getenv("ML_ETA_SERVICE_URL")
 	if mlEtaURL != "" {
-		mlEtaClient = httpclient.NewClient(mlEtaURL, 5*time.Second)
+		mlEtaClient = httpclient.NewClient(mlEtaURL)
 		if cfg.Resilience.CircuitBreaker.Enabled {
 			cbCfg := cfg.Resilience.CircuitBreaker.SettingsFor("ml-eta-service")
 			mlEtaBreaker = resilience.NewCircuitBreaker(
@@ -179,6 +179,7 @@ func main() {
 	router := gin.New()
 	router.Use(middleware.Recovery())
 	router.Use(middleware.CorrelationID())
+	router.Use(middleware.RequestTimeout(&cfg.Timeout))
 	router.Use(middleware.RequestLogger(serviceName))
 	router.Use(middleware.CORS())
 	router.Use(middleware.SecurityHeaders())

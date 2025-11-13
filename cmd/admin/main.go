@@ -12,12 +12,20 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/richxcame/ride-hailing/internal/admin"
+	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/tracing"
 )
 
 func main() {
+	// Load configuration
+	cfg, err := config.Load("admin")
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+	defer cfg.Close()
+
 	// Load environment variables
 	dbHost := getEnv("DB_HOST", "localhost")
 	dbPort := getEnv("DB_PORT", "5432")
@@ -102,6 +110,7 @@ func main() {
 	// Set up Gin router
 	router := gin.Default()
 	router.Use(middleware.CorrelationID())
+	router.Use(middleware.RequestTimeout(&cfg.Timeout))
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.SanitizeRequest())
 

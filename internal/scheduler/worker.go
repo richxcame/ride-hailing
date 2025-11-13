@@ -33,10 +33,10 @@ type Worker struct {
 }
 
 // NewWorker creates a new scheduler worker
-func NewWorker(db *pgxpool.Pool, logger *zap.Logger, notificationsServiceURL string) *Worker {
+func NewWorker(db *pgxpool.Pool, logger *zap.Logger, notificationsServiceURL string, httpClientTimeout ...time.Duration) *Worker {
 	var notificationsClient *httpclient.Client
 	if notificationsServiceURL != "" {
-		notificationsClient = httpclient.NewClient(notificationsServiceURL, 10*time.Second)
+		notificationsClient = httpclient.NewClient(notificationsServiceURL, httpClientTimeout...)
 	}
 
 	return &Worker{
