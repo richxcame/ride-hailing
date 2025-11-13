@@ -271,6 +271,7 @@ REDIS_READ_TIMEOUT=5                # Redis read timeout in seconds (default: 5,
 REDIS_WRITE_TIMEOUT=5               # Redis write timeout in seconds (default: 5, defaults to REDIS_OPERATION_TIMEOUT if not set)
 WS_CONNECTION_TIMEOUT=60           # WebSocket connection timeout in seconds (default: 60)
 DEFAULT_REQUEST_TIMEOUT=30         # Default HTTP request timeout in seconds (default: 30)
+ROUTE_TIMEOUT_OVERRIDES='{"POST:/api/v1/rides": 60, "GET:/api/v1/analytics/reports": 120}'  # Optional: JSON map of route-specific timeouts (format: "METHOD:/path": seconds)
 
 # Pub/Sub
 PUBSUB_PROJECT_ID=your-project

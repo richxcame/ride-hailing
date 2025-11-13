@@ -502,6 +502,7 @@ REDIS_READ_TIMEOUT=5                # Redis read timeout in seconds (defaults to
 REDIS_WRITE_TIMEOUT=5               # Redis write timeout in seconds (defaults to REDIS_OPERATION_TIMEOUT if not set)
 WS_CONNECTION_TIMEOUT=60            # WebSocket connection timeout in seconds
 DEFAULT_REQUEST_TIMEOUT=30          # Default HTTP request timeout in seconds
+ROUTE_TIMEOUT_OVERRIDES='{"POST:/api/v1/rides": 60}'  # Optional: JSON map of route-specific timeouts (format: "METHOD:/path": seconds)
 ```
 
 Each service loads a shared `config/jwt_keys.json` (gitignored). The auth service
@@ -522,8 +523,29 @@ All services now use configurable timeouts for better reliability and resource m
 - **Redis Write Timeout**: Timeout for Redis write operations (defaults to Redis Operation Timeout if not set)
 - **WebSocket Connection Timeout**: Timeout for WebSocket connection establishment
 - **Default Request Timeout**: HTTP request timeout middleware applied to all endpoints (returns 504 Gateway Timeout if exceeded)
+- **Route-Specific Timeout Overrides**: Optional per-route timeout overrides using `ROUTE_TIMEOUT_OVERRIDES` environment variable
 
 These timeouts are applied automatically via middleware and client initialization. The request timeout middleware logs timeout events with correlation IDs for debugging.
+
+**Route-Specific Timeout Overrides:**
+
+You can override the default request timeout for specific routes using the `ROUTE_TIMEOUT_OVERRIDES` environment variable. This is useful for routes that require longer processing times (e.g., complex queries, file uploads, or ML model inference).
+
+```bash
+# JSON format: {"METHOD:/path": timeout_in_seconds}
+ROUTE_TIMEOUT_OVERRIDES='{"POST:/api/v1/rides": 60, "GET:/api/v1/analytics/reports": 120, "POST:/api/v1/rides/batch": 90}'
+```
+
+- **Route format**: `"METHOD:/path"` (e.g., `"POST:/api/v1/rides"`, `"GET:/api/v1/users/:id"`)
+- **Timeout value**: Integer in seconds (must be > 0)
+- **Behavior**: Routes matching the pattern use the specified timeout; all other routes use `DEFAULT_REQUEST_TIMEOUT`
+- **Example use cases**:
+  - Long-running ML model predictions
+  - Complex analytics queries
+  - Batch processing endpoints
+  - File upload/download operations
+
+Routes with invalid timeout values (≤ 0) are automatically filtered out during configuration loading.
 
 ### Rate Limiting (Rides Service)
 

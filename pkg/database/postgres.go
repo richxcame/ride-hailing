@@ -94,16 +94,8 @@ func NewPostgresPool(cfg *config.DatabaseConfig, queryTimeoutSeconds ...int) (*p
 	poolConfig.ConnConfig.RuntimeParams["work_mem"] = "16MB"
 
 	// Connection callback for additional setup
-	timeoutSeconds := config.DefaultDatabaseQueryTimeout
-	if len(queryTimeoutSeconds) > 0 && queryTimeoutSeconds[0] > 0 {
-		timeoutSeconds = queryTimeoutSeconds[0]
-	}
-	finalTimeoutSeconds := timeoutSeconds
-	poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-		// Set statement timeout to prevent long-running queries
-		_, err := conn.Exec(ctx, fmt.Sprintf("SET statement_timeout = '%ds'", finalTimeoutSeconds))
-		return err
-	}
+	timeoutSeconds := resolveQueryTimeout(queryTimeoutSeconds...)
+	poolConfig.AfterConnect = createStatementTimeoutCallback(timeoutSeconds)
 
 	createPool := func(ctx context.Context) (*pgxpool.Pool, error) {
 		pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
@@ -193,15 +185,8 @@ func NewDBPool(cfg *config.DatabaseConfig, replicaDSNs []string, serviceName str
 			poolConfig.ConnConfig.RuntimeParams["work_mem"] = "16MB"
 			poolConfig.ConnConfig.RuntimeParams["default_transaction_read_only"] = "on"
 
-			replicaTimeoutSeconds := config.DefaultDatabaseQueryTimeout
-			if len(queryTimeoutSeconds) > 0 && queryTimeoutSeconds[0] > 0 {
-				replicaTimeoutSeconds = queryTimeoutSeconds[0]
-			}
-			finalReplicaTimeoutSeconds := replicaTimeoutSeconds
-			poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-				_, err := conn.Exec(ctx, fmt.Sprintf("SET statement_timeout = '%ds'", finalReplicaTimeoutSeconds))
-				return err
-			}
+			replicaTimeoutSeconds := resolveQueryTimeout(queryTimeoutSeconds...)
+			poolConfig.AfterConnect = createStatementTimeoutCallback(replicaTimeoutSeconds)
 
 			replica, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
 			if err != nil {
@@ -305,6 +290,22 @@ func sanitizeBreakerName(name string) string {
 		return ""
 	}
 	return strings.ReplaceAll(trimmed, " ", "-")
+}
+
+func resolveQueryTimeout(queryTimeoutSeconds ...int) int {
+	timeoutSeconds := config.DefaultDatabaseQueryTimeout
+	if len(queryTimeoutSeconds) > 0 && queryTimeoutSeconds[0] > 0 {
+		timeoutSeconds = queryTimeoutSeconds[0]
+	}
+	return timeoutSeconds
+}
+
+func createStatementTimeoutCallback(timeoutSeconds int) func(context.Context, *pgx.Conn) error {
+	return func(ctx context.Context, conn *pgx.Conn) error {
+		// Set statement timeout to prevent long-running queries
+		_, err := conn.Exec(ctx, fmt.Sprintf("SET statement_timeout = '%ds'", timeoutSeconds))
+		return err
+	}
 }
 
 func max(a, b int) int {
