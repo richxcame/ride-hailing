@@ -962,7 +962,6 @@ volumes:
   grafana_data:
   minio_data:
   tempo_data:
-  # Sentry volumes
   sentry_postgres_data:
   sentry_redis_data:
   sentry_clickhouse_data:

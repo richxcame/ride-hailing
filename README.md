@@ -394,7 +394,23 @@ make dev-check
 -   ⚡ Instant iteration (no Docker rebuild)
 -   🐛 Easy debugging (native Go debugger)
 
-**See [QUICKSTART.md](./docs/QUICKSTART.md) for detailed guide.**
+**Optional Profiles:**
+
+```bash
+# Add observability stack (Prometheus, Grafana, Tempo)
+docker-compose -f docker-compose.dev.yml --profile observability up -d
+
+# Add Kong API Gateway
+docker-compose -f docker-compose.dev.yml --profile gateway up -d
+
+# Add Sentry error tracking
+docker-compose -f docker-compose.dev.yml --profile sentry up -d
+
+# Combine multiple profiles
+docker-compose -f docker-compose.dev.yml --profile observability --profile sentry up -d
+```
+
+**See [QUICKSTART.md](./docs/QUICKSTART.md) and [DEVELOPMENT.md](./docs/DEVELOPMENT.md) for detailed guides.**
 
 ### Running with Docker Compose
 
