@@ -1,0 +1,61 @@
+# Database Backup Cron Configuration
+# Install: crontab -u postgres deploy/cron/database-backup.cron
+# Or append to existing crontab: crontab -l | cat - deploy/cron/database-backup.cron | crontab -
+
+# Set shell and path
+SHELL=/bin/bash
+PATH=/usr/local/bin:/usr/bin:/bin
+
+# Email notifications (optional)
+MAILTO=ops@ridehailing.com
+
+# Environment variables (adjust as needed)
+# Note: For production, use environment files or secrets management
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_NAME=ridehailing
+BACKUP_DIR=/var/backups/postgres
+BACKUP_STORAGE_TYPE=s3
+BACKUP_S3_BUCKET=ridehailing-backups
+BACKUP_S3_PREFIX=database-backups/production
+
+# ============================================
+# Daily Full Backup (2 AM)
+# ============================================
+0 2 * * * /path/to/ride-hailing/scripts/backup-database.sh --compress --storage s3 --verbose >> /var/log/postgres-backup.log 2>&1
+
+# ============================================
+# Hourly Incremental Backup (Optional - requires WAL archiving)
+# ============================================
+# 0 * * * * /path/to/ride-hailing/scripts/backup-wal.sh >> /var/log/postgres-wal-backup.log 2>&1
+
+# ============================================
+# Weekly Full Backup with Long-term Retention (Sunday 3 AM)
+# ============================================
+0 3 * * 0 /path/to/ride-hailing/scripts/backup-database.sh --compress --storage s3 --retention 90 --verbose >> /var/log/postgres-weekly-backup.log 2>&1
+
+# ============================================
+# Monthly Backup for Compliance (1st of month, 4 AM)
+# ============================================
+0 4 1 * * /path/to/ride-hailing/scripts/backup-database.sh --compress --encrypt --storage s3 --retention 365 --verbose >> /var/log/postgres-monthly-backup.log 2>&1
+
+# ============================================
+# Cleanup Old Local Backups (Daily at 5 AM)
+# ============================================
+0 5 * * * find /var/backups/postgres -name "backup_*.sql*" -type f -mtime +7 -delete
+
+# ============================================
+# Backup Health Check (Every 6 hours)
+# ============================================
+0 */6 * * * /path/to/ride-hailing/scripts/check-backup-health.sh >> /var/log/postgres-backup-health.log 2>&1
+
+# ============================================
+# Test Restore (Monthly on 2nd, 6 AM)
+# ============================================
+0 6 2 * * /path/to/ride-hailing/scripts/test-restore.sh >> /var/log/postgres-restore-test.log 2>&1
+
+# ============================================
+# Log Rotation for Backup Logs (Daily at 11:59 PM)
+# ============================================
+59 23 * * * find /var/log/postgres-*-backup.log -type f -size +100M -exec gzip {} \; -exec mv {}.gz {}.$(date +\%Y\%m\%d).gz \;
