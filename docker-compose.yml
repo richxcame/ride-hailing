@@ -127,6 +127,7 @@ services:
     environment:
       PORT: 8080
       ENVIRONMENT: development
+      SERVICE_NAME: auth-service
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
@@ -142,6 +143,13 @@ services:
       OTEL_SERVICE_NAME: auth-service
       OTEL_SERVICE_VERSION: "1.0.0"
       OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      # Sentry Error Tracking
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${ENVIRONMENT:-development}
+      SENTRY_RELEASE: ${VERSION:-1.0.0}
+      SENTRY_SAMPLE_RATE: ${SENTRY_SAMPLE_RATE:-1.0}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-1.0}
+      SENTRY_DEBUG: ${SENTRY_DEBUG:-false}
     ports:
       - "8081:8080"
     depends_on:
@@ -166,6 +174,7 @@ services:
     environment:
       PORT: 8080
       ENVIRONMENT: development
+      SERVICE_NAME: rides-service
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
@@ -181,6 +190,13 @@ services:
       OTEL_SERVICE_NAME: rides-service
       OTEL_SERVICE_VERSION: "1.0.0"
       OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      # Sentry Error Tracking
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${ENVIRONMENT:-development}
+      SENTRY_RELEASE: ${VERSION:-1.0.0}
+      SENTRY_SAMPLE_RATE: ${SENTRY_SAMPLE_RATE:-1.0}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-1.0}
+      SENTRY_DEBUG: ${SENTRY_DEBUG:-false}
     ports:
       - "8082:8080"
     depends_on:
@@ -205,6 +221,7 @@ services:
     environment:
       PORT: 8080
       ENVIRONMENT: development
+      SERVICE_NAME: geo-service
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
@@ -213,6 +230,13 @@ services:
       OTEL_SERVICE_NAME: geo-service
       OTEL_SERVICE_VERSION: "1.0.0"
       OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      # Sentry Error Tracking
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${ENVIRONMENT:-development}
+      SENTRY_RELEASE: ${VERSION:-1.0.0}
+      SENTRY_SAMPLE_RATE: ${SENTRY_SAMPLE_RATE:-1.0}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-1.0}
+      SENTRY_DEBUG: ${SENTRY_DEBUG:-false}
     ports:
       - "8083:8080"
     depends_on:
@@ -235,6 +259,7 @@ services:
     environment:
       PORT: 8080
       ENVIRONMENT: development
+      SERVICE_NAME: payments-service
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
@@ -250,6 +275,13 @@ services:
       OTEL_SERVICE_NAME: payments-service
       OTEL_SERVICE_VERSION: "1.0.0"
       OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      # Sentry Error Tracking
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${ENVIRONMENT:-development}
+      SENTRY_RELEASE: ${VERSION:-1.0.0}
+      SENTRY_SAMPLE_RATE: ${SENTRY_SAMPLE_RATE:-1.0}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-1.0}
+      SENTRY_DEBUG: ${SENTRY_DEBUG:-false}
     ports:
       - "8084:8080"
     depends_on:
@@ -274,6 +306,7 @@ services:
     environment:
       PORT: 8080
       ENVIRONMENT: development
+      SERVICE_NAME: notifications-service
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
@@ -298,6 +331,13 @@ services:
       OTEL_SERVICE_NAME: notifications-service
       OTEL_SERVICE_VERSION: "1.0.0"
       OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      # Sentry Error Tracking
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${ENVIRONMENT:-development}
+      SENTRY_RELEASE: ${VERSION:-1.0.0}
+      SENTRY_SAMPLE_RATE: ${SENTRY_SAMPLE_RATE:-1.0}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-1.0}
+      SENTRY_DEBUG: ${SENTRY_DEBUG:-false}
     ports:
       - "8085:8080"
     depends_on:
@@ -322,6 +362,7 @@ services:
     environment:
       PORT: 8080
       ENVIRONMENT: development
+      SERVICE_NAME: realtime-service
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
@@ -332,6 +373,18 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      # OpenTelemetry
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: realtime-service
+      OTEL_SERVICE_VERSION: "1.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      # Sentry Error Tracking
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${ENVIRONMENT:-development}
+      SENTRY_RELEASE: ${VERSION:-1.0.0}
+      SENTRY_SAMPLE_RATE: ${SENTRY_SAMPLE_RATE:-1.0}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-1.0}
+      SENTRY_DEBUG: ${SENTRY_DEBUG:-false}
     ports:
       - "8086:8080"
     depends_on:
@@ -356,6 +409,7 @@ services:
     environment:
       PORT: 8080
       ENVIRONMENT: development
+      SERVICE_NAME: mobile-service
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
@@ -367,6 +421,13 @@ services:
       OTEL_SERVICE_NAME: mobile-service
       OTEL_SERVICE_VERSION: "1.0.0"
       OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      # Sentry Error Tracking
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${ENVIRONMENT:-development}
+      SENTRY_RELEASE: ${VERSION:-1.0.0}
+      SENTRY_SAMPLE_RATE: ${SENTRY_SAMPLE_RATE:-1.0}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-1.0}
+      SENTRY_DEBUG: ${SENTRY_DEBUG:-false}
     ports:
       - "8087:8080"
     depends_on:
@@ -389,6 +450,7 @@ services:
     environment:
       PORT: 8080
       ENVIRONMENT: development
+      SERVICE_NAME: admin-service
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
@@ -400,6 +462,13 @@ services:
       OTEL_SERVICE_NAME: admin-service
       OTEL_SERVICE_VERSION: "1.0.0"
       OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      # Sentry Error Tracking
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${ENVIRONMENT:-development}
+      SENTRY_RELEASE: ${VERSION:-1.0.0}
+      SENTRY_SAMPLE_RATE: ${SENTRY_SAMPLE_RATE:-1.0}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-1.0}
+      SENTRY_DEBUG: ${SENTRY_DEBUG:-false}
     ports:
       - "8088:8080"
     depends_on:
@@ -422,6 +491,7 @@ services:
     environment:
       PORT: 8080
       ENVIRONMENT: development
+      SERVICE_NAME: promos-service
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
@@ -433,6 +503,13 @@ services:
       OTEL_SERVICE_NAME: promos-service
       OTEL_SERVICE_VERSION: "1.0.0"
       OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      # Sentry Error Tracking
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${ENVIRONMENT:-development}
+      SENTRY_RELEASE: ${VERSION:-1.0.0}
+      SENTRY_SAMPLE_RATE: ${SENTRY_SAMPLE_RATE:-1.0}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-1.0}
+      SENTRY_DEBUG: ${SENTRY_DEBUG:-false}
     ports:
       - "8089:8080"
     depends_on:
@@ -455,6 +532,7 @@ services:
     environment:
       PORT: 8080
       ENVIRONMENT: development
+      SERVICE_NAME: scheduler-service
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
@@ -466,6 +544,13 @@ services:
       OTEL_SERVICE_NAME: scheduler-service
       OTEL_SERVICE_VERSION: "1.0.0"
       OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      # Sentry Error Tracking
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${ENVIRONMENT:-development}
+      SENTRY_RELEASE: ${VERSION:-1.0.0}
+      SENTRY_SAMPLE_RATE: ${SENTRY_SAMPLE_RATE:-1.0}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-1.0}
+      SENTRY_DEBUG: ${SENTRY_DEBUG:-false}
     ports:
       - "8090:8080"
     depends_on:
@@ -488,6 +573,7 @@ services:
     environment:
       PORT: 8080
       ENVIRONMENT: development
+      SERVICE_NAME: analytics-service
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
@@ -500,6 +586,13 @@ services:
       OTEL_SERVICE_NAME: analytics-service
       OTEL_SERVICE_VERSION: "1.0.0"
       OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      # Sentry Error Tracking
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${ENVIRONMENT:-development}
+      SENTRY_RELEASE: ${VERSION:-1.0.0}
+      SENTRY_SAMPLE_RATE: ${SENTRY_SAMPLE_RATE:-1.0}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-1.0}
+      SENTRY_DEBUG: ${SENTRY_DEBUG:-false}
     ports:
       - "8091:8080"
     depends_on:
@@ -522,6 +615,7 @@ services:
     environment:
       PORT: 8080
       ENVIRONMENT: development
+      SERVICE_NAME: fraud-service
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
@@ -534,6 +628,13 @@ services:
       OTEL_SERVICE_NAME: fraud-service
       OTEL_SERVICE_VERSION: "1.0.0"
       OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      # Sentry Error Tracking
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${ENVIRONMENT:-development}
+      SENTRY_RELEASE: ${VERSION:-1.0.0}
+      SENTRY_SAMPLE_RATE: ${SENTRY_SAMPLE_RATE:-1.0}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-1.0}
+      SENTRY_DEBUG: ${SENTRY_DEBUG:-false}
     ports:
       - "8092:8080"
     depends_on:
@@ -556,6 +657,7 @@ services:
     environment:
       PORT: 8080
       ENVIRONMENT: development
+      SERVICE_NAME: ml-eta-service
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: postgres
@@ -566,6 +668,18 @@ services:
       REDIS_PORT: 6379
       REDIS_PASSWORD: ""
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      # OpenTelemetry
+      OTEL_ENABLED: "true"
+      OTEL_SERVICE_NAME: ml-eta-service
+      OTEL_SERVICE_VERSION: "1.0.0"
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      # Sentry Error Tracking
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${ENVIRONMENT:-development}
+      SENTRY_RELEASE: ${VERSION:-1.0.0}
+      SENTRY_SAMPLE_RATE: ${SENTRY_SAMPLE_RATE:-1.0}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-1.0}
+      SENTRY_DEBUG: ${SENTRY_DEBUG:-false}
     ports:
       - "8093:8080"
     depends_on:
@@ -674,6 +788,172 @@ services:
     environment:
       ENVIRONMENT: development
 
+  # =============================================================================
+  # Self-Hosted Sentry Error Tracking Platform
+  # =============================================================================
+
+  # Sentry uses PostgreSQL, Redis, and ClickHouse for data storage
+  # This is a simplified production-ready setup
+
+  sentry-redis:
+    image: redis:7-alpine
+    container_name: ridehailing-sentry-redis
+    volumes:
+      - sentry_redis_data:/data
+    networks:
+      - ridehailing-network
+    restart: unless-stopped
+
+  sentry-postgres:
+    image: postgres:15-alpine
+    container_name: ridehailing-sentry-postgres
+    environment:
+      POSTGRES_USER: sentry
+      POSTGRES_PASSWORD: sentry
+      POSTGRES_DB: sentry
+    volumes:
+      - sentry_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentry"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ridehailing-network
+    restart: unless-stopped
+
+  sentry-clickhouse:
+    image: clickhouse/clickhouse-server:23.3-alpine
+    container_name: ridehailing-sentry-clickhouse
+    volumes:
+      - sentry_clickhouse_data:/var/lib/clickhouse
+    environment:
+      CLICKHOUSE_DB: sentry
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    networks:
+      - ridehailing-network
+    restart: unless-stopped
+
+  sentry-kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: ridehailing-sentry-kafka
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: sentry-zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://sentry-kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    depends_on:
+      - sentry-zookeeper
+    volumes:
+      - sentry_kafka_data:/var/lib/kafka/data
+    networks:
+      - ridehailing-network
+    restart: unless-stopped
+
+  sentry-zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: ridehailing-sentry-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - sentry_zookeeper_data:/var/lib/zookeeper/data
+      - sentry_zookeeper_log:/var/lib/zookeeper/log
+    networks:
+      - ridehailing-network
+    restart: unless-stopped
+
+  sentry:
+    image: sentry:24.1.0
+    container_name: ridehailing-sentry
+    depends_on:
+      sentry-postgres:
+        condition: service_healthy
+      sentry-redis:
+        condition: service_started
+      sentry-kafka:
+        condition: service_started
+      sentry-clickhouse:
+        condition: service_started
+    environment:
+      SENTRY_SECRET_KEY: ${SENTRY_SECRET_KEY:-run-sentry-config-generate-secret-key-to-get-one}
+      SENTRY_POSTGRES_HOST: sentry-postgres
+      SENTRY_POSTGRES_PORT: 5432
+      SENTRY_DB_NAME: sentry
+      SENTRY_DB_USER: sentry
+      SENTRY_DB_PASSWORD: sentry
+      SENTRY_REDIS_HOST: sentry-redis
+      SENTRY_REDIS_PORT: 6379
+      SENTRY_KAFKA_HOSTS: sentry-kafka:9092
+      SENTRY_CLICKHOUSE_HOST: sentry-clickhouse
+      SENTRY_WEB_HOST: 0.0.0.0
+      SENTRY_WEB_PORT: 9000
+      # Email configuration (optional - for notifications)
+      SENTRY_MAIL_HOST: ${SENTRY_MAIL_HOST:-}
+      SENTRY_MAIL_PORT: ${SENTRY_MAIL_PORT:-587}
+      SENTRY_MAIL_USERNAME: ${SENTRY_MAIL_USERNAME:-}
+      SENTRY_MAIL_PASSWORD: ${SENTRY_MAIL_PASSWORD:-}
+      SENTRY_MAIL_USE_TLS: ${SENTRY_MAIL_USE_TLS:-true}
+      SENTRY_SERVER_EMAIL: ${SENTRY_SERVER_EMAIL:-sentry@ridehailing.local}
+    ports:
+      - "9000:9000"
+    volumes:
+      - sentry_data:/var/lib/sentry/files
+    networks:
+      - ridehailing-network
+    restart: unless-stopped
+
+  sentry-worker:
+    image: sentry:24.1.0
+    container_name: ridehailing-sentry-worker
+    depends_on:
+      - sentry
+    environment:
+      SENTRY_SECRET_KEY: ${SENTRY_SECRET_KEY:-run-sentry-config-generate-secret-key-to-get-one}
+      SENTRY_POSTGRES_HOST: sentry-postgres
+      SENTRY_POSTGRES_PORT: 5432
+      SENTRY_DB_NAME: sentry
+      SENTRY_DB_USER: sentry
+      SENTRY_DB_PASSWORD: sentry
+      SENTRY_REDIS_HOST: sentry-redis
+      SENTRY_REDIS_PORT: 6379
+      SENTRY_KAFKA_HOSTS: sentry-kafka:9092
+      SENTRY_CLICKHOUSE_HOST: sentry-clickhouse
+    command: run worker
+    volumes:
+      - sentry_data:/var/lib/sentry/files
+    networks:
+      - ridehailing-network
+    restart: unless-stopped
+
+  sentry-cron:
+    image: sentry:24.1.0
+    container_name: ridehailing-sentry-cron
+    depends_on:
+      - sentry
+    environment:
+      SENTRY_SECRET_KEY: ${SENTRY_SECRET_KEY:-run-sentry-config-generate-secret-key-to-get-one}
+      SENTRY_POSTGRES_HOST: sentry-postgres
+      SENTRY_POSTGRES_PORT: 5432
+      SENTRY_DB_NAME: sentry
+      SENTRY_DB_USER: sentry
+      SENTRY_DB_PASSWORD: sentry
+      SENTRY_REDIS_HOST: sentry-redis
+      SENTRY_REDIS_PORT: 6379
+      SENTRY_KAFKA_HOSTS: sentry-kafka:9092
+      SENTRY_CLICKHOUSE_HOST: sentry-clickhouse
+    command: run cron
+    volumes:
+      - sentry_data:/var/lib/sentry/files
+    networks:
+      - ridehailing-network
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:
@@ -682,6 +962,13 @@ volumes:
   grafana_data:
   minio_data:
   tempo_data:
+  sentry_postgres_data:
+  sentry_redis_data:
+  sentry_clickhouse_data:
+  sentry_kafka_data:
+  sentry_zookeeper_data:
+  sentry_zookeeper_log:
+  sentry_data:
 
 networks:
   ridehailing-network:

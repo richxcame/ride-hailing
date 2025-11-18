@@ -146,9 +146,9 @@ services:
     volumes:
       - ./deploy/otel-collector.yml:/etc/otel-collector.yml
     ports:
-      - "4317:4317"  # OTLP gRPC receiver
-      - "4318:4318"  # OTLP HTTP receiver
-      - "8888:8888"  # Prometheus metrics
+      - "4317:4317" # OTLP gRPC receiver
+      - "4318:4318" # OTLP HTTP receiver
+      - "8888:8888" # Prometheus metrics
       - "13133:13133" # Health check
     depends_on:
       - tempo
@@ -201,6 +201,167 @@ services:
     profiles:
       - observability
 
+  # Optional: Self-Hosted Sentry Error Tracking Platform
+  sentry-redis:
+    image: redis:7-alpine
+    container_name: ridehailing-sentry-redis-dev
+    volumes:
+      - sentry_redis_dev_data:/data
+    networks:
+      - ridehailing-dev
+    profiles:
+      - sentry
+
+  sentry-postgres:
+    image: postgres:15-alpine
+    container_name: ridehailing-sentry-postgres-dev
+    environment:
+      POSTGRES_USER: sentry
+      POSTGRES_PASSWORD: sentry
+      POSTGRES_DB: sentry
+    volumes:
+      - sentry_postgres_dev_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentry"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ridehailing-dev
+    profiles:
+      - sentry
+
+  sentry-clickhouse:
+    image: clickhouse/clickhouse-server:23.3-alpine
+    container_name: ridehailing-sentry-clickhouse-dev
+    volumes:
+      - sentry_clickhouse_dev_data:/var/lib/clickhouse
+    environment:
+      CLICKHOUSE_DB: sentry
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    networks:
+      - ridehailing-dev
+    profiles:
+      - sentry
+
+  sentry-kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: ridehailing-sentry-kafka-dev
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: sentry-zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://sentry-kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    depends_on:
+      - sentry-zookeeper
+    volumes:
+      - sentry_kafka_dev_data:/var/lib/kafka/data
+    networks:
+      - ridehailing-dev
+    profiles:
+      - sentry
+
+  sentry-zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: ridehailing-sentry-zookeeper-dev
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - sentry_zookeeper_dev_data:/var/lib/zookeeper/data
+      - sentry_zookeeper_dev_log:/var/lib/zookeeper/log
+    networks:
+      - ridehailing-dev
+    profiles:
+      - sentry
+
+  sentry:
+    image: sentry:24.1.0
+    container_name: ridehailing-sentry-dev
+    depends_on:
+      sentry-postgres:
+        condition: service_healthy
+      sentry-redis:
+        condition: service_started
+      sentry-kafka:
+        condition: service_started
+      sentry-clickhouse:
+        condition: service_started
+    environment:
+      SENTRY_SECRET_KEY: dev-secret-key-change-in-production-use-sentry-config-generate-secret-key
+      SENTRY_POSTGRES_HOST: sentry-postgres
+      SENTRY_POSTGRES_PORT: 5432
+      SENTRY_DB_NAME: sentry
+      SENTRY_DB_USER: sentry
+      SENTRY_DB_PASSWORD: sentry
+      SENTRY_REDIS_HOST: sentry-redis
+      SENTRY_REDIS_PORT: 6379
+      SENTRY_KAFKA_HOSTS: sentry-kafka:9092
+      SENTRY_CLICKHOUSE_HOST: sentry-clickhouse
+      SENTRY_WEB_HOST: 0.0.0.0
+      SENTRY_WEB_PORT: 9000
+    ports:
+      - "9000:9000"
+    volumes:
+      - sentry_dev_data:/var/lib/sentry/files
+    networks:
+      - ridehailing-dev
+    profiles:
+      - sentry
+
+  sentry-worker:
+    image: sentry:24.1.0
+    container_name: ridehailing-sentry-worker-dev
+    depends_on:
+      - sentry
+    environment:
+      SENTRY_SECRET_KEY: dev-secret-key-change-in-production-use-sentry-config-generate-secret-key
+      SENTRY_POSTGRES_HOST: sentry-postgres
+      SENTRY_POSTGRES_PORT: 5432
+      SENTRY_DB_NAME: sentry
+      SENTRY_DB_USER: sentry
+      SENTRY_DB_PASSWORD: sentry
+      SENTRY_REDIS_HOST: sentry-redis
+      SENTRY_REDIS_PORT: 6379
+      SENTRY_KAFKA_HOSTS: sentry-kafka:9092
+      SENTRY_CLICKHOUSE_HOST: sentry-clickhouse
+    command: run worker
+    volumes:
+      - sentry_dev_data:/var/lib/sentry/files
+    networks:
+      - ridehailing-dev
+    profiles:
+      - sentry
+
+  sentry-cron:
+    image: sentry:24.1.0
+    container_name: ridehailing-sentry-cron-dev
+    depends_on:
+      - sentry
+    environment:
+      SENTRY_SECRET_KEY: dev-secret-key-change-in-production-use-sentry-config-generate-secret-key
+      SENTRY_POSTGRES_HOST: sentry-postgres
+      SENTRY_POSTGRES_PORT: 5432
+      SENTRY_DB_NAME: sentry
+      SENTRY_DB_USER: sentry
+      SENTRY_DB_PASSWORD: sentry
+      SENTRY_REDIS_HOST: sentry-redis
+      SENTRY_REDIS_PORT: 6379
+      SENTRY_KAFKA_HOSTS: sentry-kafka:9092
+      SENTRY_CLICKHOUSE_HOST: sentry-clickhouse
+    command: run cron
+    volumes:
+      - sentry_dev_data:/var/lib/sentry/files
+    networks:
+      - ridehailing-dev
+    profiles:
+      - sentry
+
 volumes:
   postgres_dev_data:
   redis_dev_data:
@@ -208,6 +369,13 @@ volumes:
   prometheus_dev_data:
   grafana_dev_data:
   tempo_dev_data:
+  sentry_postgres_dev_data:
+  sentry_redis_dev_data:
+  sentry_clickhouse_dev_data:
+  sentry_kafka_dev_data:
+  sentry_zookeeper_dev_data:
+  sentry_zookeeper_dev_log:
+  sentry_dev_data:
 
 networks:
   ridehailing-dev:

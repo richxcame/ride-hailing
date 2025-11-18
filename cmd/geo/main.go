@@ -14,6 +14,7 @@ import (
 	"github.com/richxcame/ride-hailing/internal/geo"
 	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
+	"github.com/richxcame/ride-hailing/pkg/errors"
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
@@ -46,6 +47,18 @@ func main() {
 		zap.String("service", serviceName),
 		zap.String("version", version),
 	)
+
+	// Initialize Sentry for error tracking
+	sentryConfig := errors.DefaultSentryConfig()
+	sentryConfig.ServerName = serviceName
+	sentryConfig.Release = version
+	if err := errors.InitSentry(sentryConfig); err != nil {
+		logger.Warn("Failed to initialize Sentry, continuing without error tracking", zap.Error(err))
+	} else {
+		defer errors.Flush(2 * time.Second)
+		logger.Info("Sentry error tracking initialized successfully")
+	}
+
 	// Initialize OpenTelemetry tracer
 	tracerEnabled := os.Getenv("OTEL_ENABLED") == "true"
 	if tracerEnabled {
@@ -72,7 +85,6 @@ func main() {
 		}
 	}
 
-
 	redis, err := redisClient.NewRedisClient(&cfg.Redis)
 	if err != nil {
 		logger.Fatal("Failed to connect to Redis", zap.Error(err))
@@ -94,7 +106,8 @@ func main() {
 	}
 
 	router := gin.New()
-	router.Use(middleware.Recovery())
+	router.Use(middleware.RecoveryWithSentry()) // Custom recovery with Sentry
+	router.Use(middleware.SentryMiddleware())   // Sentry integration
 	router.Use(middleware.CorrelationID())
 	router.Use(middleware.RequestTimeout(&cfg.Timeout))
 	router.Use(middleware.RequestLogger(serviceName))
@@ -108,8 +121,23 @@ func main() {
 		router.Use(middleware.TracingMiddleware(serviceName))
 	}
 
+	// Add Sentry error handler (should be near the end of middleware chain)
+	router.Use(middleware.ErrorHandler())
 
+	// Health check endpoints
 	router.GET("/healthz", common.HealthCheck(serviceName, version))
+	router.GET("/health/live", common.LivenessProbe(serviceName, version))
+
+	// Readiness probe with dependency checks
+	healthChecks := make(map[string]func() error)
+	healthChecks["redis"] = func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		return redis.Client.Ping(ctx).Err()
+	}
+
+	router.GET("/health/ready", common.ReadinessProbe(serviceName, version, healthChecks))
+
 	router.GET("/version", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"service": serviceName, "version": version})
 	})

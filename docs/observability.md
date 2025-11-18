@@ -1,6 +1,6 @@
 # Observability Guide
 
-This guide explains the observability stack for the ride-hailing platform, including distributed tracing, metrics, and logging.
+This guide explains the observability stack for the ride-hailing platform, including distributed tracing, metrics, logging, and error tracking.
 
 ## Table of Contents
 
@@ -8,9 +8,10 @@ This guide explains the observability stack for the ride-hailing platform, inclu
 2. [Distributed Tracing](#distributed-tracing)
 3. [Metrics](#metrics)
 4. [Logging](#logging)
-5. [Accessing Observability Tools](#accessing-observability-tools)
-6. [Adding Custom Instrumentation](#adding-custom-instrumentation)
-7. [Troubleshooting](#troubleshooting)
+5. [Error Tracking](#error-tracking)
+6. [Accessing Observability Tools](#accessing-observability-tools)
+7. [Adding Custom Instrumentation](#adding-custom-instrumentation)
+8. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -23,15 +24,19 @@ The observability stack consists of:
 - **Prometheus**: Collects and stores metrics from all services
 - **Grafana**: Unified visualization dashboard for traces, metrics, and logs
 - **Zap Logger**: Structured JSON logging with correlation ID support
+- **Sentry**: Error tracking and crash reporting with context
 
 ### Data Flow
 
 ```
 Service → OpenTelemetry SDK → OTLP → OTel Collector → Tempo
                                                      → Prometheus
+        → Sentry SDK → Sentry (Error Tracking)
+        → Zap Logger → Structured Logs
 
                                     ↓
-                                 Grafana (Visualization)
+                    Grafana (Traces, Metrics, Logs Visualization)
+                    Sentry (Error Aggregation & Alerting)
 ```
 
 ---
@@ -319,6 +324,334 @@ Logs include:
 - `span_id`: OpenTelemetry span ID
 
 This enables correlation between logs and traces in Grafana.
+
+---
+
+## Error Tracking
+
+### Overview
+
+Sentry provides centralized error tracking and crash reporting with rich context. It automatically captures:
+- Unhandled exceptions and panics
+- Server errors (5xx status codes)
+- Rate limiting errors (429)
+- External service failures
+- Database errors
+
+### Features
+
+- **Automatic Error Capture**: Middleware automatically captures errors and panics
+- **Context Enrichment**: Includes request details, user info, tags, and breadcrumbs
+- **Error Grouping**: Similar errors are grouped together
+- **Release Tracking**: Track errors by release version
+- **Performance Monitoring**: Optional performance tracing integration
+- **Alerting**: Configure alerts for error rate thresholds
+
+### Configuration
+
+#### Environment Variables
+
+```bash
+# Required
+SENTRY_DSN=https://your-key@o0.ingest.sentry.io/project-id
+
+# Optional
+SENTRY_ENVIRONMENT=production  # or: development, staging
+SENTRY_RELEASE=1.0.0
+SENTRY_SAMPLE_RATE=1.0  # 0.0 to 1.0 (100% = all errors)
+SENTRY_TRACES_SAMPLE_RATE=0.1  # 10% of traces
+SENTRY_DEBUG=false
+SERVICE_NAME=auth-service
+```
+
+#### Sample Rates by Environment
+
+- **Development**: 100% errors, 100% traces
+- **Staging**: 100% errors, 50% traces
+- **Production**: 100% errors, 10% traces
+
+### Integration in Services
+
+Sentry is integrated via middleware in each service's main.go:
+
+```go
+import (
+    "github.com/richxcame/ride-hailing/pkg/errors"
+    "github.com/richxcame/ride-hailing/pkg/middleware"
+)
+
+// Initialize Sentry
+sentryConfig := errors.DefaultSentryConfig()
+sentryConfig.ServerName = serviceName
+sentryConfig.Release = version
+if err := errors.InitSentry(sentryConfig); err != nil {
+    logger.Warn("Failed to initialize Sentry", zap.Error(err))
+} else {
+    defer errors.Flush(2 * time.Second)
+    logger.Info("Sentry initialized successfully")
+}
+
+// Add middleware
+router := gin.New()
+router.Use(middleware.RecoveryWithSentry())  // First - catches panics
+router.Use(middleware.SentryMiddleware())    // Early - sets up context
+// ... other middleware ...
+router.Use(middleware.ErrorHandler())        // Last - captures errors
+```
+
+### Usage in Application Code
+
+#### Capturing Errors
+
+```go
+import "github.com/richxcame/ride-hailing/pkg/errors"
+
+// Simple error capture
+if err != nil {
+    errors.CaptureError(err)
+    return err
+}
+
+// Error with context
+if err != nil {
+    errors.CaptureErrorWithContext(ctx, err, map[string]interface{}{
+        "user_id": userID,
+        "operation": "payment_processing",
+        "amount": amount,
+    })
+    return err
+}
+```
+
+#### Capturing Messages
+
+```go
+import "github.com/getsentry/sentry-go"
+
+// Info message
+errors.CaptureMessage("Payment processed successfully", sentry.LevelInfo)
+
+// Warning
+errors.CaptureMessage("Cache miss rate high", sentry.LevelWarning)
+
+// Error
+errors.CaptureMessage("External API degraded", sentry.LevelError)
+```
+
+#### Adding Breadcrumbs
+
+Breadcrumbs provide context leading up to an error:
+
+```go
+// HTTP request breadcrumb
+errors.AddBreadcrumbForRequest("POST", "/api/v1/payments", 200, 150*time.Millisecond)
+
+// Custom breadcrumb
+errors.AddBreadcrumb(&sentry.Breadcrumb{
+    Category: "payment",
+    Message:  "Stripe API called",
+    Level:    sentry.LevelInfo,
+    Data: map[string]interface{}{
+        "amount": 99.99,
+        "method": "stripe",
+    },
+})
+```
+
+#### Setting User Context
+
+```go
+errors.SetUser(
+    userID,
+    "user@example.com",
+    "johndoe",
+    "192.168.1.1",
+)
+```
+
+#### Setting Tags
+
+Tags enable filtering and grouping in Sentry:
+
+```go
+errors.SetTag("payment_method", "stripe")
+errors.SetTag("feature_flag", "new_checkout")
+errors.SetTag("environment", "production")
+```
+
+### Error Filtering
+
+Not all errors should be reported to Sentry. The integration automatically filters:
+
+#### Errors NOT Reported
+- Validation failures (400 Bad Request)
+- Authentication errors (401 Unauthorized)
+- Authorization errors (403 Forbidden)
+- Not found errors (404 Not Found)
+- Conflict errors (409 Conflict)
+- Other 4xx client errors (except 429)
+
+#### Errors Reported
+- Server errors (5xx status codes)
+- Panics and crashes
+- Rate limiting errors (429)
+- Database connection errors
+- External service failures
+- Unexpected application errors
+
+### What Gets Captured
+
+When an error occurs, Sentry captures:
+
+1. **Error Details**
+   - Exception type and message
+   - Full stack trace
+   - Error severity level
+
+2. **Request Context**
+   - HTTP method, URL, headers
+   - Query parameters
+   - Request body (sanitized)
+   - Client IP address
+   - User agent
+
+3. **User Information**
+   - User ID, email, username
+   - IP address
+   - User role (as tag)
+
+4. **Trace Context**
+   - Correlation ID (X-Request-ID)
+   - OpenTelemetry trace ID
+   - OpenTelemetry span ID
+
+5. **Application Context**
+   - Service name
+   - Release version
+   - Environment (dev/staging/prod)
+   - Server name
+
+6. **Breadcrumbs**
+   - Sequence of events leading to error
+   - HTTP requests
+   - Database queries
+   - User actions
+   - Custom events
+
+### Accessing Sentry
+
+1. **Sentry Dashboard**: https://sentry.io
+2. **Navigate to Issues** to see all captured errors
+3. **Click an issue** to view:
+   - Error details and stack trace
+   - Request context and headers
+   - User information
+   - Breadcrumb trail
+   - Similar issues
+   - Release information
+
+### Best Practices
+
+#### 1. Use Appropriate Log Levels
+
+```go
+// Info - informational (not typically errors)
+errors.CaptureMessage("User logged in", sentry.LevelInfo)
+
+// Warning - concerning but not critical
+errors.CaptureMessage("Cache miss rate high", sentry.LevelWarning)
+
+// Error - errors needing attention
+errors.CaptureError(err)
+
+// Fatal - critical errors
+errors.CaptureMessage("Database unreachable", sentry.LevelFatal)
+```
+
+#### 2. Add Context to Errors
+
+Always provide context:
+
+```go
+errors.CaptureErrorWithContext(ctx, err, map[string]interface{}{
+    "operation": "process_payment",
+    "user_id": userID,
+    "amount": amount,
+    "payment_method": "stripe",
+})
+```
+
+#### 3. Use Consistent Tags
+
+```go
+errors.SetTag("service", serviceName)
+errors.SetTag("payment_provider", "stripe")
+errors.SetTag("feature", "new_checkout")
+```
+
+#### 4. Don't Report Business Errors
+
+```go
+if err != nil {
+    // Check if error should be reported
+    if errors.ShouldReportError(err, statusCode) {
+        errors.CaptureError(err)
+    }
+    // Handle error normally
+}
+```
+
+#### 5. Add Breadcrumbs Throughout Flow
+
+```go
+// At operation start
+errors.AddBreadcrumb(&sentry.Breadcrumb{
+    Category: "payment",
+    Message: "Starting payment processing",
+})
+
+// During operation
+errors.AddBreadcrumb(&sentry.Breadcrumb{
+    Category: "payment",
+    Message: "Calling Stripe API",
+})
+
+// On completion
+errors.AddBreadcrumb(&sentry.Breadcrumb{
+    Category: "payment",
+    Message: "Payment completed",
+})
+```
+
+### Troubleshooting Sentry
+
+#### Errors Not Appearing
+
+1. Check `SENTRY_DSN` is set correctly
+2. Verify `SENTRY_SAMPLE_RATE` is not 0
+3. Enable debug mode: `SENTRY_DEBUG=true`
+4. Check network connectivity to sentry.io
+5. Verify error is not being filtered
+
+#### Too Many Errors
+
+1. Lower `SENTRY_SAMPLE_RATE` (e.g., 0.5 for 50%)
+2. Add more business error patterns to filter
+3. Configure rate limits in Sentry dashboard
+4. Review `BeforeSend` hook in `pkg/errors/sentry.go`
+
+#### Missing Context
+
+1. Ensure middleware order is correct
+2. Call `SetUser()` after authentication
+3. Add breadcrumbs throughout request flow
+4. Use tags for important metadata
+
+### Related Documentation
+
+- [Sentry Integration Guide](./SENTRY_INTEGRATION_GUIDE.md) - Complete integration guide
+- [Sentry Official Docs](https://docs.sentry.io/platforms/go/) - Sentry Go SDK
+- [Error Handling Best Practices](./ERROR_HANDLING.md) - Error handling patterns
 
 ---
 
