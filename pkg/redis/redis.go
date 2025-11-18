@@ -14,17 +14,17 @@ type Client struct {
 	*redis.Client
 }
 
-// NewRedisClient creates a new Redis client
+// NewRedisClient creates a new Redis client with comprehensive timeout and connection pool configuration
 // If readTimeout or writeTimeout are not provided or zero, uses config.DefaultRedisReadTimeoutDuration and config.DefaultRedisWriteTimeoutDuration
 func NewRedisClient(cfg *config.RedisConfig, timeouts ...time.Duration) (*Client, error) {
 	var readTimeout, writeTimeout time.Duration
-	
+
 	if len(timeouts) >= 1 && timeouts[0] > 0 {
 		readTimeout = timeouts[0]
 	} else {
 		readTimeout = config.DefaultRedisReadTimeoutDuration()
 	}
-	
+
 	if len(timeouts) >= 2 && timeouts[1] > 0 {
 		writeTimeout = timeouts[1]
 	} else {
@@ -32,11 +32,28 @@ func NewRedisClient(cfg *config.RedisConfig, timeouts ...time.Duration) (*Client
 	}
 
 	client := redis.NewClient(&redis.Options{
-		Addr:         cfg.RedisAddr(),
-		Password:     cfg.Password,
-		DB:           cfg.DB,
-		ReadTimeout:  readTimeout,
-		WriteTimeout: writeTimeout,
+		Addr:     cfg.RedisAddr(),
+		Password: cfg.Password,
+		DB:       cfg.DB,
+
+		// Timeout configuration
+		DialTimeout:  5 * time.Second, // Time to establish connection
+		ReadTimeout:  readTimeout,      // Time to read response
+		WriteTimeout: writeTimeout,     // Time to write request
+
+		// Connection pool configuration
+		PoolSize:     10,                   // Maximum number of socket connections
+		MinIdleConns: 5,                    // Minimum idle connections to keep warm
+		PoolTimeout:  readTimeout + 1*time.Second, // Time to wait for connection from pool
+
+		// Connection lifecycle
+		ConnMaxIdleTime: 5 * time.Minute, // Close idle connections after this duration
+		ConnMaxLifetime: 1 * time.Hour,   // Force connection closure and recreation after this duration
+
+		// Retry configuration
+		MaxRetries:      3,               // Max number of retries for failed commands
+		MinRetryBackoff: 8 * time.Millisecond,  // Minimum backoff between retries
+		MaxRetryBackoff: 512 * time.Millisecond, // Maximum backoff between retries
 	})
 
 	pingTimeout := readTimeout

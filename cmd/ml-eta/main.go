@@ -33,7 +33,7 @@ func main() {
 	defer cancelKeys()
 
 	// Initialize database (pgxpool)
-	dbPool, err := database.NewPostgresPool(&cfg.Database)
+	dbPool, err := database.NewPostgresPool(&cfg.Database, cfg.Timeout.DatabaseQueryTimeout)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}

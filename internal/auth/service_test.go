@@ -40,8 +40,8 @@ func TestService_Register_Success(t *testing.T) {
 	req := helpers.CreateTestRegisterRequest()
 
 	// Mock expectations
-	mockRepo.On("GetUserByEmail", ctx, req.Email).Return(nil, errors.New("not found"))
-	mockRepo.On("CreateUser", ctx, mock.AnythingOfType("*models.User")).Return(nil)
+	mockRepo.On("GetUserByEmail", mock.Anything, req.Email).Return(nil, errors.New("not found"))
+	mockRepo.On("CreateUser", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
 
 	// Execute
 	user, err := service.Register(ctx, req)
@@ -68,7 +68,7 @@ func TestService_Register_UserAlreadyExists(t *testing.T) {
 	existingUser := helpers.CreateTestUser()
 
 	// Mock expectations
-	mockRepo.On("GetUserByEmail", ctx, req.Email).Return(existingUser, nil)
+	mockRepo.On("GetUserByEmail", mock.Anything, req.Email).Return(existingUser, nil)
 
 	// Execute
 	user, err := service.Register(ctx, req)
@@ -90,8 +90,8 @@ func TestService_Register_RepositoryError(t *testing.T) {
 	req := helpers.CreateTestRegisterRequest()
 
 	// Mock expectations
-	mockRepo.On("GetUserByEmail", ctx, req.Email).Return(nil, errors.New("not found"))
-	mockRepo.On("CreateUser", ctx, mock.AnythingOfType("*models.User")).Return(errors.New("database error"))
+	mockRepo.On("GetUserByEmail", mock.Anything, req.Email).Return(nil, errors.New("not found"))
+	mockRepo.On("CreateUser", mock.Anything, mock.AnythingOfType("*models.User")).Return(errors.New("database error"))
 
 	// Execute
 	user, err := service.Register(ctx, req)
@@ -127,9 +127,9 @@ func TestService_RegisterDriver_Success(t *testing.T) {
 	}
 
 	// Mock expectations
-	mockRepo.On("GetUserByEmail", ctx, req.Email).Return(nil, errors.New("not found"))
-	mockRepo.On("CreateUser", ctx, mock.AnythingOfType("*models.User")).Return(nil)
-	mockRepo.On("CreateDriver", ctx, mock.AnythingOfType("*models.Driver")).Return(nil)
+	mockRepo.On("GetUserByEmail", mock.Anything, req.Email).Return(nil, errors.New("not found"))
+	mockRepo.On("CreateUser", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
+	mockRepo.On("CreateDriver", mock.Anything, mock.AnythingOfType("*models.Driver")).Return(nil)
 
 	// Execute
 	user, err := service.RegisterDriver(ctx, req, driver)
@@ -152,8 +152,8 @@ func TestService_RegisterDriver_UserCreationFails(t *testing.T) {
 	driver := helpers.CreateTestDriver(uuid.New())
 
 	// Mock expectations
-	mockRepo.On("GetUserByEmail", ctx, req.Email).Return(nil, errors.New("not found"))
-	mockRepo.On("CreateUser", ctx, mock.AnythingOfType("*models.User")).Return(errors.New("database error"))
+	mockRepo.On("GetUserByEmail", mock.Anything, req.Email).Return(nil, errors.New("not found"))
+	mockRepo.On("CreateUser", mock.Anything, mock.AnythingOfType("*models.User")).Return(errors.New("database error"))
 
 	// Execute
 	user, err := service.RegisterDriver(ctx, req, driver)
@@ -174,9 +174,9 @@ func TestService_RegisterDriver_DriverCreationFails(t *testing.T) {
 	driver := helpers.CreateTestDriver(uuid.New())
 
 	// Mock expectations
-	mockRepo.On("GetUserByEmail", ctx, req.Email).Return(nil, errors.New("not found"))
-	mockRepo.On("CreateUser", ctx, mock.AnythingOfType("*models.User")).Return(nil)
-	mockRepo.On("CreateDriver", ctx, mock.AnythingOfType("*models.Driver")).Return(errors.New("database error"))
+	mockRepo.On("GetUserByEmail", mock.Anything, req.Email).Return(nil, errors.New("not found"))
+	mockRepo.On("CreateUser", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
+	mockRepo.On("CreateDriver", mock.Anything, mock.AnythingOfType("*models.Driver")).Return(errors.New("database error"))
 
 	// Execute
 	user, err := service.RegisterDriver(ctx, req, driver)
@@ -199,7 +199,7 @@ func TestService_Login_Success(t *testing.T) {
 	testUser := helpers.CreateTestUser()
 
 	// Mock expectations
-	mockRepo.On("GetUserByEmail", ctx, req.Email).Return(testUser, nil)
+	mockRepo.On("GetUserByEmail", mock.Anything, req.Email).Return(testUser, nil)
 
 	// Execute
 	response, err := service.Login(ctx, req)
@@ -222,7 +222,7 @@ func TestService_Login_UserNotFound(t *testing.T) {
 	req := helpers.CreateTestLoginRequest()
 
 	// Mock expectations
-	mockRepo.On("GetUserByEmail", ctx, req.Email).Return(nil, errors.New("not found"))
+	mockRepo.On("GetUserByEmail", mock.Anything, req.Email).Return(nil, errors.New("not found"))
 
 	// Execute
 	response, err := service.Login(ctx, req)
@@ -246,7 +246,7 @@ func TestService_Login_InactiveUser(t *testing.T) {
 	testUser.IsActive = false
 
 	// Mock expectations
-	mockRepo.On("GetUserByEmail", ctx, req.Email).Return(testUser, nil)
+	mockRepo.On("GetUserByEmail", mock.Anything, req.Email).Return(testUser, nil)
 
 	// Execute
 	response, err := service.Login(ctx, req)
@@ -270,7 +270,7 @@ func TestService_Login_InvalidPassword(t *testing.T) {
 	testUser := helpers.CreateTestUser()
 
 	// Mock expectations
-	mockRepo.On("GetUserByEmail", ctx, req.Email).Return(testUser, nil)
+	mockRepo.On("GetUserByEmail", mock.Anything, req.Email).Return(testUser, nil)
 
 	// Execute
 	response, err := service.Login(ctx, req)
@@ -292,7 +292,7 @@ func TestService_GetProfile_Success(t *testing.T) {
 	testUser := helpers.CreateTestUser()
 
 	// Mock expectations
-	mockRepo.On("GetUserByID", ctx, testUser.ID).Return(testUser, nil)
+	mockRepo.On("GetUserByID", mock.Anything, testUser.ID).Return(testUser, nil)
 
 	// Execute
 	user, err := service.GetProfile(ctx, testUser.ID)
@@ -313,7 +313,7 @@ func TestService_GetProfile_UserNotFound(t *testing.T) {
 	userID := uuid.New()
 
 	// Mock expectations
-	mockRepo.On("GetUserByID", ctx, userID).Return(nil, errors.New("not found"))
+	mockRepo.On("GetUserByID", mock.Anything, userID).Return(nil, errors.New("not found"))
 
 	// Execute
 	user, err := service.GetProfile(ctx, userID)
@@ -340,8 +340,8 @@ func TestService_UpdateProfile_Success(t *testing.T) {
 	}
 
 	// Mock expectations
-	mockRepo.On("GetUserByID", ctx, testUser.ID).Return(testUser, nil)
-	mockRepo.On("UpdateUser", ctx, mock.AnythingOfType("*models.User")).Return(nil)
+	mockRepo.On("GetUserByID", mock.Anything, testUser.ID).Return(testUser, nil)
+	mockRepo.On("UpdateUser", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
 
 	// Execute
 	updatedUser, err := service.UpdateProfile(ctx, testUser.ID, updates)
@@ -367,7 +367,7 @@ func TestService_UpdateProfile_UserNotFound(t *testing.T) {
 	}
 
 	// Mock expectations
-	mockRepo.On("GetUserByID", ctx, userID).Return(nil, errors.New("not found"))
+	mockRepo.On("GetUserByID", mock.Anything, userID).Return(nil, errors.New("not found"))
 
 	// Execute
 	user, err := service.UpdateProfile(ctx, userID, updates)
@@ -392,8 +392,8 @@ func TestService_UpdateProfile_RepositoryError(t *testing.T) {
 	}
 
 	// Mock expectations
-	mockRepo.On("GetUserByID", ctx, testUser.ID).Return(testUser, nil)
-	mockRepo.On("UpdateUser", ctx, mock.AnythingOfType("*models.User")).Return(errors.New("database error"))
+	mockRepo.On("GetUserByID", mock.Anything, testUser.ID).Return(testUser, nil)
+	mockRepo.On("UpdateUser", mock.Anything, mock.AnythingOfType("*models.User")).Return(errors.New("database error"))
 
 	// Execute
 	user, err := service.UpdateProfile(ctx, testUser.ID, updates)
@@ -489,8 +489,8 @@ func TestService_UpdateProfile_PartialUpdates(t *testing.T) {
 	}
 
 	// Mock expectations
-	mockRepo.On("GetUserByID", ctx, testUser.ID).Return(testUser, nil)
-	mockRepo.On("UpdateUser", ctx, mock.AnythingOfType("*models.User")).Return(nil)
+	mockRepo.On("GetUserByID", mock.Anything, testUser.ID).Return(testUser, nil)
+	mockRepo.On("UpdateUser", mock.Anything, mock.AnythingOfType("*models.User")).Return(nil)
 
 	// Execute
 	updatedUser, err := service.UpdateProfile(ctx, testUser.ID, updates)

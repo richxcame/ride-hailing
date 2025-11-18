@@ -192,13 +192,20 @@ type CircuitBreakerSettings struct {
 }
 
 const (
-	DefaultHTTPClientTimeout = 30
-	DefaultDatabaseQueryTimeout = 10
-	DefaultRedisOperationTimeout = 5
-	DefaultRedisReadTimeout = 5
-	DefaultRedisWriteTimeout = 5
+	DefaultHTTPClientTimeout          = 30
+	DefaultDatabaseQueryTimeout       = 10
+	DefaultRedisOperationTimeout      = 5
+	DefaultRedisReadTimeout           = 5
+	DefaultRedisWriteTimeout          = 5
 	DefaultWebSocketConnectionTimeout = 60
-	DefaultRequestTimeout = 30
+	DefaultRequestTimeout             = 30
+
+	// Maximum allowed timeouts (prevent misconfigurations)
+	MaxHTTPClientTimeout          = 300 // 5 minutes
+	MaxDatabaseQueryTimeout       = 60  // 1 minute
+	MaxRedisOperationTimeout      = 30  // 30 seconds
+	MaxWebSocketConnectionTimeout = 300 // 5 minutes
+	MaxRequestTimeout             = 300 // 5 minutes
 )
 
 // TimeoutConfig holds timeout configuration for various operations
@@ -461,32 +468,60 @@ func Load(serviceName string) (*Config, error) {
 		cfg.Resilience.CircuitBreaker.SuccessThreshold = 1
 	}
 
+	// Validate and set HTTP client timeout
 	if cfg.Timeout.HTTPClientTimeout <= 0 {
 		cfg.Timeout.HTTPClientTimeout = DefaultHTTPClientTimeout
+	} else if cfg.Timeout.HTTPClientTimeout > MaxHTTPClientTimeout {
+		return nil, fmt.Errorf("HTTP_CLIENT_TIMEOUT (%d seconds) exceeds maximum allowed value of %d seconds", cfg.Timeout.HTTPClientTimeout, MaxHTTPClientTimeout)
 	}
 
+	// Validate and set database query timeout
 	if cfg.Timeout.DatabaseQueryTimeout <= 0 {
 		cfg.Timeout.DatabaseQueryTimeout = DefaultDatabaseQueryTimeout
+	} else if cfg.Timeout.DatabaseQueryTimeout > MaxDatabaseQueryTimeout {
+		return nil, fmt.Errorf("DB_QUERY_TIMEOUT (%d seconds) exceeds maximum allowed value of %d seconds", cfg.Timeout.DatabaseQueryTimeout, MaxDatabaseQueryTimeout)
 	}
 
+	// Validate and set Redis operation timeout
 	if cfg.Timeout.RedisOperationTimeout <= 0 {
 		cfg.Timeout.RedisOperationTimeout = DefaultRedisOperationTimeout
+	} else if cfg.Timeout.RedisOperationTimeout > MaxRedisOperationTimeout {
+		return nil, fmt.Errorf("REDIS_OPERATION_TIMEOUT (%d seconds) exceeds maximum allowed value of %d seconds", cfg.Timeout.RedisOperationTimeout, MaxRedisOperationTimeout)
 	}
 
+	// Validate and set Redis read timeout
 	if cfg.Timeout.RedisReadTimeout <= 0 {
 		cfg.Timeout.RedisReadTimeout = DefaultRedisReadTimeout
+	} else if cfg.Timeout.RedisReadTimeout > MaxRedisOperationTimeout {
+		return nil, fmt.Errorf("REDIS_READ_TIMEOUT (%d seconds) exceeds maximum allowed value of %d seconds", cfg.Timeout.RedisReadTimeout, MaxRedisOperationTimeout)
 	}
 
+	// Validate and set Redis write timeout
 	if cfg.Timeout.RedisWriteTimeout <= 0 {
 		cfg.Timeout.RedisWriteTimeout = DefaultRedisWriteTimeout
+	} else if cfg.Timeout.RedisWriteTimeout > MaxRedisOperationTimeout {
+		return nil, fmt.Errorf("REDIS_WRITE_TIMEOUT (%d seconds) exceeds maximum allowed value of %d seconds", cfg.Timeout.RedisWriteTimeout, MaxRedisOperationTimeout)
 	}
 
+	// Validate and set WebSocket connection timeout
 	if cfg.Timeout.WebSocketConnectionTimeout <= 0 {
 		cfg.Timeout.WebSocketConnectionTimeout = DefaultWebSocketConnectionTimeout
+	} else if cfg.Timeout.WebSocketConnectionTimeout > MaxWebSocketConnectionTimeout {
+		return nil, fmt.Errorf("WS_CONNECTION_TIMEOUT (%d seconds) exceeds maximum allowed value of %d seconds", cfg.Timeout.WebSocketConnectionTimeout, MaxWebSocketConnectionTimeout)
 	}
 
+	// Validate and set default request timeout
 	if cfg.Timeout.DefaultRequestTimeout <= 0 {
 		cfg.Timeout.DefaultRequestTimeout = DefaultRequestTimeout
+	} else if cfg.Timeout.DefaultRequestTimeout > MaxRequestTimeout {
+		return nil, fmt.Errorf("DEFAULT_REQUEST_TIMEOUT (%d seconds) exceeds maximum allowed value of %d seconds", cfg.Timeout.DefaultRequestTimeout, MaxRequestTimeout)
+	}
+
+	// Validate route-specific timeout overrides
+	for route, timeout := range cfg.Timeout.RouteOverrides {
+		if timeout > MaxRequestTimeout {
+			return nil, fmt.Errorf("route timeout for '%s' (%d seconds) exceeds maximum allowed value of %d seconds", route, timeout, MaxRequestTimeout)
+		}
 	}
 
 	if err := cfg.populateSecretReferences(); err != nil {

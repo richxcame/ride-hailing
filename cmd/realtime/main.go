@@ -98,12 +98,19 @@ func main() {
 	service := realtime.NewService(hub, db, redisClient)
 	handler := realtime.NewHandler(service)
 
-	// Set up Gin router
-	router := gin.Default()
+	// Set up Gin router with proper middleware stack
+	if cfg.Server.Environment == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	router := gin.New()
+	router.Use(middleware.Recovery())
 	router.Use(middleware.CorrelationID())
 	router.Use(middleware.RequestTimeout(&cfg.Timeout))
+	router.Use(middleware.RequestLogger("realtime-service"))
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.SanitizeRequest())
+	router.Use(middleware.Metrics("realtime-service"))
 
 	// Add tracing middleware if enabled
 	if tracerEnabled {

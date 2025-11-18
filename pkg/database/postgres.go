@@ -303,8 +303,13 @@ func resolveQueryTimeout(queryTimeoutSeconds ...int) int {
 func createStatementTimeoutCallback(timeoutSeconds int) func(context.Context, *pgx.Conn) error {
 	return func(ctx context.Context, conn *pgx.Conn) error {
 		// Set statement timeout to prevent long-running queries
-		_, err := conn.Exec(ctx, fmt.Sprintf("SET statement_timeout = '%ds'", timeoutSeconds))
-		return err
+		// PostgreSQL expects statement_timeout in milliseconds as an integer
+		timeoutMs := timeoutSeconds * 1000
+		_, err := conn.Exec(ctx, fmt.Sprintf("SET statement_timeout = %d", timeoutMs))
+		if err != nil {
+			return fmt.Errorf("failed to set statement timeout: %w", err)
+		}
+		return nil
 	}
 }
 
