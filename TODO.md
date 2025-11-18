@@ -848,30 +848,48 @@ Improve developer experience.
 
 ---
 
-### 5.4 API Collections
+### 5.4 API Collections ✅ COMPLETE
 
 **Impact:** LOW | **Effort:** LOW | **Timeline:** 1 day
 
+**Status:** ✅ **DONE**
+
 Easy API testing.
 
--   [ ] **Create API Collections**
+-   [x] **Create API Collections**
 
-    -   [ ] Postman collection (all endpoints)
-    -   [ ] Environment variables
-    -   [ ] Pre-request scripts (auth token)
-    -   [ ] Test assertions
+    -   [x] Postman collection (all endpoints)
+    -   [x] Environment variables
+    -   [x] Pre-request scripts (auth token)
+    -   [x] Test assertions
 
--   [ ] **Alternative: HTTPie/curl Scripts**
-    -   [ ] Shell scripts for common flows
-    -   [ ] Auth flow
-    -   [ ] Complete ride flow
-    -   [ ] Payment flow
+-   [x] **Alternative: HTTPie/curl Scripts**
+    -   [x] Shell scripts for common flows
+    -   [x] Auth flow
+    -   [x] Complete ride flow
+    -   [x] Payment flow
+    -   [x] Promo flow
 
-**Files to Create:**
+**Files Created:**
 
--   `api/postman/ride-hailing.postman_collection.json`
--   `api/postman/environment.json`
--   `api/scripts/test-ride-flow.sh`
+-   ✅ `api/postman/ride-hailing.postman_collection.json` - Complete collection with 90+ endpoints
+-   ✅ `api/postman/environment.json` - Environment configuration for all 13 services
+-   ✅ `api/scripts/test-auth-flow.sh` - Authentication flow testing script
+-   ✅ `api/scripts/test-ride-flow.sh` - Complete ride flow testing script
+-   ✅ `api/scripts/test-payment-flow.sh` - Payment and wallet testing script
+-   ✅ `api/scripts/test-promo-flow.sh` - Promo codes and referrals testing script
+-   ✅ `api/README.md` - Comprehensive documentation with usage examples
+
+**Features Implemented:**
+
+-   Comprehensive Postman collection covering all 13 microservices
+-   Automatic JWT token management (auto-saves after login/register)
+-   Pre-configured environment variables for local development
+-   Test assertions for critical endpoints
+-   4 shell scripts for end-to-end flow testing
+-   Complete documentation with troubleshooting guide
+-   Support for all user roles (rider, driver, admin)
+-   Ready-to-use examples for all common workflows
 
 ---
 

@@ -1,0 +1,1030 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-7890-a1b2-c3d4e5f67890",
+		"name": "Ride Hailing API",
+		"description": "Complete API collection for the Ride Hailing microservices platform.\n\nThis collection includes all endpoints across 13 microservices:\n- Authentication\n- Rides\n- Payments\n- Geo\n- Notifications\n- Real-time\n- Promos\n- Admin\n- Analytics\n- Fraud\n- ML ETA\n- Scheduler\n- Favorites",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{auth_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Auto-refresh token if expired",
+					"const token = pm.collectionVariables.get('auth_token');",
+					"const tokenExpiry = pm.collectionVariables.get('token_expiry');",
+					"",
+					"if (!token || (tokenExpiry && Date.now() > tokenExpiry)) {",
+					"    console.log('Token expired or missing, please login');",
+					"}"
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Auto-save token from login/register responses",
+					"if (pm.response.code === 200 || pm.response.code === 201) {",
+					"    const response = pm.response.json();",
+					"    ",
+					"    if (response.data && response.data.token) {",
+					"        pm.collectionVariables.set('auth_token', response.data.token);",
+					"        ",
+					"        // Set expiry (15 hours from now)",
+					"        const expiryTime = Date.now() + (15 * 60 * 60 * 1000);",
+					"        pm.collectionVariables.set('token_expiry', expiryTime);",
+					"        ",
+					"        console.log('Auth token saved successfully');",
+					"    }",
+					"    ",
+					"    if (response.data && response.data.user && response.data.user.id) {",
+					"        pm.collectionVariables.set('user_id', response.data.user.id);",
+					"        pm.collectionVariables.set('user_role', response.data.user.role);",
+					"    }",
+					"}"
+				]
+			}
+		}
+	],
+	"item": [
+		{
+			"name": "Auth Service",
+			"item": [
+				{
+					"name": "Register Rider",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test('Response has user data', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data).to.have.property('user');",
+									"    pm.expect(response.data).to.have.property('token');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"rider@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe\",\n  \"phone_number\": \"+1234567890\",\n  \"role\": \"rider\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "register"]
+						},
+						"description": "Register a new rider account"
+					},
+					"response": []
+				},
+				{
+					"name": "Register Driver",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"driver@example.com\",\n  \"password\": \"SecurePass123!\",\n  \"first_name\": \"Jane\",\n  \"last_name\": \"Smith\",\n  \"phone_number\": \"+1234567891\",\n  \"role\": \"driver\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "register"]
+						},
+						"description": "Register a new driver account"
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 200', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test('Token is present', function () {",
+									"    const response = pm.response.json();",
+									"    pm.expect(response.data).to.have.property('token');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"rider@example.com\",\n  \"password\": \"SecurePass123!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "login"]
+						},
+						"description": "Login with email and password"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Profile",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/profile",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "profile"]
+						},
+						"description": "Get authenticated user's profile"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Profile",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"first_name\": \"John\",\n  \"last_name\": \"Doe Updated\",\n  \"phone_number\": \"+1234567899\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/auth/profile",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "auth", "profile"]
+						},
+						"description": "Update user profile"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication and user management endpoints"
+		},
+		{
+			"name": "Rides Service",
+			"item": [
+				{
+					"name": "Request Ride",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code is 201', function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    if (response.data && response.data.id) {",
+									"        pm.collectionVariables.set('ride_id', response.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pickup_lat\": 37.7749,\n  \"pickup_lon\": -122.4194,\n  \"pickup_address\": \"123 Market St, San Francisco, CA\",\n  \"dropoff_lat\": 37.7849,\n  \"dropoff_lon\": -122.4094,\n  \"dropoff_address\": \"456 Mission St, San Francisco, CA\",\n  \"ride_type_id\": \"{{ride_type_id}}\",\n  \"promo_code\": \"\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/rides",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "rides"]
+						},
+						"description": "Request a new ride (Rider only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Ride",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/rides/{{ride_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "rides", "{{ride_id}}"]
+						},
+						"description": "Get ride details by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Rides",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/rides?page=1&per_page=10",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "rides"],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "per_page",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Get authenticated user's rides (Rider or Driver)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Available Rides (Driver)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/driver/rides/available",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "driver", "rides", "available"]
+						},
+						"description": "Get available rides for drivers to accept"
+					},
+					"response": []
+				},
+				{
+					"name": "Accept Ride (Driver)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/driver/rides/{{ride_id}}/accept",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "driver", "rides", "{{ride_id}}", "accept"]
+						},
+						"description": "Driver accepts a ride request"
+					},
+					"response": []
+				},
+				{
+					"name": "Start Ride (Driver)",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/driver/rides/{{ride_id}}/start",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "driver", "rides", "{{ride_id}}", "start"]
+						},
+						"description": "Driver starts the ride"
+					},
+					"response": []
+				},
+				{
+					"name": "Complete Ride (Driver)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"actual_distance\": 5.2\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/driver/rides/{{ride_id}}/complete",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "driver", "rides", "{{ride_id}}", "complete"]
+						},
+						"description": "Driver completes the ride"
+					},
+					"response": []
+				},
+				{
+					"name": "Cancel Ride",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Changed plans\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/rides/{{ride_id}}/cancel",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "rides", "{{ride_id}}", "cancel"]
+						},
+						"description": "Cancel a ride (Rider or Driver)"
+					},
+					"response": []
+				},
+				{
+					"name": "Rate Ride",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rating\": 5,\n  \"comment\": \"Great driver, smooth ride!\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/rides/{{ride_id}}/rate",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "rides", "{{ride_id}}", "rate"]
+						},
+						"description": "Rate a completed ride (Rider only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Surge Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/rides/surge-info?lat=37.7749&lon=-122.4194",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "rides", "surge-info"],
+							"query": [
+								{
+									"key": "lat",
+									"value": "37.7749"
+								},
+								{
+									"key": "lon",
+									"value": "-122.4194"
+								}
+							]
+						},
+						"description": "Get surge pricing information for a location"
+					},
+					"response": []
+				}
+			],
+			"description": "Ride request and management endpoints"
+		},
+		{
+			"name": "Payments Service",
+			"item": [
+				{
+					"name": "Get Wallet",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/wallet",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "wallet"]
+						},
+						"description": "Get user's wallet balance"
+					},
+					"response": []
+				},
+				{
+					"name": "Top Up Wallet",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"amount\": 50.00,\n  \"stripe_payment_method\": \"pm_card_visa\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/wallet/topup",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "wallet", "topup"]
+						},
+						"description": "Add funds to wallet via Stripe"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Wallet Transactions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/wallet/transactions?limit=20&offset=0",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "wallet", "transactions"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "20"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Get wallet transaction history"
+					},
+					"response": []
+				},
+				{
+					"name": "Process Payment",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.data && response.data.id) {",
+									"        pm.collectionVariables.set('payment_id', response.data.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"ride_id\": \"{{ride_id}}\",\n  \"amount\": 25.50,\n  \"payment_method\": \"wallet\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/payments/process",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "payments", "process"]
+						},
+						"description": "Process payment for a ride"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Payment",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/payments/{{payment_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "payments", "{{payment_id}}"]
+						},
+						"description": "Get payment details"
+					},
+					"response": []
+				},
+				{
+					"name": "Refund Payment",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"reason\": \"Ride cancelled by driver\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/payments/{{payment_id}}/refund",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "payments", "{{payment_id}}", "refund"]
+						},
+						"description": "Request a refund (Rider or Admin)"
+					},
+					"response": []
+				}
+			],
+			"description": "Payment and wallet management endpoints"
+		},
+		{
+			"name": "Promos Service",
+			"item": [
+				{
+					"name": "Get Ride Types",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    if (response.ride_types && response.ride_types.length > 0) {",
+									"        pm.collectionVariables.set('ride_type_id', response.ride_types[0].id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{promos_base_url}}/api/v1/ride-types",
+							"host": ["{{promos_base_url}}"],
+							"path": ["api", "v1", "ride-types"]
+						},
+						"description": "Get all available ride types"
+					},
+					"response": []
+				},
+				{
+					"name": "Calculate Fare",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"ride_type_id\": \"{{ride_type_id}}\",\n  \"distance\": 5.5,\n  \"duration\": 900,\n  \"surge_multiplier\": 1.2\n}"
+						},
+						"url": {
+							"raw": "{{promos_base_url}}/api/v1/calculate-fare",
+							"host": ["{{promos_base_url}}"],
+							"path": ["api", "v1", "calculate-fare"]
+						},
+						"description": "Calculate fare for a ride"
+					},
+					"response": []
+				},
+				{
+					"name": "Validate Promo Code",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"code\": \"SAVE20\",\n  \"ride_amount\": 25.00\n}"
+						},
+						"url": {
+							"raw": "{{promos_base_url}}/api/v1/promo-codes/validate",
+							"host": ["{{promos_base_url}}"],
+							"path": ["api", "v1", "promo-codes", "validate"]
+						},
+						"description": "Validate a promo code"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Promo Code (Admin)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"code\": \"SAVE20\",\n  \"discount_type\": \"percentage\",\n  \"discount_value\": 20,\n  \"max_uses\": 100,\n  \"valid_from\": \"2025-01-01T00:00:00Z\",\n  \"valid_until\": \"2025-12-31T23:59:59Z\",\n  \"min_ride_amount\": 10.00,\n  \"is_active\": true\n}"
+						},
+						"url": {
+							"raw": "{{promos_base_url}}/api/v1/promo-codes",
+							"host": ["{{promos_base_url}}"],
+							"path": ["api", "v1", "promo-codes"]
+						},
+						"description": "Create a new promo code (Admin only)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Referral Code",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{promos_base_url}}/api/v1/referrals/my-code",
+							"host": ["{{promos_base_url}}"],
+							"path": ["api", "v1", "referrals", "my-code"]
+						},
+						"description": "Get user's referral code"
+					},
+					"response": []
+				},
+				{
+					"name": "Apply Referral Code",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"referral_code\": \"JOHN123\"\n}"
+						},
+						"url": {
+							"raw": "{{promos_base_url}}/api/v1/referrals/apply",
+							"host": ["{{promos_base_url}}"],
+							"path": ["api", "v1", "referrals", "apply"]
+						},
+						"description": "Apply a referral code during signup"
+					},
+					"response": []
+				}
+			],
+			"description": "Promotions, ride types, and referral endpoints"
+		},
+		{
+			"name": "Admin Service",
+			"item": [
+				{
+					"name": "Get Dashboard",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{admin_base_url}}/api/v1/admin/dashboard",
+							"host": ["{{admin_base_url}}"],
+							"path": ["api", "v1", "admin", "dashboard"]
+						},
+						"description": "Get admin dashboard statistics"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Users",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{admin_base_url}}/api/v1/admin/users?limit=20&offset=0",
+							"host": ["{{admin_base_url}}"],
+							"path": ["api", "v1", "admin", "users"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "20"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						},
+						"description": "Get all users with pagination"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{admin_base_url}}/api/v1/admin/users/{{user_id}}",
+							"host": ["{{admin_base_url}}"],
+							"path": ["api", "v1", "admin", "users", "{{user_id}}"]
+						},
+						"description": "Get specific user details"
+					},
+					"response": []
+				},
+				{
+					"name": "Suspend User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{admin_base_url}}/api/v1/admin/users/{{user_id}}/suspend",
+							"host": ["{{admin_base_url}}"],
+							"path": ["api", "v1", "admin", "users", "{{user_id}}", "suspend"]
+						},
+						"description": "Suspend a user account"
+					},
+					"response": []
+				},
+				{
+					"name": "Activate User",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{admin_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{admin_base_url}}/api/v1/admin/users/{{user_id}}/activate",
+							"host": ["{{admin_base_url}}"],
+							"path": ["api", "v1", "admin", "users", "{{user_id}}", "activate"]
+						},
+						"description": "Activate a suspended user account"
+					},
+					"response": []
+				}
+			],
+			"description": "Admin management endpoints"
+		},
+		{
+			"name": "Health Checks",
+			"item": [
+				{
+					"name": "Auth Service Health",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/healthz",
+							"host": ["{{base_url}}"],
+							"path": ["healthz"]
+						},
+						"description": "Auth service health check"
+					},
+					"response": []
+				},
+				{
+					"name": "Rides Service Liveness",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{rides_base_url}}/health/live",
+							"host": ["{{rides_base_url}}"],
+							"path": ["health", "live"]
+						},
+						"description": "Rides service liveness probe"
+					},
+					"response": []
+				},
+				{
+					"name": "Rides Service Readiness",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{rides_base_url}}/health/ready",
+							"host": ["{{rides_base_url}}"],
+							"path": ["health", "ready"]
+						},
+						"description": "Rides service readiness probe"
+					},
+					"response": []
+				}
+			],
+			"description": "Health check endpoints for all services"
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8081",
+			"type": "string"
+		},
+		{
+			"key": "rides_base_url",
+			"value": "http://localhost:8082",
+			"type": "string"
+		},
+		{
+			"key": "payments_base_url",
+			"value": "http://localhost:8083",
+			"type": "string"
+		},
+		{
+			"key": "geo_base_url",
+			"value": "http://localhost:8084",
+			"type": "string"
+		},
+		{
+			"key": "notifications_base_url",
+			"value": "http://localhost:8085",
+			"type": "string"
+		},
+		{
+			"key": "realtime_base_url",
+			"value": "http://localhost:8086",
+			"type": "string"
+		},
+		{
+			"key": "mobile_base_url",
+			"value": "http://localhost:8087",
+			"type": "string"
+		},
+		{
+			"key": "admin_base_url",
+			"value": "http://localhost:8088",
+			"type": "string"
+		},
+		{
+			"key": "promos_base_url",
+			"value": "http://localhost:8089",
+			"type": "string"
+		},
+		{
+			"key": "scheduler_base_url",
+			"value": "http://localhost:8090",
+			"type": "string"
+		},
+		{
+			"key": "analytics_base_url",
+			"value": "http://localhost:8091",
+			"type": "string"
+		},
+		{
+			"key": "fraud_base_url",
+			"value": "http://localhost:8092",
+			"type": "string"
+		},
+		{
+			"key": "ml_eta_base_url",
+			"value": "http://localhost:8093",
+			"type": "string"
+		},
+		{
+			"key": "auth_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "admin_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_role",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "ride_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "payment_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "ride_type_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "token_expiry",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
