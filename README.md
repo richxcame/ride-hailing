@@ -388,12 +388,29 @@ make dev-check
 ```
 
 **Benefits:**
-- 🚀 Fast startup (~5 seconds vs 2-3 minutes)
-- 💾 Low memory (~500MB vs 4-6GB)
-- ⚡ Instant iteration (no Docker rebuild)
-- 🐛 Easy debugging (native Go debugger)
 
-**See [QUICKSTART.md](QUICKSTART.md) for detailed guide.**
+-   🚀 Fast startup (~5 seconds vs 2-3 minutes)
+-   💾 Low memory (~500MB vs 4-6GB)
+-   ⚡ Instant iteration (no Docker rebuild)
+-   🐛 Easy debugging (native Go debugger)
+
+**Optional Profiles:**
+
+```bash
+# Add observability stack (Prometheus, Grafana, Tempo)
+docker-compose -f docker-compose.dev.yml --profile observability up -d
+
+# Add Kong API Gateway
+docker-compose -f docker-compose.dev.yml --profile gateway up -d
+
+# Add Sentry error tracking
+docker-compose -f docker-compose.dev.yml --profile sentry up -d
+
+# Combine multiple profiles
+docker-compose -f docker-compose.dev.yml --profile observability --profile sentry up -d
+```
+
+**See [QUICKSTART.md](./docs/QUICKSTART.md) and [DEVELOPMENT.md](./docs/DEVELOPMENT.md) for detailed guides.**
 
 ### Running with Docker Compose
 
@@ -493,6 +510,16 @@ JWT_KEYS_FILE=config/jwt_keys.json
 JWT_ROTATION_HOURS=720        # 30 days
 JWT_ROTATION_GRACE_HOURS=720  # overlap window
 JWT_KEY_REFRESH_MINUTES=5     # how often services reload keys
+
+# Timeout configuration (defaults shown)
+HTTP_CLIENT_TIMEOUT=30              # HTTP client timeout in seconds
+DB_QUERY_TIMEOUT=10                 # Database query timeout in seconds
+REDIS_OPERATION_TIMEOUT=5           # Redis operation timeout in seconds (fallback if read/write not set)
+REDIS_READ_TIMEOUT=5                # Redis read timeout in seconds (defaults to REDIS_OPERATION_TIMEOUT if not set)
+REDIS_WRITE_TIMEOUT=5               # Redis write timeout in seconds (defaults to REDIS_OPERATION_TIMEOUT if not set)
+WS_CONNECTION_TIMEOUT=60            # WebSocket connection timeout in seconds
+DEFAULT_REQUEST_TIMEOUT=30          # Default HTTP request timeout in seconds
+ROUTE_TIMEOUT_OVERRIDES='{"POST:/api/v1/rides": 60}'  # Optional: JSON map of route-specific timeouts (format: "METHOD:/path": seconds)
 ```
 
 Each service loads a shared `config/jwt_keys.json` (gitignored). The auth service
@@ -501,6 +528,41 @@ for updates based on `JWT_KEY_REFRESH_MINUTES`. The `JWT_SECRET` value remains a
 the fallback legacy key and initial seed. Start the auth service once to seed
 `config/jwt_keys.json` before launching the rest of the stack, or provide the
 keys file through your secrets manager.
+
+**Timeout Configuration:**
+
+All services now use configurable timeouts for better reliability and resource management:
+
+- **HTTP Client Timeout**: Controls timeout for outbound HTTP requests (e.g., service-to-service calls)
+- **Database Query Timeout**: Sets PostgreSQL `statement_timeout` to prevent long-running queries
+- **Redis Operation Timeout**: Base timeout for Redis operations (used as fallback)
+- **Redis Read Timeout**: Timeout for Redis read operations (defaults to Redis Operation Timeout if not set)
+- **Redis Write Timeout**: Timeout for Redis write operations (defaults to Redis Operation Timeout if not set)
+- **WebSocket Connection Timeout**: Timeout for WebSocket connection establishment
+- **Default Request Timeout**: HTTP request timeout middleware applied to all endpoints (returns 504 Gateway Timeout if exceeded)
+- **Route-Specific Timeout Overrides**: Optional per-route timeout overrides using `ROUTE_TIMEOUT_OVERRIDES` environment variable
+
+These timeouts are applied automatically via middleware and client initialization. The request timeout middleware logs timeout events with correlation IDs for debugging.
+
+**Route-Specific Timeout Overrides:**
+
+You can override the default request timeout for specific routes using the `ROUTE_TIMEOUT_OVERRIDES` environment variable. This is useful for routes that require longer processing times (e.g., complex queries, file uploads, or ML model inference).
+
+```bash
+# JSON format: {"METHOD:/path": timeout_in_seconds}
+ROUTE_TIMEOUT_OVERRIDES='{"POST:/api/v1/rides": 60, "GET:/api/v1/analytics/reports": 120, "POST:/api/v1/rides/batch": 90}'
+```
+
+- **Route format**: `"METHOD:/path"` (e.g., `"POST:/api/v1/rides"`, `"GET:/api/v1/users/:id"`)
+- **Timeout value**: Integer in seconds (must be > 0)
+- **Behavior**: Routes matching the pattern use the specified timeout; all other routes use `DEFAULT_REQUEST_TIMEOUT`
+- **Example use cases**:
+  - Long-running ML model predictions
+  - Complex analytics queries
+  - Batch processing endpoints
+  - File upload/download operations
+
+Routes with invalid timeout values (≤ 0) are automatically filtered out during configuration loading.
 
 ### Rate Limiting (Rides Service)
 
@@ -858,6 +920,7 @@ go test ./test/integration/... -v
 -   ✅ Prometheus metrics on all services
 -   ✅ Health check endpoints (liveness + readiness)
 -   ✅ Database connection pooling + read replicas
+-   ✅ Configurable timeouts (HTTP clients, database queries, Redis operations, request middleware)
 -   ✅ Kubernetes manifests with HPA
 -   ✅ Docker Compose for local/staging
 

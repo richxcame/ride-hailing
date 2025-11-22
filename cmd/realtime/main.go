@@ -14,6 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/richxcame/ride-hailing/internal/realtime"
 	"github.com/richxcame/ride-hailing/pkg/config"
+	"github.com/richxcame/ride-hailing/pkg/errors"
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/redis"
@@ -54,6 +55,17 @@ func main() {
 		log.Fatalf("Failed to ping database: %v", err)
 	}
 	log.Println("Connected to PostgreSQL database")
+
+	// Initialize Sentry for error tracking
+	sentryConfig := errors.DefaultSentryConfig()
+	sentryConfig.ServerName = "realtime-service"
+	sentryConfig.Release = "1.0.0"
+	if err := errors.InitSentry(sentryConfig); err != nil {
+		log.Printf("Warning: Failed to initialize Sentry, continuing without error tracking: %v", err)
+	} else {
+		defer errors.Flush(2 * time.Second)
+		log.Println("Sentry error tracking initialized successfully")
+	}
 
 	// Initialize OpenTelemetry tracer
 	tracerEnabled := os.Getenv("OTEL_ENABLED") == "true"
@@ -98,16 +110,30 @@ func main() {
 	service := realtime.NewService(hub, db, redisClient)
 	handler := realtime.NewHandler(service)
 
-	// Set up Gin router
-	router := gin.Default()
+	// Set up Gin router with proper middleware stack
+	if cfg.Server.Environment == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	router := gin.New()
+
+	router.Use(middleware.Recovery())
+	router.Use(middleware.RecoveryWithSentry()) // Custom recovery with Sentry
+	router.Use(middleware.SentryMiddleware())   // Sentry integration
 	router.Use(middleware.CorrelationID())
+	router.Use(middleware.RequestTimeout(&cfg.Timeout))
+	router.Use(middleware.RequestLogger("realtime-service"))
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.SanitizeRequest())
+	router.Use(middleware.Metrics("realtime-service"))
 
 	// Add tracing middleware if enabled
 	if tracerEnabled {
 		router.Use(middleware.TracingMiddleware("realtime-service"))
 	}
+
+	// Add Sentry error handler (should be near the end of middleware chain)
+	router.Use(middleware.ErrorHandler())
 
 	// CORS configuration
 	corsConfig := cors.DefaultConfig()
@@ -130,8 +156,39 @@ func main() {
 	corsConfig.AllowCredentials = true
 	router.Use(cors.New(corsConfig))
 
-	// Health check and metrics (no auth required)
+	// Health check endpoints
 	router.GET("/healthz", handler.HealthCheck)
+	router.GET("/health/live", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "alive", "service": "realtime-service", "version": "1.0.0"})
+	})
+
+	// Readiness probe with dependency checks
+	healthChecks := make(map[string]func() error)
+	healthChecks["database"] = func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		return db.PingContext(ctx)
+	}
+	healthChecks["redis"] = func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		return redisClient.Client.Ping(ctx).Err()
+	}
+
+	router.GET("/health/ready", func(c *gin.Context) {
+		allHealthy := true
+		for name, check := range healthChecks {
+			if err := check(); err != nil {
+				c.JSON(503, gin.H{"status": "not ready", "service": "realtime-service", "failed_check": name, "error": err.Error()})
+				allHealthy = false
+				return
+			}
+		}
+		if allHealthy {
+			c.JSON(200, gin.H{"status": "ready", "service": "realtime-service", "version": "1.0.0"})
+		}
+	})
+
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// API routes

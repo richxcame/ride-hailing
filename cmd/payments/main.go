@@ -15,6 +15,7 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/database"
+	"github.com/richxcame/ride-hailing/pkg/errors"
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
@@ -48,6 +49,17 @@ func main() {
 	log := logger.Get()
 	log.Info("Starting payments service", zap.String("version", version))
 
+	// Initialize Sentry for error tracking
+	sentryConfig := errors.DefaultSentryConfig()
+	sentryConfig.ServerName = serviceName
+	sentryConfig.Release = version
+	if err := errors.InitSentry(sentryConfig); err != nil {
+		logger.Warn("Failed to initialize Sentry, continuing without error tracking", zap.Error(err))
+	} else {
+		defer errors.Flush(2 * time.Second)
+		logger.Info("Sentry error tracking initialized successfully")
+	}
+
 	// Initialize OpenTelemetry tracer
 	tracerEnabled := os.Getenv("OTEL_ENABLED") == "true"
 	if tracerEnabled {
@@ -76,7 +88,7 @@ func main() {
 
 
 	// Initialize database
-	db, err := database.NewPostgresPool(&cfg.Database)
+	db, err := database.NewPostgresPool(&cfg.Database, cfg.Timeout.DatabaseQueryTimeout)
 	if err != nil {
 		log.Fatal("Failed to connect to database", zap.Error(err))
 	}
@@ -120,8 +132,10 @@ func main() {
 	router := gin.New()
 
 	// Global middleware
-	router.Use(middleware.Recovery())
+	router.Use(middleware.RecoveryWithSentry()) // Custom recovery with Sentry
+	router.Use(middleware.SentryMiddleware())   // Sentry integration
 	router.Use(middleware.CorrelationID())
+	router.Use(middleware.RequestTimeout(&cfg.Timeout))
 	router.Use(middleware.RequestLogger(serviceName))
 	router.Use(middleware.CORS())
 	router.Use(middleware.SecurityHeaders())
@@ -133,9 +147,23 @@ func main() {
 		router.Use(middleware.TracingMiddleware(serviceName))
 	}
 
+	// Add Sentry error handler (should be near the end of middleware chain)
+	router.Use(middleware.ErrorHandler())
 
-	// Health check
+	// Health check endpoints
 	router.GET("/healthz", common.HealthCheck(serviceName, version))
+	router.GET("/health/live", common.LivenessProbe(serviceName, version))
+
+	// Readiness probe with dependency checks
+	healthChecks := make(map[string]func() error)
+	healthChecks["database"] = func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		return db.Ping(ctx)
+	}
+
+	router.GET("/health/ready", common.ReadinessProbe(serviceName, version, healthChecks))
+
 	router.GET("/version", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"service": serviceName, "version": version})
 	})

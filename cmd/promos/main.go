@@ -11,6 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/richxcame/ride-hailing/internal/promos"
 	"github.com/richxcame/ride-hailing/pkg/config"
+	"github.com/richxcame/ride-hailing/pkg/errors"
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/tracing"
@@ -55,6 +56,17 @@ func main() {
 	}
 	log.Println("Connected to PostgreSQL database")
 
+	// Initialize Sentry for error tracking
+	sentryConfig := errors.DefaultSentryConfig()
+	sentryConfig.ServerName = "promos-service"
+	sentryConfig.Release = "1.0.0"
+	if err := errors.InitSentry(sentryConfig); err != nil {
+		log.Printf("Warning: Failed to initialize Sentry, continuing without error tracking: %v", err)
+	} else {
+		defer errors.Flush(2 * time.Second)
+		log.Println("Sentry error tracking initialized successfully")
+	}
+
 	// Initialize OpenTelemetry tracer
 	tracerEnabled := os.Getenv("OTEL_ENABLED") == "true"
 	if tracerEnabled {
@@ -87,8 +99,11 @@ func main() {
 	handler := promos.NewHandler(service)
 
 	// Set up Gin router
-	router := gin.Default()
+	router := gin.New()
+	router.Use(middleware.RecoveryWithSentry()) // Custom recovery with Sentry
+	router.Use(middleware.SentryMiddleware())   // Sentry integration
 	router.Use(middleware.CorrelationID())
+	router.Use(middleware.RequestTimeout(&cfg.Timeout))
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.SanitizeRequest())
 
@@ -97,8 +112,37 @@ func main() {
 		router.Use(middleware.TracingMiddleware("promos-service"))
 	}
 
-	// Health check and metrics
+	// Add Sentry error handler (should be near the end of middleware chain)
+	router.Use(middleware.ErrorHandler())
+
+	// Health check endpoints
 	router.GET("/healthz", handler.HealthCheck)
+	router.GET("/health/live", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "alive", "service": "promos-service", "version": "1.0.0"})
+	})
+
+	// Readiness probe with dependency checks
+	healthChecks := make(map[string]func() error)
+	healthChecks["database"] = func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		return db.Ping(ctx)
+	}
+
+	router.GET("/health/ready", func(c *gin.Context) {
+		allHealthy := true
+		for name, check := range healthChecks {
+			if err := check(); err != nil {
+				c.JSON(503, gin.H{"status": "not ready", "service": "promos-service", "failed_check": name, "error": err.Error()})
+				allHealthy = false
+				return
+			}
+		}
+		if allHealthy {
+			c.JSON(200, gin.H{"status": "ready", "service": "promos-service", "version": "1.0.0"})
+		}
+	})
+
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
 	// API routes

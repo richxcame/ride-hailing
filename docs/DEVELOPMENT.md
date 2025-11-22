@@ -162,6 +162,61 @@ make run-rides
 
 ---
 
+### Scenario 5: Testing with Sentry Error Tracking
+
+If you need to test error tracking and monitoring:
+
+```bash
+# Start infrastructure with sentry profile
+docker-compose -f docker-compose.dev.yml --profile sentry up -d
+
+# Run setup script to initialize Sentry
+./scripts/setup-sentry.sh
+
+# Run your services natively with SENTRY_DSN configured
+export SENTRY_DSN=http://[your-key]@localhost:9000/1
+make run-auth
+make run-rides
+# ... etc
+
+# Access Sentry:
+# - Sentry UI: http://localhost:9000
+```
+
+**Benefits:**
+
+-   Self-hosted error tracking
+-   No usage limits or costs
+-   Complete data control
+-   Test error reporting in development
+
+**See [SENTRY_QUICKSTART.md](../docs/SENTRY_QUICKSTART.md) for complete setup guide.**
+
+---
+
+### Combining Multiple Profiles
+
+You can combine multiple profiles to run different infrastructure components together:
+
+```bash
+# Observability + Gateway
+docker-compose -f docker-compose.dev.yml --profile observability --profile gateway up -d
+
+# Observability + Sentry
+docker-compose -f docker-compose.dev.yml --profile observability --profile sentry up -d
+
+# All profiles together
+docker-compose -f docker-compose.dev.yml --profile gateway --profile observability --profile sentry up -d
+```
+
+**Available Profiles:**
+
+-   `gateway` - Kong API Gateway (Kong DB, Migration, Kong)
+-   `observability` - Monitoring stack (Tempo, OTEL Collector, Prometheus, Grafana)
+-   `sentry` - Self-hosted error tracking (Sentry, Redis, Postgres, ClickHouse, Kafka, Zookeeper)
+
+---
+
 ## Environment Configuration
 
 ### Default Environment Variables

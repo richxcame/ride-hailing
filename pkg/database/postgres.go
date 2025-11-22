@@ -62,7 +62,8 @@ func NewDBMetrics(serviceName string) *DBMetrics {
 }
 
 // NewPostgresPool creates a new PostgreSQL connection pool with optimized settings
-func NewPostgresPool(cfg *config.DatabaseConfig) (*pgxpool.Pool, error) {
+// If queryTimeoutSeconds is 0 or negative, uses config.DefaultDatabaseQueryTimeout
+func NewPostgresPool(cfg *config.DatabaseConfig, queryTimeoutSeconds ...int) (*pgxpool.Pool, error) {
 	dsn := cfg.DSN()
 
 	poolConfig, err := pgxpool.ParseConfig(dsn)
@@ -93,11 +94,8 @@ func NewPostgresPool(cfg *config.DatabaseConfig) (*pgxpool.Pool, error) {
 	poolConfig.ConnConfig.RuntimeParams["work_mem"] = "16MB"
 
 	// Connection callback for additional setup
-	poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-		// Set statement timeout to prevent long-running queries
-		_, err := conn.Exec(ctx, "SET statement_timeout = '30s'")
-		return err
-	}
+	timeoutSeconds := resolveQueryTimeout(queryTimeoutSeconds...)
+	poolConfig.AfterConnect = createStatementTimeoutCallback(timeoutSeconds)
 
 	createPool := func(ctx context.Context) (*pgxpool.Pool, error) {
 		pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
@@ -150,9 +148,10 @@ func NewPostgresPool(cfg *config.DatabaseConfig) (*pgxpool.Pool, error) {
 }
 
 // NewDBPool creates a DBPool with primary and optional read replicas
-func NewDBPool(cfg *config.DatabaseConfig, replicaDSNs []string, serviceName string) (*DBPool, error) {
+// If queryTimeoutSeconds is 0 or negative, uses config.DefaultDatabaseQueryTimeout
+func NewDBPool(cfg *config.DatabaseConfig, replicaDSNs []string, serviceName string, queryTimeoutSeconds ...int) (*DBPool, error) {
 	// Create primary pool
-	primary, err := NewPostgresPool(cfg)
+	primary, err := NewPostgresPool(cfg, queryTimeoutSeconds...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create primary pool: %w", err)
 	}
@@ -186,10 +185,8 @@ func NewDBPool(cfg *config.DatabaseConfig, replicaDSNs []string, serviceName str
 			poolConfig.ConnConfig.RuntimeParams["work_mem"] = "16MB"
 			poolConfig.ConnConfig.RuntimeParams["default_transaction_read_only"] = "on"
 
-			poolConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-				_, err := conn.Exec(ctx, "SET statement_timeout = '30s'")
-				return err
-			}
+			replicaTimeoutSeconds := resolveQueryTimeout(queryTimeoutSeconds...)
+			poolConfig.AfterConnect = createStatementTimeoutCallback(replicaTimeoutSeconds)
 
 			replica, err := pgxpool.NewWithConfig(context.Background(), poolConfig)
 			if err != nil {
@@ -293,6 +290,27 @@ func sanitizeBreakerName(name string) string {
 		return ""
 	}
 	return strings.ReplaceAll(trimmed, " ", "-")
+}
+
+func resolveQueryTimeout(queryTimeoutSeconds ...int) int {
+	timeoutSeconds := config.DefaultDatabaseQueryTimeout
+	if len(queryTimeoutSeconds) > 0 && queryTimeoutSeconds[0] > 0 {
+		timeoutSeconds = queryTimeoutSeconds[0]
+	}
+	return timeoutSeconds
+}
+
+func createStatementTimeoutCallback(timeoutSeconds int) func(context.Context, *pgx.Conn) error {
+	return func(ctx context.Context, conn *pgx.Conn) error {
+		// Set statement timeout to prevent long-running queries
+		// PostgreSQL expects statement_timeout in milliseconds as an integer
+		timeoutMs := timeoutSeconds * 1000
+		_, err := conn.Exec(ctx, fmt.Sprintf("SET statement_timeout = %d", timeoutMs))
+		if err != nil {
+			return fmt.Errorf("failed to set statement timeout: %w", err)
+		}
+		return nil
+	}
 }
 
 func max(a, b int) int {

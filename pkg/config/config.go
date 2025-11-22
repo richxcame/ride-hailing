@@ -26,6 +26,7 @@ type Config struct {
 	Notifications NotificationsConfig
 	RateLimit     RateLimitConfig
 	Resilience    ResilienceConfig
+	Timeout       TimeoutConfig
 	Secrets       SecretsSettings
 }
 
@@ -190,6 +191,97 @@ type CircuitBreakerSettings struct {
 	IntervalSeconds  int `json:"interval_seconds"`
 }
 
+const (
+	DefaultHTTPClientTimeout          = 30
+	DefaultDatabaseQueryTimeout       = 10
+	DefaultRedisOperationTimeout      = 5
+	DefaultRedisReadTimeout           = 5
+	DefaultRedisWriteTimeout          = 5
+	DefaultWebSocketConnectionTimeout = 60
+	DefaultRequestTimeout             = 30
+
+	// Maximum allowed timeouts (prevent misconfigurations)
+	MaxHTTPClientTimeout          = 300 // 5 minutes
+	MaxDatabaseQueryTimeout       = 60  // 1 minute
+	MaxRedisOperationTimeout      = 30  // 30 seconds
+	MaxWebSocketConnectionTimeout = 300 // 5 minutes
+	MaxRequestTimeout             = 300 // 5 minutes
+)
+
+// TimeoutConfig holds timeout configuration for various operations
+type TimeoutConfig struct {
+	HTTPClientTimeout         int
+	DatabaseQueryTimeout     int
+	RedisOperationTimeout    int
+	RedisReadTimeout         int
+	RedisWriteTimeout        int
+	WebSocketConnectionTimeout int
+	DefaultRequestTimeout    int
+	RouteOverrides           map[string]int // Route pattern -> timeout in seconds (e.g., "POST:/api/v1/rides" -> 60)
+}
+
+func (t TimeoutConfig) HTTPClientTimeoutDuration() time.Duration {
+	return time.Duration(t.HTTPClientTimeout) * time.Second
+}
+
+func (t TimeoutConfig) DatabaseQueryTimeoutDuration() time.Duration {
+	return time.Duration(t.DatabaseQueryTimeout) * time.Second
+}
+
+func (t TimeoutConfig) RedisOperationTimeoutDuration() time.Duration {
+	return time.Duration(t.RedisOperationTimeout) * time.Second
+}
+
+func (t TimeoutConfig) RedisReadTimeoutDuration() time.Duration {
+	if t.RedisReadTimeout > 0 {
+		return time.Duration(t.RedisReadTimeout) * time.Second
+	}
+	return t.RedisOperationTimeoutDuration()
+}
+
+func (t TimeoutConfig) RedisWriteTimeoutDuration() time.Duration {
+	if t.RedisWriteTimeout > 0 {
+		return time.Duration(t.RedisWriteTimeout) * time.Second
+	}
+	return t.RedisOperationTimeoutDuration()
+}
+
+func DefaultRedisReadTimeoutDuration() time.Duration {
+	return time.Duration(DefaultRedisReadTimeout) * time.Second
+}
+
+func DefaultRedisWriteTimeoutDuration() time.Duration {
+	return time.Duration(DefaultRedisWriteTimeout) * time.Second
+}
+
+func DefaultHTTPClientTimeoutDuration() time.Duration {
+	return time.Duration(DefaultHTTPClientTimeout) * time.Second
+}
+
+func (t TimeoutConfig) WebSocketConnectionTimeoutDuration() time.Duration {
+	return time.Duration(t.WebSocketConnectionTimeout) * time.Second
+}
+
+func (t TimeoutConfig) DefaultRequestTimeoutDuration() time.Duration {
+	return time.Duration(t.DefaultRequestTimeout) * time.Second
+}
+
+// TimeoutForRoute returns the timeout duration for a specific route
+// Route format: "METHOD:/path" (e.g., "POST:/api/v1/rides")
+// Returns the route-specific timeout if found, otherwise returns the default timeout
+func (t TimeoutConfig) TimeoutForRoute(method, path string) time.Duration {
+	if t.RouteOverrides == nil {
+		return t.DefaultRequestTimeoutDuration()
+	}
+
+	routeKey := fmt.Sprintf("%s:%s", method, path)
+	if timeoutSeconds, ok := t.RouteOverrides[routeKey]; ok && timeoutSeconds > 0 {
+		return time.Duration(timeoutSeconds) * time.Second
+	}
+
+	return t.DefaultRequestTimeoutDuration()
+}
+
 // Load loads configuration from environment variables
 func Load(serviceName string) (*Config, error) {
 	// Load .env file if it exists
@@ -282,6 +374,16 @@ func Load(serviceName string) (*Config, error) {
 				IntervalSeconds:  getEnvAsInt("CB_INTERVAL_SECONDS", 60),
 			},
 		},
+		Timeout: TimeoutConfig{
+			HTTPClientTimeout:         getEnvAsInt("HTTP_CLIENT_TIMEOUT", DefaultHTTPClientTimeout),
+			DatabaseQueryTimeout:      getEnvAsInt("DB_QUERY_TIMEOUT", DefaultDatabaseQueryTimeout),
+			RedisOperationTimeout:      getEnvAsInt("REDIS_OPERATION_TIMEOUT", DefaultRedisOperationTimeout),
+			RedisReadTimeout:          getEnvAsInt("REDIS_READ_TIMEOUT", DefaultRedisReadTimeout),
+			RedisWriteTimeout:         getEnvAsInt("REDIS_WRITE_TIMEOUT", DefaultRedisWriteTimeout),
+			WebSocketConnectionTimeout: getEnvAsInt("WS_CONNECTION_TIMEOUT", DefaultWebSocketConnectionTimeout),
+			DefaultRequestTimeout:      getEnvAsInt("DEFAULT_REQUEST_TIMEOUT", DefaultRequestTimeout),
+			RouteOverrides:             make(map[string]int),
+		},
 		Secrets: SecretsSettings{
 			Provider:        secrets.ProviderType(getEnv("SECRETS_PROVIDER", "")),
 			CacheTTLSeconds: getEnvAsInt("SECRETS_CACHE_TTL_SECONDS", 300),
@@ -333,6 +435,19 @@ func Load(serviceName string) (*Config, error) {
 		cfg.Resilience.CircuitBreaker.ServiceOverrides = serviceConfig
 	}
 
+	if timeoutOverrides := getEnv("ROUTE_TIMEOUT_OVERRIDES", ""); timeoutOverrides != "" {
+		var routeTimeouts map[string]int
+		if err := json.Unmarshal([]byte(timeoutOverrides), &routeTimeouts); err != nil {
+			return nil, fmt.Errorf("invalid ROUTE_TIMEOUT_OVERRIDES value: %w", err)
+		}
+		for route, timeout := range routeTimeouts {
+			if timeout <= 0 {
+				delete(routeTimeouts, route)
+			}
+		}
+		cfg.Timeout.RouteOverrides = routeTimeouts
+	}
+
 	if cfg.RateLimit.WindowSeconds <= 0 {
 		cfg.RateLimit.WindowSeconds = int((time.Minute).Seconds())
 	}
@@ -351,6 +466,62 @@ func Load(serviceName string) (*Config, error) {
 
 	if cfg.Resilience.CircuitBreaker.SuccessThreshold <= 0 {
 		cfg.Resilience.CircuitBreaker.SuccessThreshold = 1
+	}
+
+	// Validate and set HTTP client timeout
+	if cfg.Timeout.HTTPClientTimeout <= 0 {
+		cfg.Timeout.HTTPClientTimeout = DefaultHTTPClientTimeout
+	} else if cfg.Timeout.HTTPClientTimeout > MaxHTTPClientTimeout {
+		return nil, fmt.Errorf("HTTP_CLIENT_TIMEOUT (%d seconds) exceeds maximum allowed value of %d seconds", cfg.Timeout.HTTPClientTimeout, MaxHTTPClientTimeout)
+	}
+
+	// Validate and set database query timeout
+	if cfg.Timeout.DatabaseQueryTimeout <= 0 {
+		cfg.Timeout.DatabaseQueryTimeout = DefaultDatabaseQueryTimeout
+	} else if cfg.Timeout.DatabaseQueryTimeout > MaxDatabaseQueryTimeout {
+		return nil, fmt.Errorf("DB_QUERY_TIMEOUT (%d seconds) exceeds maximum allowed value of %d seconds", cfg.Timeout.DatabaseQueryTimeout, MaxDatabaseQueryTimeout)
+	}
+
+	// Validate and set Redis operation timeout
+	if cfg.Timeout.RedisOperationTimeout <= 0 {
+		cfg.Timeout.RedisOperationTimeout = DefaultRedisOperationTimeout
+	} else if cfg.Timeout.RedisOperationTimeout > MaxRedisOperationTimeout {
+		return nil, fmt.Errorf("REDIS_OPERATION_TIMEOUT (%d seconds) exceeds maximum allowed value of %d seconds", cfg.Timeout.RedisOperationTimeout, MaxRedisOperationTimeout)
+	}
+
+	// Validate and set Redis read timeout
+	if cfg.Timeout.RedisReadTimeout <= 0 {
+		cfg.Timeout.RedisReadTimeout = DefaultRedisReadTimeout
+	} else if cfg.Timeout.RedisReadTimeout > MaxRedisOperationTimeout {
+		return nil, fmt.Errorf("REDIS_READ_TIMEOUT (%d seconds) exceeds maximum allowed value of %d seconds", cfg.Timeout.RedisReadTimeout, MaxRedisOperationTimeout)
+	}
+
+	// Validate and set Redis write timeout
+	if cfg.Timeout.RedisWriteTimeout <= 0 {
+		cfg.Timeout.RedisWriteTimeout = DefaultRedisWriteTimeout
+	} else if cfg.Timeout.RedisWriteTimeout > MaxRedisOperationTimeout {
+		return nil, fmt.Errorf("REDIS_WRITE_TIMEOUT (%d seconds) exceeds maximum allowed value of %d seconds", cfg.Timeout.RedisWriteTimeout, MaxRedisOperationTimeout)
+	}
+
+	// Validate and set WebSocket connection timeout
+	if cfg.Timeout.WebSocketConnectionTimeout <= 0 {
+		cfg.Timeout.WebSocketConnectionTimeout = DefaultWebSocketConnectionTimeout
+	} else if cfg.Timeout.WebSocketConnectionTimeout > MaxWebSocketConnectionTimeout {
+		return nil, fmt.Errorf("WS_CONNECTION_TIMEOUT (%d seconds) exceeds maximum allowed value of %d seconds", cfg.Timeout.WebSocketConnectionTimeout, MaxWebSocketConnectionTimeout)
+	}
+
+	// Validate and set default request timeout
+	if cfg.Timeout.DefaultRequestTimeout <= 0 {
+		cfg.Timeout.DefaultRequestTimeout = DefaultRequestTimeout
+	} else if cfg.Timeout.DefaultRequestTimeout > MaxRequestTimeout {
+		return nil, fmt.Errorf("DEFAULT_REQUEST_TIMEOUT (%d seconds) exceeds maximum allowed value of %d seconds", cfg.Timeout.DefaultRequestTimeout, MaxRequestTimeout)
+	}
+
+	// Validate route-specific timeout overrides
+	for route, timeout := range cfg.Timeout.RouteOverrides {
+		if timeout > MaxRequestTimeout {
+			return nil, fmt.Errorf("route timeout for '%s' (%d seconds) exceeds maximum allowed value of %d seconds", route, timeout, MaxRequestTimeout)
+		}
 	}
 
 	if err := cfg.populateSecretReferences(); err != nil {

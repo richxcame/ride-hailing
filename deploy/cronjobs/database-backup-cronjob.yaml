@@ -1,0 +1,198 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: database-backup
+  namespace: ridehailing
+  labels:
+    app: database-backup
+    component: backup
+spec:
+  # Schedule: Daily at 2 AM UTC
+  schedule: "0 2 * * *"
+
+  # Keep last 3 successful jobs and 1 failed job for debugging
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+
+  # Don't allow concurrent backup jobs
+  concurrencyPolicy: Forbid
+
+  # Start immediately if missed (e.g., cluster was down)
+  startingDeadlineSeconds: 3600
+
+  jobTemplate:
+    metadata:
+      labels:
+        app: database-backup
+        component: backup
+    spec:
+      # Retry failed backups up to 2 times
+      backoffLimit: 2
+
+      # Job must complete within 1 hour
+      activeDeadlineSeconds: 3600
+
+      template:
+        metadata:
+          labels:
+            app: database-backup
+            component: backup
+        spec:
+          restartPolicy: OnFailure
+
+          # Use a service account with S3/GCS permissions
+          serviceAccountName: database-backup-sa
+
+          containers:
+          - name: backup
+            image: postgres:15-alpine
+
+            # Install required tools and run backup
+            command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              # Install required tools
+              apk add --no-cache aws-cli bash gzip
+
+              # Run backup script
+              /scripts/backup-database.sh --compress --storage s3 --verbose
+
+              echo "Backup completed successfully at $(date)"
+
+            env:
+            # Database connection
+            - name: DB_HOST
+              value: postgres-service
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_USER
+              value: postgres
+            - name: DB_NAME
+              value: ridehailing
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-secret
+                  key: password
+
+            # Backup configuration
+            - name: BACKUP_DIR
+              value: /backups
+            - name: BACKUP_STORAGE_TYPE
+              value: s3
+            - name: RETENTION_DAYS
+              value: "30"
+
+            # S3 configuration
+            - name: BACKUP_S3_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: backup-config
+                  key: s3_bucket
+            - name: BACKUP_S3_PREFIX
+              value: database-backups/production
+            - name: AWS_REGION
+              valueFrom:
+                configMapKeyRef:
+                  name: backup-config
+                  key: aws_region
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: backup-aws-credentials
+                  key: access_key_id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backup-aws-credentials
+                  key: secret_access_key
+
+            volumeMounts:
+            - name: backup-scripts
+              mountPath: /scripts
+            - name: backup-storage
+              mountPath: /backups
+
+            resources:
+              requests:
+                memory: "256Mi"
+                cpu: "250m"
+              limits:
+                memory: "1Gi"
+                cpu: "1000m"
+
+          volumes:
+          - name: backup-scripts
+            configMap:
+              name: database-scripts
+              defaultMode: 0755
+          - name: backup-storage
+            persistentVolumeClaim:
+              claimName: backup-pvc
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-config
+  namespace: ridehailing
+data:
+  s3_bucket: "ridehailing-backups"
+  aws_region: "us-east-1"
+  gcs_bucket: "ridehailing-backups"
+  retention_days: "30"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backup-aws-credentials
+  namespace: ridehailing
+type: Opaque
+stringData:
+  # Replace with actual credentials or use external secrets operator
+  access_key_id: "YOUR_AWS_ACCESS_KEY_ID"
+  secret_access_key: "YOUR_AWS_SECRET_ACCESS_KEY"
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: database-backup-sa
+  namespace: ridehailing
+  annotations:
+    # For AWS IRSA (IAM Roles for Service Accounts)
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT_ID:role/database-backup-role
+    # For GCP Workload Identity
+    iam.gke.io/gcp-service-account: database-backup@PROJECT_ID.iam.gserviceaccount.com
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backup-pvc
+  namespace: ridehailing
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: database-scripts
+  namespace: ridehailing
+data:
+  backup-database.sh: |
+    #!/bin/bash
+    # This is a placeholder - mount the actual backup script from your repo
+    # Or inline the complete script here
+    echo "Running database backup..."
+    # Include the full backup-database.sh script content here

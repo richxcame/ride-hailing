@@ -14,6 +14,7 @@ import (
 	"github.com/richxcame/ride-hailing/internal/mleta"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/database"
+	"github.com/richxcame/ride-hailing/pkg/errors"
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	redisClient "github.com/richxcame/ride-hailing/pkg/redis"
@@ -33,7 +34,7 @@ func main() {
 	defer cancelKeys()
 
 	// Initialize database (pgxpool)
-	dbPool, err := database.NewPostgresPool(&cfg.Database)
+	dbPool, err := database.NewPostgresPool(&cfg.Database, cfg.Timeout.DatabaseQueryTimeout)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
@@ -45,6 +46,17 @@ func main() {
 		log.Fatalf("Failed to connect to Redis: %v", err)
 	}
 	defer redis.Close()
+
+	// Initialize Sentry for error tracking
+	sentryConfig := errors.DefaultSentryConfig()
+	sentryConfig.ServerName = serviceName
+	sentryConfig.Release = "1.0.0"
+	if err := errors.InitSentry(sentryConfig); err != nil {
+		log.Printf("Warning: Failed to initialize Sentry, continuing without error tracking: %v", err)
+	} else {
+		defer errors.Flush(2 * time.Second)
+		log.Println("Sentry error tracking initialized successfully")
+	}
 
 	// Initialize ML ETA service
 	repo := mleta.NewRepository(dbPool, redis)
@@ -63,17 +75,52 @@ func main() {
 	// Setup Gin router
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
-	router.Use(gin.Recovery())
+	router.Use(middleware.RecoveryWithSentry()) // Custom recovery with Sentry
+	router.Use(middleware.SentryMiddleware())   // Sentry integration
 	router.Use(middleware.CorrelationID())
+	router.Use(middleware.RequestTimeout(&cfg.Timeout))
 	router.Use(middleware.RequestLogger(serviceName))
 	router.Use(middleware.CORS())
 	router.Use(middleware.SecurityHeaders())
 	router.Use(middleware.SanitizeRequest())
 	router.Use(middleware.Metrics(cfg.Server.ServiceName))
 
-	// Health check
+	// Add Sentry error handler (should be near the end of middleware chain)
+	router.Use(middleware.ErrorHandler())
+
+	// Health check endpoints
 	router.GET("/healthz", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "healthy", "service": "ml-eta"})
+		c.JSON(http.StatusOK, gin.H{"status": "healthy", "service": "ml-eta", "version": "1.0.0"})
+	})
+	router.GET("/health/live", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "alive", "service": "ml-eta", "version": "1.0.0"})
+	})
+
+	// Readiness probe with dependency checks
+	healthChecks := make(map[string]func() error)
+	healthChecks["database"] = func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		return dbPool.Ping(ctx)
+	}
+	healthChecks["redis"] = func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		return redis.Client.Ping(ctx).Err()
+	}
+
+	router.GET("/health/ready", func(c *gin.Context) {
+		allHealthy := true
+		for name, check := range healthChecks {
+			if err := check(); err != nil {
+				c.JSON(http.StatusServiceUnavailable, gin.H{"status": "not ready", "service": "ml-eta", "failed_check": name, "error": err.Error()})
+				allHealthy = false
+				return
+			}
+		}
+		if allHealthy {
+			c.JSON(http.StatusOK, gin.H{"status": "ready", "service": "ml-eta", "version": "1.0.0"})
+		}
 	})
 
 	// ML ETA API routes

@@ -109,10 +109,16 @@ github.com/fsnotify/fsnotify v1.4.9 h1:hsms1Qyu0jgnwNXIxa+/V/PDsU6CfLf6CNO8H7IWo
 github.com/fsnotify/fsnotify v1.4.9/go.mod h1:znqG4EE+3YCdAaPaxE2ZRY/06pZUdp0tY4IgpuI1SZQ=
 github.com/gabriel-vasile/mimetype v1.4.10 h1:zyueNbySn/z8mJZHLt6IPw0KoZsiQNszIpU+bX4+ZK0=
 github.com/gabriel-vasile/mimetype v1.4.10/go.mod h1:d+9Oxyo1wTzWdyVUPMmXFvp4F9tea18J8ufA774AB3s=
+github.com/getsentry/sentry-go v0.36.2 h1:uhuxRPTrUy0dnSzTd0LrYXlBYygLkKY0hhlG5LXarzM=
+github.com/getsentry/sentry-go v0.36.2/go.mod h1:p5Im24mJBeruET8Q4bbcMfCQ+F+Iadc4L48tB1apo2c=
+github.com/getsentry/sentry-go/gin v0.36.2 h1:HXd9B/oGW1Pzld431pYg4h3wQnCuusodhB9QT4lEsk8=
+github.com/getsentry/sentry-go/gin v0.36.2/go.mod h1:uiQvFjBrO1omB9maB1WqTeCPSZ3q7TFpj5vnwDi1hjE=
 github.com/gin-contrib/cors v1.7.6 h1:3gQ8GMzs1Ylpf70y8bMw4fVpycXIeX1ZemuSQIsnQQY=
 github.com/gin-contrib/cors v1.7.6/go.mod h1:Ulcl+xN4jel9t1Ry8vqph23a60FwH9xVLd+3ykmTjOk=
 github.com/gin-contrib/sse v1.1.0 h1:n0w2GMuUpWDVp7qSpvze6fAu9iRxJY4Hmj6AmBOU05w=
 github.com/gin-contrib/sse v1.1.0/go.mod h1:hxRZ5gVpWMT7Z0B0gSNYqqsSCNIJMjzvm6fqCz9vjwM=
+github.com/gin-contrib/timeout v1.1.0 h1:WAmWseo5gfBUbMrMJu5hJxDclehfSJUmK2wGwCC/EFw=
+github.com/gin-contrib/timeout v1.1.0/go.mod h1:NpRo4gd1Ad8ZQ4T6bQLVFDqiplCmPRs2nvfckxS2Fw4=
 github.com/gin-gonic/gin v1.10.1 h1:T0ujvqyCSqRopADpgPgiTT63DUQVSfojyME59Ei63pQ=
 github.com/gin-gonic/gin v1.10.1/go.mod h1:4PMNQiOhvDRa013RKVbsiNwoyezlm2rm0uX/T7kzp5Y=
 github.com/go-jose/go-jose/v4 v4.0.1 h1:QVEPDE3OluqXBQZDcnNvQrInro2h0e4eqNbnZSWqS6U=

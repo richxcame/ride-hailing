@@ -3,13 +3,16 @@ package httpclient
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/resilience"
@@ -41,17 +44,52 @@ func WithDefaultRetry() Option {
 	}
 }
 
-// NewClient creates a new HTTP client
-func NewClient(baseURL string, timeout time.Duration, opts ...Option) *Client {
-	client := &Client{
-		httpClient: &http.Client{
-			Timeout: timeout,
-		},
-		baseURL: baseURL,
+// NewClient creates a new HTTP client with proper timeouts and connection pooling
+// If timeout is not provided or is 0, uses config.DefaultHTTPClientTimeout
+func NewClient(baseURL string, timeout ...time.Duration) *Client {
+	timeoutDuration := config.DefaultHTTPClientTimeoutDuration()
+	if len(timeout) > 0 && timeout[0] > 0 {
+		timeoutDuration = timeout[0]
 	}
 
-	for _, opt := range opts {
-		opt(client)
+	// Create custom transport with granular timeouts and connection pooling
+	transport := &http.Transport{
+		// Connection timeout
+		DialContext: (&net.Dialer{
+			Timeout:   10 * time.Second, // Time to establish connection
+			KeepAlive: 30 * time.Second, // Keep-alive probe interval
+		}).DialContext,
+
+		// TLS handshake timeout
+		TLSHandshakeTimeout: 10 * time.Second,
+
+		// Response header timeout (time to receive headers after request sent)
+		ResponseHeaderTimeout: 10 * time.Second,
+
+		// Expect: 100-continue timeout
+		ExpectContinueTimeout: 1 * time.Second,
+
+		// Connection pool settings
+		MaxIdleConns:        100,             // Total idle connections across all hosts
+		MaxIdleConnsPerHost: 10,              // Idle connections per host
+		MaxConnsPerHost:     100,             // Max connections per host (0 = unlimited)
+		IdleConnTimeout:     90 * time.Second, // How long idle connections stay in pool
+
+		// Force HTTP/2 for better performance
+		ForceAttemptHTTP2: true,
+
+		// TLS configuration
+		TLSClientConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12, // Minimum TLS 1.2
+		},
+	}
+
+	client := &Client{
+		httpClient: &http.Client{
+			Timeout:   timeoutDuration, // Overall request timeout
+			Transport: transport,
+		},
+		baseURL: baseURL,
 	}
 
 	return client
