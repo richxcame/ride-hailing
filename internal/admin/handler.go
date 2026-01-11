@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/pkg/common"
+	"github.com/richxcame/ride-hailing/pkg/pagination"
 )
 
 // Handler handles HTTP requests for admin operations
@@ -37,10 +38,9 @@ func (h *Handler) GetDashboard(c *gin.Context) {
 
 // GetAllUsers retrieves all users with pagination
 func (h *Handler) GetAllUsers(c *gin.Context) {
-	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+	params := pagination.ParseParams(c)
 
-	users, total, err := h.service.GetAllUsers(c.Request.Context(), limit, offset)
+	users, total, err := h.service.GetAllUsers(c.Request.Context(), params.Limit, params.Offset)
 	if err != nil {
 		if appErr, ok := err.(*common.AppError); ok {
 			common.AppErrorResponse(c, appErr)
@@ -50,12 +50,7 @@ func (h *Handler) GetAllUsers(c *gin.Context) {
 		return
 	}
 
-	meta := &common.Meta{
-		Limit:  limit,
-		Offset: offset,
-		Total:  int64(total),
-	}
-
+	meta := pagination.BuildMeta(params.Limit, params.Offset, int64(total))
 	common.SuccessResponseWithMeta(c, users, meta)
 }
 
