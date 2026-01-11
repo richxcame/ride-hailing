@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/richxcame/ride-hailing/internal/admin"
+	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/errors"
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
@@ -154,7 +155,8 @@ func main() {
 	// Health check endpoints
 	router.GET("/healthz", handler.HealthCheck)
 	router.GET("/health/live", func(c *gin.Context) {
-		c.JSON(200, gin.H{"status": "alive", "service": "admin-service", "version": "1.0.0"})
+		healthData := gin.H{"status": "alive", "service": "admin-service", "version": "1.0.0"}
+		common.SuccessResponse(c, healthData)
 	})
 
 	// Readiness probe with dependency checks
@@ -166,17 +168,15 @@ func main() {
 	}
 
 	router.GET("/health/ready", func(c *gin.Context) {
-		allHealthy := true
 		for name, check := range healthChecks {
 			if err := check(); err != nil {
-				c.JSON(503, gin.H{"status": "not ready", "service": "admin-service", "failed_check": name, "error": err.Error()})
-				allHealthy = false
+				errorMsg := fmt.Sprintf("Service not ready: %s check failed - %s", name, err.Error())
+				common.ErrorResponse(c, 503, errorMsg)
 				return
 			}
 		}
-		if allHealthy {
-			c.JSON(200, gin.H{"status": "ready", "service": "admin-service", "version": "1.0.0"})
-		}
+		healthData := gin.H{"status": "ready", "service": "admin-service", "version": "1.0.0"}
+		common.SuccessResponse(c, healthData)
 	})
 
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
