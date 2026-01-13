@@ -189,6 +189,15 @@ func main() {
 		// Dashboard
 		api.GET("/dashboard", handler.GetDashboard)
 
+		// Dashboard analytics endpoints
+		dashboard := api.Group("/dashboard")
+		{
+			dashboard.GET("/realtime", handler.GetRealtimeMetrics)
+			dashboard.GET("/summary", handler.GetDashboardSummary)
+			dashboard.GET("/revenue-trend", handler.GetRevenueTrend)
+			dashboard.GET("/action-items", handler.GetActionItems)
+		}
+
 		// User management
 		users := api.Group("/users")
 		{

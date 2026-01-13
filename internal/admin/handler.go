@@ -251,3 +251,68 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 	}
 	common.SuccessResponse(c, healthData)
 }
+
+// GetRealtimeMetrics retrieves real-time dashboard metrics
+func (h *Handler) GetRealtimeMetrics(c *gin.Context) {
+	metrics, err := h.service.GetRealtimeMetrics(c.Request.Context())
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			common.AppErrorResponse(c, appErr)
+			return
+		}
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch realtime metrics")
+		return
+	}
+
+	common.SuccessResponse(c, metrics)
+}
+
+// GetDashboardSummary retrieves comprehensive dashboard summary
+func (h *Handler) GetDashboardSummary(c *gin.Context) {
+	period := c.DefaultQuery("period", "today")
+
+	summary, err := h.service.GetDashboardSummary(c.Request.Context(), period)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			common.AppErrorResponse(c, appErr)
+			return
+		}
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch dashboard summary")
+		return
+	}
+
+	common.SuccessResponse(c, summary)
+}
+
+// GetRevenueTrend retrieves revenue trend data for charts
+func (h *Handler) GetRevenueTrend(c *gin.Context) {
+	period := c.DefaultQuery("period", "7days")
+	groupBy := c.DefaultQuery("group_by", "day")
+
+	trend, err := h.service.GetRevenueTrend(c.Request.Context(), period, groupBy)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			common.AppErrorResponse(c, appErr)
+			return
+		}
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch revenue trend")
+		return
+	}
+
+	common.SuccessResponse(c, trend)
+}
+
+// GetActionItems retrieves items requiring admin attention
+func (h *Handler) GetActionItems(c *gin.Context) {
+	items, err := h.service.GetActionItems(c.Request.Context())
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			common.AppErrorResponse(c, appErr)
+			return
+		}
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch action items")
+		return
+	}
+
+	common.SuccessResponse(c, items)
+}

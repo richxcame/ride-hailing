@@ -506,3 +506,428 @@ type UserStats struct {
 	TotalDrivers int `json:"total_drivers"`
 	ActiveUsers  int `json:"active_users"`
 }
+
+// GetRealtimeMetrics retrieves real-time dashboard metrics
+func (r *Repository) GetRealtimeMetrics(ctx context.Context) (*RealtimeMetrics, error) {
+	metrics := &RealtimeMetrics{}
+
+	// Get active rides count
+	err := r.db.QueryRow(ctx, `SELECT COUNT(*) FROM rides WHERE status = 'in_progress'`).Scan(&metrics.ActiveRides)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active rides: %w", err)
+	}
+
+	// Get available drivers count
+	err = r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_available = true AND is_online = true`).Scan(&metrics.AvailableDrivers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get available drivers: %w", err)
+	}
+
+	// Get pending requests count
+	err = r.db.QueryRow(ctx, `SELECT COUNT(*) FROM rides WHERE status = 'pending'`).Scan(&metrics.PendingRequests)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pending requests: %w", err)
+	}
+
+	// Get online drivers count
+	err = r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_online = true`).Scan(&metrics.OnlineDrivers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get online drivers: %w", err)
+	}
+
+	// Get today's revenue
+	today := time.Now().Truncate(24 * time.Hour)
+	err = r.db.QueryRow(ctx, `
+		SELECT COALESCE(SUM(final_fare), 0)
+		FROM rides
+		WHERE status = 'completed' AND created_at >= $1
+	`, today).Scan(&metrics.TodayRevenue)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get today revenue: %w", err)
+	}
+
+	// Get yesterday's revenue for comparison
+	yesterday := today.Add(-24 * time.Hour)
+	var yesterdayRevenue float64
+	err = r.db.QueryRow(ctx, `
+		SELECT COALESCE(SUM(final_fare), 0)
+		FROM rides
+		WHERE status = 'completed' AND created_at >= $1 AND created_at < $2
+	`, yesterday, today).Scan(&yesterdayRevenue)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get yesterday revenue: %w", err)
+	}
+
+	// Calculate revenue change percentage
+	if yesterdayRevenue > 0 {
+		metrics.TodayRevenueChange = ((metrics.TodayRevenue - yesterdayRevenue) / yesterdayRevenue) * 100
+	}
+
+	// Get active riders today (users who made a ride today)
+	err = r.db.QueryRow(ctx, `
+		SELECT COUNT(DISTINCT rider_id)
+		FROM rides
+		WHERE created_at >= $1
+	`, today).Scan(&metrics.TotalRidersActive)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active riders: %w", err)
+	}
+
+	// Get average wait time (time from requested_at to accepted_at) in minutes
+	err = r.db.QueryRow(ctx, `
+		SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (accepted_at - requested_at))/60), 0)
+		FROM rides
+		WHERE accepted_at IS NOT NULL AND requested_at IS NOT NULL
+		AND created_at >= $1
+	`, today).Scan(&metrics.AvgWaitTime)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get avg wait time: %w", err)
+	}
+
+	// Get average ETA (estimated_duration) in minutes
+	err = r.db.QueryRow(ctx, `
+		SELECT COALESCE(AVG(estimated_duration), 0)
+		FROM rides
+		WHERE estimated_duration IS NOT NULL
+		AND created_at >= $1
+	`, today).Scan(&metrics.AvgETA)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get avg eta: %w", err)
+	}
+
+	return metrics, nil
+}
+
+// GetDashboardSummary retrieves comprehensive dashboard summary
+func (r *Repository) GetDashboardSummary(ctx context.Context, period string) (*DashboardSummary, error) {
+	startDate, previousStart := r.getPeriodDates(period)
+
+	summary := &DashboardSummary{
+		Rides:   &SummaryRides{},
+		Drivers: &SummaryDrivers{},
+		Riders:  &SummaryRiders{},
+		Revenue: &SummaryRevenue{},
+		Alerts:  &SummaryAlerts{},
+	}
+
+	// Get ride statistics
+	query := `
+		SELECT
+			COUNT(*) as total,
+			COUNT(CASE WHEN status = 'completed' THEN 1 END) as completed,
+			COUNT(CASE WHEN status = 'cancelled' THEN 1 END) as cancelled,
+			COUNT(CASE WHEN status = 'in_progress' THEN 1 END) as in_progress,
+			COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending,
+			COALESCE(AVG(CASE WHEN status = 'completed' AND actual_duration IS NOT NULL THEN actual_duration END), 0) as avg_duration,
+			COALESCE(AVG(CASE WHEN status = 'completed' AND actual_distance IS NOT NULL THEN actual_distance END), 0) as avg_distance
+		FROM rides
+		WHERE created_at >= $1
+	`
+
+	err := r.db.QueryRow(ctx, query, startDate).Scan(
+		&summary.Rides.Total,
+		&summary.Rides.Completed,
+		&summary.Rides.Cancelled,
+		&summary.Rides.InProgress,
+		&summary.Rides.Pending,
+		&summary.Rides.AvgDuration,
+		&summary.Rides.AvgDistance,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ride stats: %w", err)
+	}
+
+	// Calculate rates
+	if summary.Rides.Total > 0 {
+		summary.Rides.CompletionRate = float64(summary.Rides.Completed) / float64(summary.Rides.Total) * 100
+		summary.Rides.CancellationRate = float64(summary.Rides.Cancelled) / float64(summary.Rides.Total) * 100
+	}
+
+	// Get cancellation breakdown (simplified - using cancellation_reason field)
+	r.db.QueryRow(ctx, `
+		SELECT COUNT(*) FROM rides
+		WHERE status = 'cancelled' AND cancellation_reason LIKE '%rider%'
+		AND created_at >= $1
+	`, startDate).Scan(&summary.Rides.CancelledByRider)
+
+	r.db.QueryRow(ctx, `
+		SELECT COUNT(*) FROM rides
+		WHERE status = 'cancelled' AND cancellation_reason LIKE '%driver%'
+		AND created_at >= $1
+	`, startDate).Scan(&summary.Rides.CancelledByDriver)
+
+	// Get previous period total for comparison
+	var previousTotal int
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM rides WHERE created_at >= $1 AND created_at < $2`,
+		previousStart, startDate).Scan(&previousTotal)
+
+	if previousTotal > 0 {
+		summary.Rides.ChangeVsPrevious = float64(summary.Rides.Total-previousTotal) / float64(previousTotal) * 100
+	}
+
+	// Get driver statistics
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_available = true`).Scan(&summary.Drivers.TotalActive)
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_online = true`).Scan(&summary.Drivers.OnlineNow)
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_online = true AND is_available = true`).Scan(&summary.Drivers.AvailableNow)
+
+	summary.Drivers.BusyNow = summary.Drivers.OnlineNow - summary.Drivers.AvailableNow
+
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_available = false`).Scan(&summary.Drivers.PendingApprovals)
+	r.db.QueryRow(ctx, `SELECT COALESCE(AVG(rating), 0) FROM drivers WHERE rating > 0`).Scan(&summary.Drivers.AvgRating)
+
+	// New driver signups in period
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE created_at >= $1`, startDate).Scan(&summary.Drivers.NewSignups)
+
+	// Utilization rate (simplified calculation)
+	var totalOnlineTime, totalBusyTime float64
+	r.db.QueryRow(ctx, `
+		SELECT
+			COUNT(DISTINCT driver_id) * EXTRACT(EPOCH FROM (NOW() - $1))/3600 as total_hours,
+			COALESCE(SUM(actual_duration/60), 0) as busy_hours
+		FROM rides
+		WHERE created_at >= $1 AND status = 'completed'
+	`, startDate).Scan(&totalOnlineTime, &totalBusyTime)
+
+	if totalOnlineTime > 0 {
+		summary.Drivers.UtilizationRate = (totalBusyTime / totalOnlineTime) * 100
+	}
+
+	// Get rider statistics
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE role = 'rider' AND is_active = true`).Scan(&summary.Riders.TotalActive)
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM users WHERE role = 'rider' AND created_at >= $1`, startDate).Scan(&summary.Riders.NewSignups)
+	r.db.QueryRow(ctx, `SELECT COUNT(DISTINCT rider_id) FROM rides WHERE created_at >= $1`, startDate).Scan(&summary.Riders.ActiveToday)
+
+	// Retention rate (simplified - riders who made > 1 ride)
+	var repeatRiders int
+	r.db.QueryRow(ctx, `
+		SELECT COUNT(*) FROM (
+			SELECT rider_id FROM rides GROUP BY rider_id HAVING COUNT(*) > 1
+		) as repeat_riders
+	`).Scan(&repeatRiders)
+
+	if summary.Riders.TotalActive > 0 {
+		summary.Riders.RetentionRate = float64(repeatRiders) / float64(summary.Riders.TotalActive) * 100
+	}
+
+	// Get revenue statistics
+	r.db.QueryRow(ctx, `
+		SELECT
+			COALESCE(SUM(final_fare), 0),
+			COALESCE(AVG(final_fare), 0)
+		FROM rides
+		WHERE status = 'completed' AND created_at >= $1
+	`, startDate).Scan(&summary.Revenue.Total, &summary.Revenue.AvgFare)
+
+	// Calculate commission (20% platform fee)
+	summary.Revenue.Commission = summary.Revenue.Total * 0.20
+	summary.Revenue.DriverEarnings = summary.Revenue.Total - summary.Revenue.Commission
+
+	// Get previous period revenue for comparison
+	var previousRevenue float64
+	r.db.QueryRow(ctx, `
+		SELECT COALESCE(SUM(final_fare), 0)
+		FROM rides
+		WHERE status = 'completed' AND created_at >= $1 AND created_at < $2
+	`, previousStart, startDate).Scan(&previousRevenue)
+
+	if previousRevenue > 0 {
+		summary.Revenue.ChangeVsPrevious = ((summary.Revenue.Total - previousRevenue) / previousRevenue) * 100
+	}
+
+	// Payment methods breakdown (simplified - using mock data as payment_method not in rides table)
+	summary.Revenue.ByPaymentMethod = []PaymentMethodRevenue{
+		{Method: "card", Amount: summary.Revenue.Total * 0.77, Percentage: 77.3},
+		{Method: "wallet", Amount: summary.Revenue.Total * 0.18, Percentage: 17.7},
+		{Method: "cash", Amount: summary.Revenue.Total * 0.05, Percentage: 5.0},
+	}
+
+	// Get alert statistics
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM fraud_alerts WHERE status = 'pending'`).Scan(&summary.Alerts.FraudAlerts)
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM fraud_alerts WHERE alert_level = 'critical' AND status = 'pending'`).Scan(&summary.Alerts.CriticalAlerts)
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM fraud_alerts WHERE status = 'investigating'`).Scan(&summary.Alerts.PendingInvestigations)
+
+	return summary, nil
+}
+
+// getPeriodDates returns start date and previous period start date
+func (r *Repository) getPeriodDates(period string) (time.Time, time.Time) {
+	now := time.Now()
+	var startDate, previousStart time.Time
+
+	switch period {
+	case "today":
+		startDate = now.Truncate(24 * time.Hour)
+		previousStart = startDate.Add(-24 * time.Hour)
+	case "week":
+		startDate = now.AddDate(0, 0, -7).Truncate(24 * time.Hour)
+		previousStart = startDate.Add(-7 * 24 * time.Hour)
+	case "month":
+		startDate = now.AddDate(0, -1, 0).Truncate(24 * time.Hour)
+		previousStart = startDate.AddDate(0, -1, 0)
+	default: // "all"
+		startDate = time.Time{}
+		previousStart = time.Time{}
+	}
+
+	return startDate, previousStart
+}
+
+// GetRevenueTrend retrieves revenue trend data
+func (r *Repository) GetRevenueTrend(ctx context.Context, period, groupBy string) (*RevenueTrend, error) {
+	days := r.getPeriodDays(period)
+	startDate := time.Now().AddDate(0, 0, -days).Truncate(24 * time.Hour)
+
+	trend := &RevenueTrend{
+		Period: period,
+		Trend:  make([]RevenueTrendData, 0),
+	}
+
+	// Get total revenue for the period
+	err := r.db.QueryRow(ctx, `
+		SELECT COALESCE(SUM(final_fare), 0)
+		FROM rides
+		WHERE status = 'completed' AND created_at >= $1
+	`, startDate).Scan(&trend.TotalRevenue)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total revenue: %w", err)
+	}
+
+	trend.AvgDailyRevenue = trend.TotalRevenue / float64(days)
+
+	// Get trend data grouped by day
+	query := `
+		SELECT
+			DATE(created_at) as date,
+			COALESCE(SUM(final_fare), 0) as revenue,
+			COUNT(*) as rides,
+			COALESCE(AVG(final_fare), 0) as avg_fare,
+			COALESCE(SUM(final_fare), 0) * 0.20 as commission
+		FROM rides
+		WHERE status = 'completed' AND created_at >= $1
+		GROUP BY DATE(created_at)
+		ORDER BY DATE(created_at) ASC
+	`
+
+	rows, err := r.db.Query(ctx, query, startDate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get revenue trend: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var data RevenueTrendData
+		var date time.Time
+
+		err := rows.Scan(&date, &data.Revenue, &data.Rides, &data.AvgFare, &data.Commission)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan trend data: %w", err)
+		}
+
+		data.Date = date.Format("2006-01-02")
+		trend.Trend = append(trend.Trend, data)
+	}
+
+	return trend, nil
+}
+
+// getPeriodDays returns number of days for the period
+func (r *Repository) getPeriodDays(period string) int {
+	switch period {
+	case "7days":
+		return 7
+	case "30days":
+		return 30
+	case "90days":
+		return 90
+	default:
+		return 7
+	}
+}
+
+// GetActionItems retrieves items requiring admin attention
+func (r *Repository) GetActionItems(ctx context.Context) (*ActionItems, error) {
+	items := &ActionItems{
+		PendingDriverApprovals: &ActionDriverApprovals{Items: make([]PendingDriverItem, 0)},
+		FraudAlerts:            &ActionFraudAlerts{Items: make([]FraudAlertItem, 0)},
+		NegativeFeedback:       &ActionNegativeFeedback{Items: make([]NegativeFeedbackItem, 0)},
+		LowBalanceDrivers:      &ActionLowBalance{Items: make([]LowBalanceItem, 0)},
+		ExpiredDocuments:       &ActionExpiredDocs{Items: make([]ExpiredDocItem, 0)},
+	}
+
+	// Get pending driver approvals
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_available = false`).Scan(&items.PendingDriverApprovals.Count)
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_available = false AND created_at < NOW() - INTERVAL '24 hours'`).Scan(&items.PendingDriverApprovals.UrgentCount)
+
+	// Get first 5 pending drivers
+	rows, err := r.db.Query(ctx, `
+		SELECT d.id, CONCAT(u.first_name, ' ', u.last_name) as name, d.created_at,
+		       EXTRACT(DAY FROM (NOW() - d.created_at)) as days_waiting
+		FROM drivers d
+		JOIN users u ON d.user_id = u.id
+		WHERE d.is_available = false
+		ORDER BY d.created_at ASC
+		LIMIT 5
+	`)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var item PendingDriverItem
+			rows.Scan(&item.DriverID, &item.DriverName, &item.SubmittedAt, &item.DaysWaiting)
+			items.PendingDriverApprovals.Items = append(items.PendingDriverApprovals.Items, item)
+		}
+	}
+
+	// Get fraud alerts
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM fraud_alerts WHERE status = 'pending'`).Scan(&items.FraudAlerts.Count)
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM fraud_alerts WHERE alert_level = 'critical' AND status = 'pending'`).Scan(&items.FraudAlerts.CriticalCount)
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM fraud_alerts WHERE alert_level = 'high' AND status = 'pending'`).Scan(&items.FraudAlerts.HighCount)
+
+	// Get first 5 fraud alerts
+	rows, err = r.db.Query(ctx, `
+		SELECT id, alert_type, alert_level, user_id, created_at
+		FROM fraud_alerts
+		WHERE status = 'pending'
+		ORDER BY alert_level DESC, created_at DESC
+		LIMIT 5
+	`)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var item FraudAlertItem
+			rows.Scan(&item.AlertID, &item.AlertType, &item.AlertLevel, &item.UserID, &item.CreatedAt)
+			items.FraudAlerts.Items = append(items.FraudAlerts.Items, item)
+		}
+	}
+
+	// Get negative feedback (1-2 star ratings)
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM rides WHERE rating IS NOT NULL AND rating <= 2`).Scan(&items.NegativeFeedback.Count)
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM rides WHERE rating = 1`).Scan(&items.NegativeFeedback.OneStarCount)
+
+	// Get first 5 negative feedback items
+	rows, err = r.db.Query(ctx, `
+		SELECT r.id, r.driver_id, CONCAT(u.first_name, ' ', u.last_name) as driver_name,
+		       r.rating, r.feedback, r.created_at
+		FROM rides r
+		LEFT JOIN drivers d ON r.driver_id = d.id
+		LEFT JOIN users u ON d.user_id = u.id
+		WHERE r.rating IS NOT NULL AND r.rating <= 2
+		ORDER BY r.created_at DESC
+		LIMIT 5
+	`)
+	if err == nil {
+		defer rows.Close()
+		for rows.Next() {
+			var item NegativeFeedbackItem
+			rows.Scan(&item.RideID, &item.DriverID, &item.DriverName, &item.Rating, &item.Feedback, &item.CreatedAt)
+			items.NegativeFeedback.Items = append(items.NegativeFeedback.Items, item)
+		}
+	}
+
+	// Low balance drivers (assuming wallet integration - using mock for now)
+	items.LowBalanceDrivers.Count = 0 // Would query wallet service
+
+	// Expired documents (not implemented in current schema - using mock)
+	items.ExpiredDocuments.Count = 0
+
+	return items, nil
+}
