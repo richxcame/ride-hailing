@@ -201,6 +201,7 @@ func main() {
 		// Driver management
 		drivers := api.Group("/drivers")
 		{
+			drivers.GET("", handler.GetAllDrivers)
 			drivers.GET("/pending", handler.GetPendingDrivers)
 			drivers.POST("/:id/approve", handler.ApproveDriver)
 			drivers.POST("/:id/reject", handler.RejectDriver)

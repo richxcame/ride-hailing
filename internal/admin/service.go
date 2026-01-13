@@ -45,9 +45,28 @@ func (s *Service) ActivateUser(ctx context.Context, userID uuid.UUID) error {
 	return s.repo.UpdateUserStatus(ctx, userID, true)
 }
 
+// GetAllDrivers retrieves all drivers with pagination
+func (s *Service) GetAllDrivers(ctx context.Context, limit, offset int) ([]*models.Driver, int64, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	return s.repo.GetAllDriversWithTotal(ctx, limit, offset)
+}
+
 // GetPendingDrivers retrieves drivers awaiting approval
-func (s *Service) GetPendingDrivers(ctx context.Context) ([]*models.Driver, error) {
-	return s.repo.GetPendingDrivers(ctx)
+func (s *Service) GetPendingDrivers(ctx context.Context, limit, offset int) ([]*models.Driver, int64, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	return s.repo.GetPendingDriversWithTotal(ctx, limit, offset)
 }
 
 // ApproveDriver approves a driver application

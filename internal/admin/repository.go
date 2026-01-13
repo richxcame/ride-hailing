@@ -43,7 +43,7 @@ func (r *Repository) GetAllUsers(ctx context.Context, limit, offset int) ([]*mod
 	}
 	defer rows.Close()
 
-	var users []*models.User
+	users := make([]*models.User, 0)
 	for rows.Next() {
 		user := &models.User{}
 		err := rows.Scan(
@@ -110,13 +110,69 @@ func (r *Repository) UpdateUserStatus(ctx context.Context, id uuid.UUID, isActiv
 	return nil
 }
 
-// GetPendingDrivers retrieves all drivers (simplified - no approval field in current model)
+// GetAllDriversWithTotal retrieves all drivers with pagination and total count
+func (r *Repository) GetAllDriversWithTotal(ctx context.Context, limit, offset int) ([]*models.Driver, int64, error) {
+	// Get total count
+	var total int64
+	countQuery := `SELECT COUNT(*) FROM drivers`
+	err := r.db.QueryRow(ctx, countQuery).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count drivers: %w", err)
+	}
+
+	// Get paginated drivers
+	query := `
+		SELECT d.id, d.user_id, d.license_number, d.vehicle_model, d.vehicle_plate,
+		       d.vehicle_color, d.vehicle_year, d.is_available, d.is_online,
+		       d.rating, d.total_rides, d.created_at, d.updated_at
+		FROM drivers d
+		ORDER BY d.created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+
+	rows, err := r.db.Query(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get drivers: %w", err)
+	}
+	defer rows.Close()
+
+	drivers := make([]*models.Driver, 0)
+	for rows.Next() {
+		driver := &models.Driver{}
+
+		err := rows.Scan(
+			&driver.ID,
+			&driver.UserID,
+			&driver.LicenseNumber,
+			&driver.VehicleModel,
+			&driver.VehiclePlate,
+			&driver.VehicleColor,
+			&driver.VehicleYear,
+			&driver.IsAvailable,
+			&driver.IsOnline,
+			&driver.Rating,
+			&driver.TotalRides,
+			&driver.CreatedAt,
+			&driver.UpdatedAt,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan driver: %w", err)
+		}
+
+		drivers = append(drivers, driver)
+	}
+
+	return drivers, total, nil
+}
+
+// GetPendingDrivers retrieves pending (not yet approved) drivers
 func (r *Repository) GetPendingDrivers(ctx context.Context) ([]*models.Driver, error) {
 	query := `
 		SELECT d.id, d.user_id, d.license_number, d.vehicle_model, d.vehicle_plate,
 		       d.vehicle_color, d.vehicle_year, d.is_available, d.is_online,
 		       d.rating, d.total_rides, d.created_at, d.updated_at
 		FROM drivers d
+		WHERE d.is_available = false
 		ORDER BY d.created_at DESC
 		LIMIT 100
 	`
@@ -127,7 +183,7 @@ func (r *Repository) GetPendingDrivers(ctx context.Context) ([]*models.Driver, e
 	}
 	defer rows.Close()
 
-	var drivers []*models.Driver
+	drivers := make([]*models.Driver, 0)
 	for rows.Next() {
 		driver := &models.Driver{}
 
@@ -154,6 +210,62 @@ func (r *Repository) GetPendingDrivers(ctx context.Context) ([]*models.Driver, e
 	}
 
 	return drivers, nil
+}
+
+// GetPendingDriversWithTotal retrieves pending (not yet approved) drivers with pagination and total count
+func (r *Repository) GetPendingDriversWithTotal(ctx context.Context, limit, offset int) ([]*models.Driver, int64, error) {
+	// Get total count of pending drivers (is_available = false means pending approval)
+	var total int64
+	countQuery := `SELECT COUNT(*) FROM drivers WHERE is_available = false`
+	err := r.db.QueryRow(ctx, countQuery).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count pending drivers: %w", err)
+	}
+
+	// Get paginated pending drivers
+	query := `
+		SELECT d.id, d.user_id, d.license_number, d.vehicle_model, d.vehicle_plate,
+		       d.vehicle_color, d.vehicle_year, d.is_available, d.is_online,
+		       d.rating, d.total_rides, d.created_at, d.updated_at
+		FROM drivers d
+		WHERE d.is_available = false
+		ORDER BY d.created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+
+	rows, err := r.db.Query(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get drivers: %w", err)
+	}
+	defer rows.Close()
+
+	drivers := make([]*models.Driver, 0)
+	for rows.Next() {
+		driver := &models.Driver{}
+
+		err := rows.Scan(
+			&driver.ID,
+			&driver.UserID,
+			&driver.LicenseNumber,
+			&driver.VehicleModel,
+			&driver.VehiclePlate,
+			&driver.VehicleColor,
+			&driver.VehicleYear,
+			&driver.IsAvailable,
+			&driver.IsOnline,
+			&driver.Rating,
+			&driver.TotalRides,
+			&driver.CreatedAt,
+			&driver.UpdatedAt,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan driver: %w", err)
+		}
+
+		drivers = append(drivers, driver)
+	}
+
+	return drivers, total, nil
 }
 
 // ApproveDriver sets a driver as available (simplified approval)
@@ -266,7 +378,7 @@ func (r *Repository) GetRecentRides(ctx context.Context, limit int) ([]*models.R
 	}
 	defer rows.Close()
 
-	var rides []*models.Ride
+	rides := make([]*models.Ride, 0)
 	for rows.Next() {
 		ride := &models.Ride{}
 		err := rows.Scan(
@@ -336,7 +448,7 @@ func (r *Repository) GetRecentRidesWithTotal(ctx context.Context, limit, offset 
 	}
 	defer rows.Close()
 
-	var rides []*models.Ride
+	rides := make([]*models.Ride, 0)
 	for rows.Next() {
 		ride := &models.Ride{}
 		err := rows.Scan(

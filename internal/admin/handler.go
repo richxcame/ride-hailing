@@ -114,9 +114,29 @@ func (h *Handler) ActivateUser(c *gin.Context) {
 	common.SuccessResponseWithStatus(c, http.StatusOK, nil, "User activated successfully")
 }
 
+// GetAllDrivers retrieves all drivers with pagination
+func (h *Handler) GetAllDrivers(c *gin.Context) {
+	params := pagination.ParseParams(c)
+
+	drivers, total, err := h.service.GetAllDrivers(c.Request.Context(), params.Limit, params.Offset)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			common.AppErrorResponse(c, appErr)
+			return
+		}
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch drivers")
+		return
+	}
+
+	meta := pagination.BuildMeta(params.Limit, params.Offset, total)
+	common.SuccessResponseWithMeta(c, drivers, meta)
+}
+
 // GetPendingDrivers retrieves drivers awaiting approval
 func (h *Handler) GetPendingDrivers(c *gin.Context) {
-	drivers, err := h.service.GetPendingDrivers(c.Request.Context())
+	params := pagination.ParseParams(c)
+
+	drivers, total, err := h.service.GetPendingDrivers(c.Request.Context(), params.Limit, params.Offset)
 	if err != nil {
 		if appErr, ok := err.(*common.AppError); ok {
 			common.AppErrorResponse(c, appErr)
@@ -126,7 +146,8 @@ func (h *Handler) GetPendingDrivers(c *gin.Context) {
 		return
 	}
 
-	common.SuccessResponse(c, drivers)
+	meta := pagination.BuildMeta(params.Limit, params.Offset, total)
+	common.SuccessResponseWithMeta(c, drivers, meta)
 }
 
 // ApproveDriver approves a driver application
