@@ -112,24 +112,6 @@
 					}
 				},
 				{
-					"name": "Register Admin",
-					"request": {
-						"auth": {"type": "noauth"},
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"AdminPass123!\",\n  \"first_name\": \"Admin\",\n  \"last_name\": \"User\",\n  \"phone_number\": \"+1234567892\",\n  \"role\": \"admin\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/auth/register",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "auth", "register"]
-						},
-						"description": "Register a new admin account.\n\n**Note:** In production, admin registration should be restricted."
-					}
-				},
-				{
 					"name": "Login",
 					"event": [
 						{
