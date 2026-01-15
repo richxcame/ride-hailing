@@ -39,13 +39,24 @@ setup: install-tools tidy ## Initial project setup
 	@echo "  4. Run 'make run-auth' (or any service) to start developing"
 
 dev: dev-infra ## Start lightweight development environment (Postgres + Redis only)
-	@echo "$(YELLOW)Waiting for PostgreSQL to be ready...$(NC)"
-	@sleep 3
-	@until docker exec ridehailing-postgres-dev pg_isready -U postgres > /dev/null 2>&1; do \
-		echo "$(YELLOW)Waiting for PostgreSQL...$(NC)"; \
-		sleep 1; \
+	@echo "$(YELLOW)Waiting for PostgreSQL to be healthy...$(NC)"
+	@timeout=60; \
+	while [ $$timeout -gt 0 ]; do \
+		status=$$(docker inspect --format='{{.State.Health.Status}}' ridehailing-postgres-dev 2>/dev/null || echo "starting"); \
+		if [ "$$status" = "healthy" ]; then \
+			break; \
+		fi; \
+		echo "$(YELLOW)PostgreSQL status: $$status (waiting... $${timeout}s remaining)$(NC)"; \
+		sleep 2; \
+		timeout=$$((timeout - 2)); \
 	done
-	@echo "$(GREEN)✓ PostgreSQL is ready!$(NC)"
+	@status=$$(docker inspect --format='{{.State.Health.Status}}' ridehailing-postgres-dev 2>/dev/null); \
+	if [ "$$status" != "healthy" ]; then \
+		echo "$(RED)Error: PostgreSQL failed to become healthy$(NC)"; \
+		exit 1; \
+	fi
+	@echo "$(GREEN)✓ PostgreSQL is healthy!$(NC)"
+	@sleep 2
 	@$(MAKE) migrate-up
 	@echo "$(GREEN)✓ Development environment ready!$(NC)"
 	@echo "Run 'make run-<service>' to start a service"
@@ -208,25 +219,44 @@ stop-all: ## Stop all running services
 
 run-all-tmux: ## Run all services in tmux (better for development)
 	@echo "$(YELLOW)Starting all services in tmux...$(NC)"
-	@echo "$(YELLOW)Note: This will start all services in a tmux session.$(NC)"
+	@echo "$(YELLOW)Note: This will start all services in a tmux session with multiple windows.$(NC)"
 	@echo "$(YELLOW)Make sure tmux is installed: brew install tmux (macOS) or apt install tmux (Linux)$(NC)"
 	@echo ""
 	@if ! command -v tmux &> /dev/null; then \
 		echo "$(RED)Error: tmux is not installed. Install it or use 'make run-all' instead.$(NC)"; \
 		exit 1; \
 	fi
-	@tmux new-session -d -s ridehailing 'make run-auth' \; \
-		split-window -v 'make run-rides' \; \
-		split-window -v 'make run-geo' \; \
-		split-window -v 'make run-payments' \; \
-		select-layout tiled \; \
-		split-window -v 'make run-notifications' \; \
-		split-window -v 'make run-realtime' \; \
-		split-window -v 'make run-fraud' \; \
-		split-window -v 'make run-analytics' \; \
-		split-window -v 'make run-admin' \; \
-		select-layout tiled
-	@echo "$(GREEN)✓ All services started in tmux session 'ridehailing'$(NC)"
+	@tmux kill-session -t ridehailing 2>/dev/null || true
+	@tmux new-session -d -s ridehailing -n auth 'make run-auth'
+	@tmux new-window -t ridehailing -n rides 'make run-rides'
+	@tmux new-window -t ridehailing -n geo 'make run-geo'
+	@tmux new-window -t ridehailing -n payments 'make run-payments'
+	@tmux new-window -t ridehailing -n notifications 'make run-notifications'
+	@tmux new-window -t ridehailing -n realtime 'make run-realtime'
+	@tmux new-window -t ridehailing -n fraud 'make run-fraud'
+	@tmux new-window -t ridehailing -n analytics 'make run-analytics'
+	@tmux new-window -t ridehailing -n admin 'make run-admin'
+	@tmux new-window -t ridehailing -n promos 'make run-promos'
+	@tmux new-window -t ridehailing -n scheduler 'make run-scheduler'
+	@tmux new-window -t ridehailing -n ml-eta 'make run-ml-eta'
+	@tmux new-window -t ridehailing -n mobile 'make run-mobile'
+	@tmux select-window -t ridehailing:auth
+	@echo "$(GREEN)✓ All 13 services started in tmux session 'ridehailing'$(NC)"
+	@echo ""
+	@echo "$(YELLOW)Services running on:$(NC)"
+	@echo "  - auth:          http://localhost:8081"
+	@echo "  - rides:         http://localhost:8082"
+	@echo "  - geo:           http://localhost:8083"
+	@echo "  - payments:      http://localhost:8084"
+	@echo "  - notifications: http://localhost:8085"
+	@echo "  - realtime:      http://localhost:8086"
+	@echo "  - mobile:        http://localhost:8087"
+	@echo "  - admin:         http://localhost:8088"
+	@echo "  - promos:        http://localhost:8089"
+	@echo "  - scheduler:     http://localhost:8090"
+	@echo "  - analytics:     http://localhost:8091"
+	@echo "  - fraud:         http://localhost:8092"
+	@echo "  - ml-eta:        http://localhost:8093"
 	@echo ""
 	@echo "To view services:"
 	@echo "  tmux attach -t ridehailing"
@@ -235,8 +265,11 @@ run-all-tmux: ## Run all services in tmux (better for development)
 	@echo "  tmux kill-session -t ridehailing"
 	@echo ""
 	@echo "Tmux commands:"
-	@echo "  Ctrl+B then D - Detach from session"
-	@echo "  Ctrl+B then Arrow keys - Switch between panes"
+	@echo "  Ctrl+B then D     - Detach from session"
+	@echo "  Ctrl+B then N     - Next window"
+	@echo "  Ctrl+B then P     - Previous window"
+	@echo "  Ctrl+B then 0-9   - Switch to window by number"
+	@echo "  Ctrl+B then W     - List all windows"
 
 #==========================================
 # Docker
