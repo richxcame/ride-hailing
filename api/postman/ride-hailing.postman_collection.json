@@ -1144,7 +1144,24 @@
 										{"key": "offset", "value": "0"}
 									]
 								},
-								"description": "Get recent rides for monitoring."
+								"description": "Get recent rides for monitoring.\n\n**Response includes:**\n- Ride details (status, fare, distance, timestamps)\n- Rider info (name, email, phone)\n- Driver info (name, phone, vehicle details, rating)"
+							}
+						},
+						{
+							"name": "Get Ride",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [{"key": "token", "value": "{{admin_token}}", "type": "string"}]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{admin_base_url}}/api/v1/admin/rides/{{ride_id}}",
+									"host": ["{{admin_base_url}}"],
+									"path": ["api", "v1", "admin", "rides", "{{ride_id}}"]
+								},
+								"description": "Get specific ride details with rider and driver info.\n\n**Path Parameters:**\n- `id` (uuid): Ride ID\n\n**Response includes:**\n- Full ride details (pickup/dropoff, fares, timestamps, status)\n- Rider info (id, email, name, phone)\n- Driver info (id, name, phone, vehicle model/plate/color, rating)"
 							}
 						}
 					]

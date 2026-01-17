@@ -242,6 +242,27 @@ func (h *Handler) GetRideStats(c *gin.Context) {
 	common.SuccessResponse(c, stats)
 }
 
+// GetRide retrieves a specific ride by ID with rider and driver details
+func (h *Handler) GetRide(c *gin.Context) {
+	rideID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "Invalid ride ID")
+		return
+	}
+
+	ride, err := h.service.GetRide(c.Request.Context(), rideID)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			common.AppErrorResponse(c, appErr)
+			return
+		}
+		common.ErrorResponse(c, http.StatusNotFound, "Ride not found")
+		return
+	}
+
+	common.SuccessResponse(c, ride)
+}
+
 // GetRecentRides retrieves recent rides for monitoring
 func (h *Handler) GetRecentRides(c *gin.Context) {
 	params := pagination.ParseParams(c)

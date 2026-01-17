@@ -222,6 +222,7 @@ func main() {
 		{
 			rides.GET("/recent", handler.GetRecentRides)
 			rides.GET("/stats", handler.GetRideStats)
+			rides.GET("/:id", handler.GetRide)
 		}
 	}
 

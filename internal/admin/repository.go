@@ -541,6 +541,201 @@ type UserStats struct {
 	ActiveUsers  int `json:"active_users"`
 }
 
+// AdminRideDetail represents a ride with rider and driver details for admin view
+type AdminRideDetail struct {
+	*models.Ride
+	Rider  *RideUserInfo   `json:"rider,omitempty"`
+	Driver *RideDriverInfo `json:"driver,omitempty"`
+}
+
+// RideUserInfo represents basic user info for ride details
+type RideUserInfo struct {
+	ID          uuid.UUID `json:"id"`
+	Email       string    `json:"email"`
+	FirstName   string    `json:"first_name"`
+	LastName    string    `json:"last_name"`
+	PhoneNumber string    `json:"phone_number"`
+}
+
+// RideDriverInfo represents driver info for ride details
+type RideDriverInfo struct {
+	ID           uuid.UUID `json:"id"`
+	UserID       uuid.UUID `json:"user_id"`
+	FirstName    string    `json:"first_name"`
+	LastName     string    `json:"last_name"`
+	PhoneNumber  string    `json:"phone_number"`
+	VehicleModel string    `json:"vehicle_model"`
+	VehiclePlate string    `json:"vehicle_plate"`
+	VehicleColor string    `json:"vehicle_color"`
+	Rating       float64   `json:"rating"`
+}
+
+// GetRideByID retrieves a ride by ID with rider and driver details
+func (r *Repository) GetRideByID(ctx context.Context, rideID uuid.UUID) (*AdminRideDetail, error) {
+	query := `
+		SELECT r.id, r.rider_id, r.driver_id, r.status, r.pickup_latitude, r.pickup_longitude,
+		       r.pickup_address, r.dropoff_latitude, r.dropoff_longitude, r.dropoff_address,
+		       r.estimated_distance, r.estimated_duration, r.estimated_fare, r.actual_distance,
+		       r.actual_duration, r.final_fare, r.surge_multiplier, r.requested_at, r.accepted_at,
+		       r.started_at, r.completed_at, r.cancelled_at, r.cancellation_reason, r.rating,
+		       r.feedback, r.created_at, r.updated_at,
+		       ru.id, ru.email, ru.first_name, ru.last_name, ru.phone_number,
+		       d.id, d.user_id, du.first_name, du.last_name, du.phone_number,
+		       d.vehicle_model, d.vehicle_plate, d.vehicle_color, d.rating
+		FROM rides r
+		JOIN users ru ON r.rider_id = ru.id
+		LEFT JOIN drivers d ON r.driver_id = d.id
+		LEFT JOIN users du ON d.user_id = du.id
+		WHERE r.id = $1
+	`
+
+	ride := &models.Ride{}
+	riderInfo := &RideUserInfo{}
+	var driverID, driverUserID *uuid.UUID
+	var driverFirstName, driverLastName, driverPhone, vehicleModel, vehiclePlate, vehicleColor *string
+	var driverRating *float64
+
+	err := r.db.QueryRow(ctx, query, rideID).Scan(
+		&ride.ID, &ride.RiderID, &ride.DriverID, &ride.Status,
+		&ride.PickupLatitude, &ride.PickupLongitude, &ride.PickupAddress,
+		&ride.DropoffLatitude, &ride.DropoffLongitude, &ride.DropoffAddress,
+		&ride.EstimatedDistance, &ride.EstimatedDuration, &ride.EstimatedFare,
+		&ride.ActualDistance, &ride.ActualDuration, &ride.FinalFare,
+		&ride.SurgeMultiplier, &ride.RequestedAt, &ride.AcceptedAt,
+		&ride.StartedAt, &ride.CompletedAt, &ride.CancelledAt, &ride.CancellationReason,
+		&ride.Rating, &ride.Feedback, &ride.CreatedAt, &ride.UpdatedAt,
+		&riderInfo.ID, &riderInfo.Email, &riderInfo.FirstName, &riderInfo.LastName, &riderInfo.PhoneNumber,
+		&driverID, &driverUserID, &driverFirstName, &driverLastName, &driverPhone,
+		&vehicleModel, &vehiclePlate, &vehicleColor, &driverRating,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get ride: %w", err)
+	}
+
+	result := &AdminRideDetail{
+		Ride:  ride,
+		Rider: riderInfo,
+	}
+
+	// Add driver info if present
+	if driverID != nil {
+		result.Driver = &RideDriverInfo{
+			ID:           *driverID,
+			UserID:       *driverUserID,
+			FirstName:    stringValue(driverFirstName),
+			LastName:     stringValue(driverLastName),
+			PhoneNumber:  stringValue(driverPhone),
+			VehicleModel: stringValue(vehicleModel),
+			VehiclePlate: stringValue(vehiclePlate),
+			VehicleColor: stringValue(vehicleColor),
+			Rating:       floatValue(driverRating),
+		}
+	}
+
+	return result, nil
+}
+
+// GetRecentRidesWithDetails retrieves recent rides with rider and driver info
+func (r *Repository) GetRecentRidesWithDetails(ctx context.Context, limit, offset int) ([]*AdminRideDetail, int64, error) {
+	// Get total count
+	var total int64
+	countQuery := `SELECT COUNT(*) FROM rides`
+	err := r.db.QueryRow(ctx, countQuery).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count rides: %w", err)
+	}
+
+	// Get paginated rides with user details
+	query := `
+		SELECT r.id, r.rider_id, r.driver_id, r.status, r.pickup_latitude, r.pickup_longitude,
+		       r.pickup_address, r.dropoff_latitude, r.dropoff_longitude, r.dropoff_address,
+		       r.estimated_distance, r.estimated_duration, r.estimated_fare, r.actual_distance,
+		       r.actual_duration, r.final_fare, r.surge_multiplier, r.requested_at, r.accepted_at,
+		       r.started_at, r.completed_at, r.cancelled_at, r.cancellation_reason, r.rating,
+		       r.feedback, r.created_at, r.updated_at,
+		       ru.id, ru.email, ru.first_name, ru.last_name, ru.phone_number,
+		       d.id, d.user_id, du.first_name, du.last_name, du.phone_number,
+		       d.vehicle_model, d.vehicle_plate, d.vehicle_color, d.rating
+		FROM rides r
+		JOIN users ru ON r.rider_id = ru.id
+		LEFT JOIN drivers d ON r.driver_id = d.id
+		LEFT JOIN users du ON d.user_id = du.id
+		ORDER BY r.created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+
+	rows, err := r.db.Query(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get recent rides: %w", err)
+	}
+	defer rows.Close()
+
+	rides := make([]*AdminRideDetail, 0)
+	for rows.Next() {
+		ride := &models.Ride{}
+		riderInfo := &RideUserInfo{}
+		var driverID, driverUserID *uuid.UUID
+		var driverFirstName, driverLastName, driverPhone, vehicleModel, vehiclePlate, vehicleColor *string
+		var driverRating *float64
+
+		err := rows.Scan(
+			&ride.ID, &ride.RiderID, &ride.DriverID, &ride.Status,
+			&ride.PickupLatitude, &ride.PickupLongitude, &ride.PickupAddress,
+			&ride.DropoffLatitude, &ride.DropoffLongitude, &ride.DropoffAddress,
+			&ride.EstimatedDistance, &ride.EstimatedDuration, &ride.EstimatedFare,
+			&ride.ActualDistance, &ride.ActualDuration, &ride.FinalFare,
+			&ride.SurgeMultiplier, &ride.RequestedAt, &ride.AcceptedAt,
+			&ride.StartedAt, &ride.CompletedAt, &ride.CancelledAt, &ride.CancellationReason,
+			&ride.Rating, &ride.Feedback, &ride.CreatedAt, &ride.UpdatedAt,
+			&riderInfo.ID, &riderInfo.Email, &riderInfo.FirstName, &riderInfo.LastName, &riderInfo.PhoneNumber,
+			&driverID, &driverUserID, &driverFirstName, &driverLastName, &driverPhone,
+			&vehicleModel, &vehiclePlate, &vehicleColor, &driverRating,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan ride: %w", err)
+		}
+
+		detail := &AdminRideDetail{
+			Ride:  ride,
+			Rider: riderInfo,
+		}
+
+		// Add driver info if present
+		if driverID != nil {
+			detail.Driver = &RideDriverInfo{
+				ID:           *driverID,
+				UserID:       *driverUserID,
+				FirstName:    stringValue(driverFirstName),
+				LastName:     stringValue(driverLastName),
+				PhoneNumber:  stringValue(driverPhone),
+				VehicleModel: stringValue(vehicleModel),
+				VehiclePlate: stringValue(vehiclePlate),
+				VehicleColor: stringValue(vehicleColor),
+				Rating:       floatValue(driverRating),
+			}
+		}
+
+		rides = append(rides, detail)
+	}
+
+	return rides, total, nil
+}
+
+// Helper functions for nullable values
+func stringValue(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
+}
+
+func floatValue(f *float64) float64 {
+	if f == nil {
+		return 0
+	}
+	return *f
+}
+
 // GetRealtimeMetrics retrieves real-time dashboard metrics
 func (r *Repository) GetRealtimeMetrics(ctx context.Context) (*RealtimeMetrics, error) {
 	metrics := &RealtimeMetrics{}

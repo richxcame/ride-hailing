@@ -117,13 +117,18 @@ func (s *Service) GetRideStats(ctx context.Context, startDate, endDate *time.Tim
 	return s.repo.GetRideStats(ctx, startDate, endDate)
 }
 
-// GetRecentRides retrieves recent rides for monitoring
-func (s *Service) GetRecentRides(ctx context.Context, limit, offset int) ([]*models.Ride, int64, error) {
+// GetRide retrieves a specific ride by ID with rider and driver details
+func (s *Service) GetRide(ctx context.Context, rideID uuid.UUID) (*AdminRideDetail, error) {
+	return s.repo.GetRideByID(ctx, rideID)
+}
+
+// GetRecentRides retrieves recent rides for monitoring with rider and driver details
+func (s *Service) GetRecentRides(ctx context.Context, limit, offset int) ([]*AdminRideDetail, int64, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
 
-	return s.repo.GetRecentRidesWithTotal(ctx, limit, offset)
+	return s.repo.GetRecentRidesWithDetails(ctx, limit, offset)
 }
 
 // GetRealtimeMetrics retrieves real-time dashboard metrics
