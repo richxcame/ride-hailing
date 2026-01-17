@@ -132,6 +132,27 @@ func (h *Handler) GetAllDrivers(c *gin.Context) {
 	common.SuccessResponseWithMeta(c, drivers, meta)
 }
 
+// GetDriver retrieves a specific driver by ID
+func (h *Handler) GetDriver(c *gin.Context) {
+	driverID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "Invalid driver ID")
+		return
+	}
+
+	driver, err := h.service.GetDriver(c.Request.Context(), driverID)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			common.AppErrorResponse(c, appErr)
+			return
+		}
+		common.ErrorResponse(c, http.StatusNotFound, "Driver not found")
+		return
+	}
+
+	common.SuccessResponse(c, driver)
+}
+
 // GetPendingDrivers retrieves drivers awaiting approval
 func (h *Handler) GetPendingDrivers(c *gin.Context) {
 	params := pagination.ParseParams(c)

@@ -268,6 +268,40 @@ func (r *Repository) GetPendingDriversWithTotal(ctx context.Context, limit, offs
 	return drivers, total, nil
 }
 
+// GetDriverByID retrieves a driver by ID with user details
+func (r *Repository) GetDriverByID(ctx context.Context, driverID uuid.UUID) (*models.Driver, error) {
+	query := `
+		SELECT d.id, d.user_id, d.license_number, d.vehicle_model, d.vehicle_plate,
+		       d.vehicle_color, d.vehicle_year, d.is_available, d.is_online,
+		       d.rating, d.total_rides, d.created_at, d.updated_at
+		FROM drivers d
+		WHERE d.id = $1
+	`
+
+	driver := &models.Driver{}
+	err := r.db.QueryRow(ctx, query, driverID).Scan(
+		&driver.ID,
+		&driver.UserID,
+		&driver.LicenseNumber,
+		&driver.VehicleModel,
+		&driver.VehiclePlate,
+		&driver.VehicleColor,
+		&driver.VehicleYear,
+		&driver.IsAvailable,
+		&driver.IsOnline,
+		&driver.Rating,
+		&driver.TotalRides,
+		&driver.CreatedAt,
+		&driver.UpdatedAt,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get driver: %w", err)
+	}
+
+	return driver, nil
+}
+
 // ApproveDriver sets a driver as available (simplified approval)
 func (r *Repository) ApproveDriver(ctx context.Context, driverID uuid.UUID) error {
 	query := `UPDATE drivers SET is_available = true, updated_at = $1 WHERE id = $2`

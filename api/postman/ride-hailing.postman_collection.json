@@ -1050,6 +1050,23 @@
 							}
 						},
 						{
+							"name": "Get Driver",
+							"request": {
+								"auth": {
+									"type": "bearer",
+									"bearer": [{"key": "token", "value": "{{admin_token}}", "type": "string"}]
+								},
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{admin_base_url}}/api/v1/admin/drivers/{{driver_id}}",
+									"host": ["{{admin_base_url}}"],
+									"path": ["api", "v1", "admin", "drivers", "{{driver_id}}"]
+								},
+								"description": "Get specific driver details.\n\n**Path Parameters:**\n- `id` (uuid): Driver ID\n\n**Response:**\n- `id`: Driver ID\n- `user_id`: Associated user ID\n- `license_number`: Driver's license number\n- `vehicle_model`: Vehicle model\n- `vehicle_plate`: License plate\n- `vehicle_color`: Vehicle color\n- `vehicle_year`: Vehicle year\n- `is_available`: Whether driver is approved/available\n- `is_online`: Whether driver is currently online\n- `rating`: Driver rating (1-5)\n- `total_rides`: Total completed rides"
+							}
+						},
+						{
 							"name": "Approve Driver",
 							"request": {
 								"auth": {

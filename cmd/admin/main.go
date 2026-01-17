@@ -212,6 +212,7 @@ func main() {
 		{
 			drivers.GET("", handler.GetAllDrivers)
 			drivers.GET("/pending", handler.GetPendingDrivers)
+			drivers.GET("/:id", handler.GetDriver)
 			drivers.POST("/:id/approve", handler.ApproveDriver)
 			drivers.POST("/:id/reject", handler.RejectDriver)
 		}

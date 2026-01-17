@@ -69,6 +69,11 @@ func (s *Service) GetPendingDrivers(ctx context.Context, limit, offset int) ([]*
 	return s.repo.GetPendingDriversWithTotal(ctx, limit, offset)
 }
 
+// GetDriver retrieves a specific driver by ID
+func (s *Service) GetDriver(ctx context.Context, driverID uuid.UUID) (*models.Driver, error) {
+	return s.repo.GetDriverByID(ctx, driverID)
+}
+
 // ApproveDriver approves a driver application
 func (s *Service) ApproveDriver(ctx context.Context, driverID uuid.UUID) error {
 	return s.repo.ApproveDriver(ctx, driverID)
