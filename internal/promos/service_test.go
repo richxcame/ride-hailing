@@ -86,6 +86,52 @@ func (m *mockPromosRepository) MarkReferralBonusesApplied(ctx context.Context, r
 	return args.Error(0)
 }
 
+func (m *mockPromosRepository) UpdatePromoCode(ctx context.Context, promo *PromoCode) error {
+	args := m.Called(ctx, promo)
+	return args.Error(0)
+}
+
+func (m *mockPromosRepository) DeactivatePromoCode(ctx context.Context, promoID uuid.UUID) error {
+	args := m.Called(ctx, promoID)
+	return args.Error(0)
+}
+
+func (m *mockPromosRepository) GetPromoCodeByID(ctx context.Context, promoID uuid.UUID) (*PromoCode, error) {
+	args := m.Called(ctx, promoID)
+	promo, _ := args.Get(0).(*PromoCode)
+	return promo, args.Error(1)
+}
+
+func (m *mockPromosRepository) GetPromoCodeUsageStats(ctx context.Context, promoID uuid.UUID) (map[string]interface{}, error) {
+	args := m.Called(ctx, promoID)
+	stats, _ := args.Get(0).(map[string]interface{})
+	return stats, args.Error(1)
+}
+
+func (m *mockPromosRepository) GetAllPromoCodes(ctx context.Context, limit, offset int) ([]*PromoCode, int, error) {
+	args := m.Called(ctx, limit, offset)
+	promos, _ := args.Get(0).([]*PromoCode)
+	return promos, args.Int(1), args.Error(2)
+}
+
+func (m *mockPromosRepository) GetAllReferralCodes(ctx context.Context, limit, offset int) ([]*ReferralCode, int, error) {
+	args := m.Called(ctx, limit, offset)
+	codes, _ := args.Get(0).([]*ReferralCode)
+	return codes, args.Int(1), args.Error(2)
+}
+
+func (m *mockPromosRepository) GetReferralByID(ctx context.Context, referralID uuid.UUID) (*Referral, error) {
+	args := m.Called(ctx, referralID)
+	ref, _ := args.Get(0).(*Referral)
+	return ref, args.Error(1)
+}
+
+func (m *mockPromosRepository) GetReferralEarnings(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error) {
+	args := m.Called(ctx, userID)
+	earnings, _ := args.Get(0).(map[string]interface{})
+	return earnings, args.Error(1)
+}
+
 func TestValidatePromoCodePercentageDiscount(t *testing.T) {
 	ctx := context.Background()
 	repo := new(mockPromosRepository)

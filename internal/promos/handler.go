@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
+	"github.com/richxcame/ride-hailing/pkg/pagination"
 )
 
 // Handler handles HTTP requests for promos service
@@ -181,4 +182,154 @@ func (h *Handler) HealthCheck(c *gin.Context) {
 		"service": "promos",
 	}
 	common.SuccessResponse(c, response)
+}
+
+// GetAllPromoCodes returns all promo codes with pagination (admin only)
+func (h *Handler) GetAllPromoCodes(c *gin.Context) {
+	params := pagination.ParseParams(c)
+
+	promoCodes, total, err := h.service.GetAllPromoCodes(c.Request.Context(), params.Limit, params.Offset)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get promo codes")
+		return
+	}
+
+	if promoCodes == nil {
+		promoCodes = []*PromoCode{}
+	}
+
+	meta := pagination.BuildMeta(params.Limit, params.Offset, int64(total))
+	common.SuccessResponseWithMeta(c, promoCodes, meta)
+}
+
+// GetAllReferralCodes returns all referral codes with pagination (admin only)
+func (h *Handler) GetAllReferralCodes(c *gin.Context) {
+	params := pagination.ParseParams(c)
+
+	codes, total, err := h.service.GetAllReferralCodes(c.Request.Context(), params.Limit, params.Offset)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get referral codes")
+		return
+	}
+
+	if codes == nil {
+		codes = []*ReferralCode{}
+	}
+
+	meta := pagination.BuildMeta(params.Limit, params.Offset, int64(total))
+	common.SuccessResponseWithMeta(c, codes, meta)
+}
+
+// GetPromoCode returns a specific promo code (admin only)
+func (h *Handler) GetPromoCode(c *gin.Context) {
+	promoID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid promo code ID")
+		return
+	}
+
+	promo, err := h.service.GetPromoCodeByID(c.Request.Context(), promoID)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusNotFound, "promo code not found")
+		return
+	}
+
+	common.SuccessResponse(c, promo)
+}
+
+// UpdatePromoCode updates an existing promo code (admin only)
+func (h *Handler) UpdatePromoCode(c *gin.Context) {
+	promoID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid promo code ID")
+		return
+	}
+
+	var promo PromoCode
+	if err := c.ShouldBindJSON(&promo); err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	promo.ID = promoID
+
+	err = h.service.UpdatePromoCode(c.Request.Context(), &promo)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	common.SuccessResponse(c, promo)
+}
+
+// DeactivatePromoCode deactivates a promo code (admin only)
+func (h *Handler) DeactivatePromoCode(c *gin.Context) {
+	promoID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid promo code ID")
+		return
+	}
+
+	err = h.service.DeactivatePromoCode(c.Request.Context(), promoID)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to deactivate promo code")
+		return
+	}
+
+	response := map[string]interface{}{
+		"message": "Promo code deactivated successfully",
+	}
+
+	common.SuccessResponse(c, response)
+}
+
+// GetPromoCodeUsageStats returns usage statistics for a promo code (admin only)
+func (h *Handler) GetPromoCodeUsageStats(c *gin.Context) {
+	promoID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid promo code ID")
+		return
+	}
+
+	stats, err := h.service.GetPromoCodeUsageStats(c.Request.Context(), promoID)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get promo code stats")
+		return
+	}
+
+	common.SuccessResponse(c, stats)
+}
+
+// GetReferralDetails returns detailed information about a referral (admin only)
+func (h *Handler) GetReferralDetails(c *gin.Context) {
+	referralID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid referral ID")
+		return
+	}
+
+	referral, err := h.service.GetReferralByID(c.Request.Context(), referralID)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusNotFound, "referral not found")
+		return
+	}
+
+	common.SuccessResponse(c, referral)
+}
+
+// GetMyReferralEarnings returns the authenticated user's referral earnings
+func (h *Handler) GetMyReferralEarnings(c *gin.Context) {
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	earnings, err := h.service.GetReferralEarnings(c.Request.Context(), userID)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get referral earnings")
+		return
+	}
+
+	common.SuccessResponse(c, earnings)
 }

@@ -392,3 +392,314 @@ func (r *Repository) MarkReferralBonusesApplied(ctx context.Context, referralID 
 
 	return nil
 }
+
+// GetAllPromoCodes retrieves all promo codes with pagination
+func (r *Repository) GetAllPromoCodes(ctx context.Context, limit, offset int) ([]*PromoCode, int, error) {
+	// Get total count
+	var total int
+	countQuery := `SELECT COUNT(*) FROM promo_codes`
+	err := r.db.QueryRow(ctx, countQuery).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count promo codes: %w", err)
+	}
+
+	// Get promo codes
+	query := `
+		SELECT id, code, description, discount_type, discount_value, max_discount_amount,
+			min_ride_amount, max_uses, total_uses, uses_per_user, valid_from, valid_until,
+			is_active, created_by, created_at, updated_at
+		FROM promo_codes
+		ORDER BY created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+
+	rows, err := r.db.Query(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get promo codes: %w", err)
+	}
+	defer rows.Close()
+
+	promoCodes := []*PromoCode{}
+	for rows.Next() {
+		promo := &PromoCode{}
+		err := rows.Scan(
+			&promo.ID,
+			&promo.Code,
+			&promo.Description,
+			&promo.DiscountType,
+			&promo.DiscountValue,
+			&promo.MaxDiscountAmount,
+			&promo.MinRideAmount,
+			&promo.MaxUses,
+			&promo.TotalUses,
+			&promo.UsesPerUser,
+			&promo.ValidFrom,
+			&promo.ValidUntil,
+			&promo.IsActive,
+			&promo.CreatedBy,
+			&promo.CreatedAt,
+			&promo.UpdatedAt,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan promo code: %w", err)
+		}
+		promoCodes = append(promoCodes, promo)
+	}
+
+	return promoCodes, total, nil
+}
+
+// GetAllReferralCodes retrieves all referral codes with pagination
+func (r *Repository) GetAllReferralCodes(ctx context.Context, limit, offset int) ([]*ReferralCode, int, error) {
+	// Get total count
+	var total int
+	countQuery := `SELECT COUNT(*) FROM referral_codes`
+	err := r.db.QueryRow(ctx, countQuery).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count referral codes: %w", err)
+	}
+
+	// Get referral codes
+	query := `
+		SELECT id, user_id, code, total_referrals, total_earnings, created_at
+		FROM referral_codes
+		ORDER BY total_referrals DESC, created_at DESC
+		LIMIT $1 OFFSET $2
+	`
+
+	rows, err := r.db.Query(ctx, query, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get referral codes: %w", err)
+	}
+	defer rows.Close()
+
+	codes := []*ReferralCode{}
+	for rows.Next() {
+		code := &ReferralCode{}
+		err := rows.Scan(
+			&code.ID,
+			&code.UserID,
+			&code.Code,
+			&code.TotalReferrals,
+			&code.TotalEarnings,
+			&code.CreatedAt,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan referral code: %w", err)
+		}
+		codes = append(codes, code)
+	}
+
+	return codes, total, nil
+}
+
+// UpdatePromoCode updates an existing promo code
+func (r *Repository) UpdatePromoCode(ctx context.Context, promo *PromoCode) error {
+	query := `
+		UPDATE promo_codes
+		SET description = $2,
+		    discount_type = $3,
+		    discount_value = $4,
+		    max_discount_amount = $5,
+		    min_ride_amount = $6,
+		    max_uses = $7,
+		    uses_per_user = $8,
+		    valid_from = $9,
+		    valid_until = $10,
+		    is_active = $11,
+		    updated_at = NOW()
+		WHERE id = $1
+	`
+
+	_, err := r.db.Exec(ctx, query,
+		promo.ID,
+		promo.Description,
+		promo.DiscountType,
+		promo.DiscountValue,
+		promo.MaxDiscountAmount,
+		promo.MinRideAmount,
+		promo.MaxUses,
+		promo.UsesPerUser,
+		promo.ValidFrom,
+		promo.ValidUntil,
+		promo.IsActive,
+	)
+
+	return err
+}
+
+// DeactivatePromoCode deactivates a promo code
+func (r *Repository) DeactivatePromoCode(ctx context.Context, promoID uuid.UUID) error {
+	query := `
+		UPDATE promo_codes
+		SET is_active = false,
+		    updated_at = NOW()
+		WHERE id = $1
+	`
+
+	_, err := r.db.Exec(ctx, query, promoID)
+	return err
+}
+
+// GetPromoCodeByID retrieves a promo code by ID
+func (r *Repository) GetPromoCodeByID(ctx context.Context, promoID uuid.UUID) (*PromoCode, error) {
+	query := `
+		SELECT id, code, description, discount_type, discount_value,
+		       max_discount_amount, min_ride_amount, max_uses, total_uses,
+		       uses_per_user, valid_from, valid_until, is_active,
+		       created_by, created_at, updated_at
+		FROM promo_codes
+		WHERE id = $1
+	`
+
+	promo := &PromoCode{}
+	err := r.db.QueryRow(ctx, query, promoID).Scan(
+		&promo.ID,
+		&promo.Code,
+		&promo.Description,
+		&promo.DiscountType,
+		&promo.DiscountValue,
+		&promo.MaxDiscountAmount,
+		&promo.MinRideAmount,
+		&promo.MaxUses,
+		&promo.TotalUses,
+		&promo.UsesPerUser,
+		&promo.ValidFrom,
+		&promo.ValidUntil,
+		&promo.IsActive,
+		&promo.CreatedBy,
+		&promo.CreatedAt,
+		&promo.UpdatedAt,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get promo code: %w", err)
+	}
+
+	return promo, nil
+}
+
+// GetPromoCodeUsageStats retrieves usage statistics for a promo code
+func (r *Repository) GetPromoCodeUsageStats(ctx context.Context, promoID uuid.UUID) (map[string]interface{}, error) {
+	query := `
+		SELECT
+			COUNT(DISTINCT user_id) as unique_users,
+			COUNT(*) as total_uses,
+			COALESCE(SUM(discount_amount), 0) as total_discount,
+			COALESCE(AVG(discount_amount), 0) as avg_discount,
+			COALESCE(SUM(original_amount), 0) as total_original_amount,
+			COALESCE(SUM(final_amount), 0) as total_final_amount
+		FROM promo_code_uses
+		WHERE promo_code_id = $1
+	`
+
+	var stats struct {
+		UniqueUsers         int
+		TotalUses           int
+		TotalDiscount       float64
+		AvgDiscount         float64
+		TotalOriginalAmount float64
+		TotalFinalAmount    float64
+	}
+
+	err := r.db.QueryRow(ctx, query, promoID).Scan(
+		&stats.UniqueUsers,
+		&stats.TotalUses,
+		&stats.TotalDiscount,
+		&stats.AvgDiscount,
+		&stats.TotalOriginalAmount,
+		&stats.TotalFinalAmount,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get promo code usage stats: %w", err)
+	}
+
+	result := map[string]interface{}{
+		"unique_users":          stats.UniqueUsers,
+		"total_uses":            stats.TotalUses,
+		"total_discount":        stats.TotalDiscount,
+		"avg_discount":          stats.AvgDiscount,
+		"total_original_amount": stats.TotalOriginalAmount,
+		"total_final_amount":    stats.TotalFinalAmount,
+	}
+
+	return result, nil
+}
+
+// GetReferralByID retrieves a referral by ID with detailed information
+func (r *Repository) GetReferralByID(ctx context.Context, referralID uuid.UUID) (*Referral, error) {
+	query := `
+		SELECT id, referrer_id, referred_id, referral_code_id,
+		       referrer_bonus, referred_bonus, referrer_bonus_applied,
+		       referred_bonus_applied, referred_first_ride_id,
+		       created_at, completed_at
+		FROM referrals
+		WHERE id = $1
+	`
+
+	referral := &Referral{}
+	err := r.db.QueryRow(ctx, query, referralID).Scan(
+		&referral.ID,
+		&referral.ReferrerID,
+		&referral.ReferredID,
+		&referral.ReferralCodeID,
+		&referral.ReferrerBonus,
+		&referral.ReferredBonus,
+		&referral.ReferrerBonusApplied,
+		&referral.ReferredBonusApplied,
+		&referral.ReferredFirstRideID,
+		&referral.CreatedAt,
+		&referral.CompletedAt,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get referral: %w", err)
+	}
+
+	return referral, nil
+}
+
+// GetReferralEarnings retrieves referral earnings for a user
+func (r *Repository) GetReferralEarnings(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error) {
+	query := `
+		SELECT
+			COUNT(*) as total_referrals,
+			COUNT(CASE WHEN referrer_bonus_applied THEN 1 END) as completed_referrals,
+			COALESCE(SUM(CASE WHEN referrer_bonus_applied THEN referrer_bonus ELSE 0 END), 0) as total_earnings,
+			COUNT(CASE WHEN NOT referrer_bonus_applied THEN 1 END) as pending_referrals,
+			COALESCE(SUM(CASE WHEN NOT referrer_bonus_applied THEN referrer_bonus ELSE 0 END), 0) as pending_earnings
+		FROM referrals
+		WHERE referrer_id = $1
+	`
+
+	var earnings struct {
+		TotalReferrals     int
+		CompletedReferrals int
+		TotalEarnings      float64
+		PendingReferrals   int
+		PendingEarnings    float64
+	}
+
+	err := r.db.QueryRow(ctx, query, userID).Scan(
+		&earnings.TotalReferrals,
+		&earnings.CompletedReferrals,
+		&earnings.TotalEarnings,
+		&earnings.PendingReferrals,
+		&earnings.PendingEarnings,
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get referral earnings: %w", err)
+	}
+
+	result := map[string]interface{}{
+		"total_referrals":     earnings.TotalReferrals,
+		"completed_referrals": earnings.CompletedReferrals,
+		"total_earnings":      earnings.TotalEarnings,
+		"pending_referrals":   earnings.PendingReferrals,
+		"pending_earnings":    earnings.PendingEarnings,
+	}
+
+	return result, nil
+}

@@ -183,6 +183,7 @@ func main() {
 
 			// Referral codes
 			authenticated.GET("/referrals/my-code", handler.GetMyReferralCode)
+			authenticated.GET("/referrals/my-earnings", handler.GetMyReferralEarnings)
 			authenticated.POST("/referrals/apply", handler.ApplyReferralCode)
 		}
 
@@ -192,6 +193,13 @@ func main() {
 		admin.Use(middleware.RequireAdmin())
 		{
 			admin.POST("/promo-codes", handler.CreatePromoCode)
+			admin.GET("/promo-codes", handler.GetAllPromoCodes)
+			admin.GET("/promo-codes/:id", handler.GetPromoCode)
+			admin.PATCH("/promo-codes/:id", handler.UpdatePromoCode)
+			admin.DELETE("/promo-codes/:id", handler.DeactivatePromoCode)
+			admin.GET("/promo-codes/:id/usage", handler.GetPromoCodeUsageStats)
+			admin.GET("/referral-codes", handler.GetAllReferralCodes)
+			admin.GET("/referrals/:id", handler.GetReferralDetails)
 		}
 	}
 

@@ -19,13 +19,21 @@ const (
 // PromosRepository defines the storage operations required by the service.
 type PromosRepository interface {
 	GetPromoCodeByCode(ctx context.Context, code string) (*PromoCode, error)
+	GetPromoCodeByID(ctx context.Context, promoID uuid.UUID) (*PromoCode, error)
 	GetPromoCodeUsesByUser(ctx context.Context, promoID uuid.UUID, userID uuid.UUID) (int, error)
 	CreatePromoCodeUse(ctx context.Context, use *PromoCodeUse) error
 	CreatePromoCode(ctx context.Context, promo *PromoCode) error
+	UpdatePromoCode(ctx context.Context, promo *PromoCode) error
+	DeactivatePromoCode(ctx context.Context, promoID uuid.UUID) error
+	GetAllPromoCodes(ctx context.Context, limit, offset int) ([]*PromoCode, int, error)
+	GetPromoCodeUsageStats(ctx context.Context, promoID uuid.UUID) (map[string]interface{}, error)
 	GetReferralCodeByUserID(ctx context.Context, userID uuid.UUID) (*ReferralCode, error)
 	CreateReferralCode(ctx context.Context, code *ReferralCode) error
 	GetReferralCodeByCode(ctx context.Context, code string) (*ReferralCode, error)
 	CreateReferral(ctx context.Context, referral *Referral) error
+	GetAllReferralCodes(ctx context.Context, limit, offset int) ([]*ReferralCode, int, error)
+	GetReferralByID(ctx context.Context, referralID uuid.UUID) (*Referral, error)
+	GetReferralEarnings(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error)
 	GetAllRideTypes(ctx context.Context) ([]*RideType, error)
 	GetRideTypeByID(ctx context.Context, id uuid.UUID) (*RideType, error)
 	GetReferralByReferredID(ctx context.Context, userID uuid.UUID) (*Referral, error)
@@ -355,4 +363,61 @@ func (s *Service) ProcessReferralBonus(ctx context.Context, userID uuid.UUID, ri
 	}
 
 	return result, nil
+}
+
+// GetAllPromoCodes retrieves all promo codes with pagination
+func (s *Service) GetAllPromoCodes(ctx context.Context, limit, offset int) ([]*PromoCode, int, error) {
+	return s.repo.GetAllPromoCodes(ctx, limit, offset)
+}
+
+// GetAllReferralCodes retrieves all referral codes with pagination
+func (s *Service) GetAllReferralCodes(ctx context.Context, limit, offset int) ([]*ReferralCode, int, error) {
+	return s.repo.GetAllReferralCodes(ctx, limit, offset)
+}
+
+// UpdatePromoCode updates an existing promo code
+func (s *Service) UpdatePromoCode(ctx context.Context, promo *PromoCode) error {
+	// Validate promo code
+	if promo.DiscountType != "percentage" && promo.DiscountType != "fixed_amount" {
+		return fmt.Errorf("discount type must be 'percentage' or 'fixed_amount'")
+	}
+
+	if promo.DiscountValue <= 0 {
+		return fmt.Errorf("discount value must be greater than 0")
+	}
+
+	if promo.DiscountType == "percentage" && promo.DiscountValue > 100 {
+		return fmt.Errorf("percentage discount cannot exceed 100%%")
+	}
+
+	if promo.ValidFrom.After(promo.ValidUntil) {
+		return fmt.Errorf("valid_from must be before valid_until")
+	}
+
+	return s.repo.UpdatePromoCode(ctx, promo)
+}
+
+// DeactivatePromoCode deactivates a promo code
+func (s *Service) DeactivatePromoCode(ctx context.Context, promoID uuid.UUID) error {
+	return s.repo.DeactivatePromoCode(ctx, promoID)
+}
+
+// GetPromoCodeByID retrieves a promo code by ID
+func (s *Service) GetPromoCodeByID(ctx context.Context, promoID uuid.UUID) (*PromoCode, error) {
+	return s.repo.GetPromoCodeByID(ctx, promoID)
+}
+
+// GetPromoCodeUsageStats retrieves usage statistics for a promo code
+func (s *Service) GetPromoCodeUsageStats(ctx context.Context, promoID uuid.UUID) (map[string]interface{}, error) {
+	return s.repo.GetPromoCodeUsageStats(ctx, promoID)
+}
+
+// GetReferralByID retrieves a referral by ID
+func (s *Service) GetReferralByID(ctx context.Context, referralID uuid.UUID) (*Referral, error) {
+	return s.repo.GetReferralByID(ctx, referralID)
+}
+
+// GetReferralEarnings retrieves referral earnings for a user
+func (s *Service) GetReferralEarnings(ctx context.Context, userID uuid.UUID) (map[string]interface{}, error) {
+	return s.repo.GetReferralEarnings(ctx, userID)
 }
