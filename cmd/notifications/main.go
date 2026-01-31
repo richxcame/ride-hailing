@@ -14,6 +14,7 @@ import (
 	"github.com/richxcame/ride-hailing/internal/notifications"
 	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
+	"github.com/richxcame/ride-hailing/pkg/eventbus"
 	"github.com/richxcame/ride-hailing/pkg/database"
 	"github.com/richxcame/ride-hailing/pkg/errors"
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
@@ -21,6 +22,7 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/tracing"
 	"github.com/richxcame/ride-hailing/pkg/resilience"
+	"github.com/richxcame/ride-hailing/pkg/swagger"
 	"go.uber.org/zap"
 )
 
@@ -163,6 +165,27 @@ func main() {
 	notificationRepo := notifications.NewRepository(db)
 	notificationService := notifications.NewServiceWithClients(notificationRepo, firebaseClient, twilioClient, emailClient)
 	notificationService.SetCircuitBreakers(firebaseBreaker, twilioBreaker, smtpBreaker)
+
+	// Initialize NATS event bus for receiving ride lifecycle events
+	if cfg.NATS.Enabled {
+		bus, err := eventbus.New(eventbus.Config{
+			URL:        cfg.NATS.URL,
+			Name:       serviceName,
+			StreamName: cfg.NATS.StreamName,
+		})
+		if err != nil {
+			log.Warn("Failed to connect to NATS - event-driven notifications disabled", zap.Error(err))
+		} else {
+			defer bus.Close()
+			eventHandler := notifications.NewEventHandler(notificationService)
+			if err := eventHandler.RegisterSubscriptions(context.Background(), bus); err != nil {
+				log.Warn("Failed to register event subscriptions", zap.Error(err))
+			} else {
+				log.Info("NATS event subscriptions active", zap.String("url", cfg.NATS.URL))
+			}
+		}
+	}
+
 	notificationHandler := notifications.NewHandler(notificationService)
 
 	// Start background worker for processing scheduled notifications
@@ -193,6 +216,7 @@ func main() {
 	router.Use(middleware.RequestLogger(serviceName))
 	router.Use(middleware.CORS())
 	router.Use(middleware.SecurityHeaders())
+	router.Use(middleware.MaxBodySize(10 << 20)) // 10MB request body limit
 	router.Use(middleware.SanitizeRequest())
 	router.Use(middleware.Metrics(serviceName))
 
@@ -220,6 +244,7 @@ func main() {
 
 	// Metrics endpoint
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	swagger.RegisterRoutes(router)
 
 	// Register notification routes
 	jwtProvider, err := jwtkeys.NewManagerFromConfig(rootCtx, cfg.JWT, true)

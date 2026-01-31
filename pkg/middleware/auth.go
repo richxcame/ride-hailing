@@ -30,22 +30,26 @@ func AuthMiddleware(jwtSecret string) gin.HandlerFunc {
 // AuthMiddlewareWithProvider validates JWT tokens using the supplied key provider.
 func AuthMiddlewareWithProvider(provider jwtkeys.KeyProvider) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		var tokenString string
+
 		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			common.ErrorResponse(c, http.StatusUnauthorized, "authorization header required")
+		if authHeader != "" {
+			// Extract token from "Bearer <token>"
+			parts := strings.Split(authHeader, " ")
+			if len(parts) != 2 || parts[0] != "Bearer" {
+				common.ErrorResponse(c, http.StatusUnauthorized, "invalid authorization header format")
+				c.Abort()
+				return
+			}
+			tokenString = parts[1]
+		} else if t := c.Query("token"); t != "" {
+			// Allow token via query param for WebSocket connections
+			tokenString = t
+		} else {
+			common.ErrorResponse(c, http.StatusUnauthorized, "authorization required")
 			c.Abort()
 			return
 		}
-
-		// Extract token from "Bearer <token>"
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			common.ErrorResponse(c, http.StatusUnauthorized, "invalid authorization header format")
-			c.Abort()
-			return
-		}
-
-		tokenString := parts[1]
 
 		// Parse and validate token
 		token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {

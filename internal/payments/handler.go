@@ -81,15 +81,22 @@ func (h *Handler) ProcessPayment(c *gin.Context) {
 		return
 	}
 
-	// In a real implementation, you would fetch the driver ID from the ride
-	// For now, we'll use a placeholder
-	driverID := uuid.New()
+	// Fetch the driver ID from the ride
+	driverIDPtr, err := h.service.GetRideDriverID(c.Request.Context(), rideID)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "ride not found or has no driver assigned")
+		return
+	}
+	if driverIDPtr == nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "ride has no driver assigned yet")
+		return
+	}
 
 	payment, err := h.service.ProcessRidePayment(
 		c.Request.Context(),
 		rideID,
 		userUUID,
-		driverID,
+		*driverIDPtr,
 		req.Amount,
 		req.PaymentMethod,
 	)

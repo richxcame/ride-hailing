@@ -521,6 +521,42 @@ func (h *Handler) GetSurgeInfo(c *gin.Context) {
 	common.SuccessResponse(c, surgeInfo)
 }
 
+// MatchDrivers returns the best-scored drivers for a pickup location.
+func (h *Handler) MatchDrivers(c *gin.Context) {
+	latStr := c.Query("latitude")
+	lngStr := c.Query("longitude")
+	if latStr == "" || lngStr == "" {
+		common.ErrorResponse(c, http.StatusBadRequest, "latitude and longitude are required")
+		return
+	}
+
+	lat, err := strconv.ParseFloat(latStr, 64)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitude")
+		return
+	}
+	lng, err := strconv.ParseFloat(lngStr, 64)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid longitude")
+		return
+	}
+
+	candidates, err := h.service.MatchDrivers(c.Request.Context(), lat, lng)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			common.AppErrorResponse(c, appErr)
+			return
+		}
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to match drivers")
+		return
+	}
+
+	common.SuccessResponse(c, gin.H{
+		"drivers": candidates,
+		"count":   len(candidates),
+	})
+}
+
 // RegisterRoutes registers ride routes
 func (h *Handler) RegisterRoutes(r *gin.Engine, jwtProvider jwtkeys.KeyProvider, limiter *ratelimit.Limiter, rateCfg config.RateLimitConfig) {
 	api := r.Group("/api/v1")
@@ -540,6 +576,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine, jwtProvider jwtkeys.KeyProvider,
 		riders.GET("/surge-info", h.GetSurgeInfo)
 		riders.POST("/:id/cancel", h.CancelRide)
 		riders.POST("/:id/rate", h.RateRide)
+		riders.GET("/match-drivers", h.MatchDrivers)
 	}
 
 	// Driver routes

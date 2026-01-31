@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	stdlog "log"
 	"os"
 	"strconv"
 	"time"
@@ -18,6 +18,7 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
+	"github.com/richxcame/ride-hailing/pkg/swagger"
 	"github.com/richxcame/ride-hailing/pkg/tracing"
 	"go.uber.org/zap"
 )
@@ -31,14 +32,14 @@ func main() {
 	// Load configuration
 	cfg, err := config.Load("admin")
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		stdlog.Fatalf("Failed to load config: %v", err)
 	}
 	defer cfg.Close()
 
 	// Initialize logger
 	environment := getEnv("ENVIRONMENT", "development")
 	if err := logger.Init(environment); err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
+		stdlog.Fatalf("Failed to initialize logger: %v", err)
 	}
 	defer logger.Sync()
 
@@ -61,7 +62,7 @@ func main() {
 		ReadOnly:         true,
 	})
 	if err != nil {
-		log.Fatalf("Failed to initialize JWT key manager: %v", err)
+		logger.Fatal("Failed to initialize JWT key manager", zap.Error(err))
 	}
 	jwtProvider.StartAutoRefresh(rootCtx, time.Duration(getEnvAsInt("JWT_KEY_REFRESH_MINUTES", 5))*time.Minute)
 
@@ -72,7 +73,7 @@ func main() {
 	ctx := rootCtx
 	poolConfig, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
-		log.Fatalf("Failed to parse database config: %v", err)
+		logger.Fatal("Failed to parse database config", zap.Error(err))
 	}
 
 	poolConfig.MaxConns = 25
@@ -82,7 +83,7 @@ func main() {
 
 	db, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		logger.Fatal("Failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
 
@@ -142,6 +143,7 @@ func main() {
 	router.Use(middleware.RequestTimeout(&cfg.Timeout))
 	router.Use(middleware.CORS())
 	router.Use(middleware.SecurityHeaders())
+	router.Use(middleware.MaxBodySize(10 << 20)) // 10MB request body limit
 	router.Use(middleware.SanitizeRequest())
 
 	// Add tracing middleware if enabled
@@ -180,6 +182,7 @@ func main() {
 	})
 
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	swagger.RegisterRoutes(router)
 
 	// Admin API routes - all require authentication + admin role
 	api := router.Group("/api/v1/admin")

@@ -37,6 +37,24 @@ services:
     networks:
       - ridehailing-network
 
+  # NATS with JetStream for event-driven messaging
+  nats:
+    image: nats:2-alpine
+    container_name: ridehailing-nats
+    command: ["--js", "--sd", "/data", "-m", "8222"]
+    ports:
+      - "4222:4222"   # Client connections
+      - "8222:8222"   # HTTP monitoring
+    volumes:
+      - nats_data:/data
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ridehailing-network
+
   # Kong Database (PostgreSQL)
   kong-database:
     image: postgres:15-alpine
@@ -957,6 +975,7 @@ services:
 volumes:
   postgres_data:
   redis_data:
+  nats_data:
   kong_data:
   prometheus_data:
   grafana_data:

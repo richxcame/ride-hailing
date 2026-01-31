@@ -1,0 +1,1196 @@
+openapi: 3.0.3
+info:
+  title: Ride-Hailing API
+  description: |
+    Comprehensive ride-hailing platform API supporting riders, drivers, and administrators.
+
+    ## Authentication
+    All protected endpoints require a Bearer JWT token in the Authorization header.
+    Obtain tokens via the `/api/v1/auth/login` or `/api/v1/auth/register` endpoints.
+
+    ## Rate Limiting
+    All endpoints are rate limited. Check `X-RateLimit-Limit`, `X-RateLimit-Remaining`,
+    and `X-RateLimit-Reset` response headers.
+
+    ## Idempotency
+    For POST/PUT/PATCH requests, include an `Idempotency-Key` header to prevent duplicate processing.
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:8080
+    description: Auth Service
+  - url: http://localhost:8081
+    description: Rides Service
+  - url: http://localhost:8083
+    description: Geo Service
+  - url: http://localhost:8084
+    description: Payments Service
+
+tags:
+  - name: Auth
+    description: Authentication and user profile management
+  - name: Rides
+    description: Ride lifecycle management
+  - name: Driver
+    description: Driver-specific ride operations
+  - name: Payments
+    description: Payment processing and wallet management
+  - name: Geo
+    description: Geolocation, H3 indexing, and geocoding
+  - name: Promos
+    description: Promo codes and referral system
+  - name: Notifications
+    description: Push notifications and in-app messaging
+  - name: Admin
+    description: Admin dashboard and management
+  - name: Analytics
+    description: Business analytics and reporting
+  - name: Fraud
+    description: Fraud detection and risk management
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: "error message"
+
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+
+    Meta:
+      type: object
+      properties:
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        total_pages:
+          type: integer
+        stats:
+          type: object
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        phone_number:
+          type: string
+        role:
+          type: string
+          enum: [rider, driver, admin]
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+
+    Ride:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        rider_id:
+          type: string
+          format: uuid
+        driver_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [requested, accepted, started, completed, cancelled]
+        pickup_latitude:
+          type: number
+          format: double
+        pickup_longitude:
+          type: number
+          format: double
+        dropoff_latitude:
+          type: number
+          format: double
+        dropoff_longitude:
+          type: number
+          format: double
+        pickup_address:
+          type: string
+        dropoff_address:
+          type: string
+        fare:
+          type: number
+          format: double
+        distance_km:
+          type: number
+          format: double
+        duration_minutes:
+          type: integer
+        ride_type:
+          type: string
+        surge_multiplier:
+          type: number
+          format: double
+        created_at:
+          type: string
+          format: date-time
+
+    DriverLocation:
+      type: object
+      properties:
+        driver_id:
+          type: string
+          format: uuid
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        h3_cell:
+          type: string
+        heading:
+          type: number
+          format: double
+        speed:
+          type: number
+          format: double
+        timestamp:
+          type: string
+          format: date-time
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        ride_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: double
+        currency:
+          type: string
+        status:
+          type: string
+          enum: [pending, completed, failed, refunded]
+        payment_method:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Wallet:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        balance:
+          type: number
+          format: double
+        currency:
+          type: string
+
+    GeocodingResult:
+      type: object
+      properties:
+        place_id:
+          type: string
+        formatted_address:
+          type: string
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+        types:
+          type: array
+          items:
+            type: string
+        h3_cell:
+          type: string
+
+    AutocompleteResult:
+      type: object
+      properties:
+        place_id:
+          type: string
+        description:
+          type: string
+        main_text:
+          type: string
+        secondary_text:
+          type: string
+
+    SurgeInfo:
+      type: object
+      properties:
+        h3_cell:
+          type: string
+        surge_multiplier:
+          type: number
+          format: double
+        demand_count:
+          type: integer
+        supply_count:
+          type: integer
+        updated_at:
+          type: string
+          format: date-time
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+    PerPageParam:
+      name: per_page
+      in: query
+      schema:
+        type: integer
+        default: 20
+    LatitudeParam:
+      name: latitude
+      in: query
+      required: true
+      schema:
+        type: number
+        format: double
+    LongitudeParam:
+      name: longitude
+      in: query
+      required: true
+      schema:
+        type: number
+        format: double
+
+paths:
+  # ==================== AUTH ====================
+  /api/v1/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password, first_name, last_name, phone_number, role]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 8
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                phone_number:
+                  type: string
+                role:
+                  type: string
+                  enum: [rider, driver]
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/User'
+                          token:
+                            type: string
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Email already exists
+
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with credentials
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/User'
+                          token:
+                            type: string
+        '401':
+          description: Invalid credentials
+
+  /api/v1/auth/profile:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/User'
+    put:
+      tags: [Auth]
+      summary: Update current user profile
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+                phone_number:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated
+
+  # ==================== RIDES ====================
+  /api/v1/rides:
+    post:
+      tags: [Rides]
+      summary: Request a new ride
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pickup_latitude, pickup_longitude, dropoff_latitude, dropoff_longitude]
+              properties:
+                pickup_latitude:
+                  type: number
+                  format: double
+                pickup_longitude:
+                  type: number
+                  format: double
+                dropoff_latitude:
+                  type: number
+                  format: double
+                dropoff_longitude:
+                  type: number
+                  format: double
+                pickup_address:
+                  type: string
+                dropoff_address:
+                  type: string
+                ride_type:
+                  type: string
+                promo_code:
+                  type: string
+      responses:
+        '201':
+          description: Ride requested
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Ride'
+    get:
+      tags: [Rides]
+      summary: Get my rides
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: List of rides
+
+  /api/v1/rides/{id}:
+    get:
+      tags: [Rides]
+      summary: Get ride details
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Ride details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Ride'
+
+  /api/v1/rides/{id}/cancel:
+    post:
+      tags: [Rides]
+      summary: Cancel a ride
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Ride cancelled
+
+  /api/v1/rides/{id}/rate:
+    post:
+      tags: [Rides]
+      summary: Rate a completed ride
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating]
+              properties:
+                rating:
+                  type: integer
+                  minimum: 1
+                  maximum: 5
+                comment:
+                  type: string
+      responses:
+        '200':
+          description: Rating submitted
+
+  /api/v1/rides/surge-info:
+    get:
+      tags: [Rides]
+      summary: Get surge pricing info for a location
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LatitudeParam'
+        - $ref: '#/components/parameters/LongitudeParam'
+      responses:
+        '200':
+          description: Surge pricing info
+
+  # ==================== DRIVER ====================
+  /api/v1/driver/rides/available:
+    get:
+      tags: [Driver]
+      summary: Get available ride requests nearby
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Available rides
+
+  /api/v1/driver/rides/{id}/accept:
+    post:
+      tags: [Driver]
+      summary: Accept a ride request
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Ride accepted
+
+  /api/v1/driver/rides/{id}/start:
+    post:
+      tags: [Driver]
+      summary: Start a ride (picked up passenger)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Ride started
+
+  /api/v1/driver/rides/{id}/complete:
+    post:
+      tags: [Driver]
+      summary: Complete a ride
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Ride completed
+
+  # ==================== PAYMENTS ====================
+  /api/v1/wallet:
+    get:
+      tags: [Payments]
+      summary: Get wallet balance
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Wallet info
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Wallet'
+
+  /api/v1/wallet/topup:
+    post:
+      tags: [Payments]
+      summary: Top up wallet balance
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount]
+              properties:
+                amount:
+                  type: number
+                  format: double
+                  minimum: 1
+      responses:
+        '200':
+          description: Wallet topped up
+
+  /api/v1/wallet/transactions:
+    get:
+      tags: [Payments]
+      summary: Get wallet transaction history
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Transaction list
+
+  /api/v1/payments/process:
+    post:
+      tags: [Payments]
+      summary: Process payment for a ride
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ride_id, amount, payment_method]
+              properties:
+                ride_id:
+                  type: string
+                  format: uuid
+                amount:
+                  type: number
+                  format: double
+                payment_method:
+                  type: string
+                  enum: [wallet, card]
+                currency:
+                  type: string
+                  default: USD
+      responses:
+        '200':
+          description: Payment processed
+        '402':
+          description: Insufficient funds
+
+  /api/v1/payments/{id}:
+    get:
+      tags: [Payments]
+      summary: Get payment details
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Payment details
+
+  /api/v1/payments/{id}/refund:
+    post:
+      tags: [Payments]
+      summary: Request payment refund
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          description: Refund processed
+
+  # ==================== GEO ====================
+  /api/v1/geo/location:
+    post:
+      tags: [Geo]
+      summary: Update driver location
+      description: Drivers only. Updates location with H3 spatial indexing.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [latitude, longitude]
+              properties:
+                latitude:
+                  type: number
+                  format: double
+                longitude:
+                  type: number
+                  format: double
+                heading:
+                  type: number
+                  format: double
+                  description: Direction 0-360 degrees
+                speed:
+                  type: number
+                  format: double
+                  description: Speed in km/h
+      responses:
+        '200':
+          description: Location updated
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          message:
+                            type: string
+                          h3_cell:
+                            type: string
+
+  /api/v1/geo/drivers/{id}/location:
+    get:
+      tags: [Geo]
+      summary: Get driver location
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Driver location
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/DriverLocation'
+
+  /api/v1/geo/drivers/nearby:
+    get:
+      tags: [Geo]
+      summary: Find nearby available drivers
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LatitudeParam'
+        - $ref: '#/components/parameters/LongitudeParam'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 50
+      responses:
+        '200':
+          description: Nearby drivers
+
+  /api/v1/geo/distance:
+    post:
+      tags: [Geo]
+      summary: Calculate distance and ETA between two points
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from_latitude, from_longitude, to_latitude, to_longitude]
+              properties:
+                from_latitude:
+                  type: number
+                  format: double
+                from_longitude:
+                  type: number
+                  format: double
+                to_latitude:
+                  type: number
+                  format: double
+                to_longitude:
+                  type: number
+                  format: double
+      responses:
+        '200':
+          description: Distance and ETA
+
+  /api/v1/geo/h3/cell:
+    get:
+      tags: [Geo]
+      summary: Get H3 cell indexes at all resolutions for a location
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LatitudeParam'
+        - $ref: '#/components/parameters/LongitudeParam'
+      responses:
+        '200':
+          description: H3 cell indexes
+
+  /api/v1/geo/h3/surge:
+    get:
+      tags: [Geo]
+      summary: Get surge pricing info for a location (H3-based)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LatitudeParam'
+        - $ref: '#/components/parameters/LongitudeParam'
+      responses:
+        '200':
+          description: Surge pricing info
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/SurgeInfo'
+
+  /api/v1/geo/h3/demand-heatmap:
+    get:
+      tags: [Geo]
+      summary: Get demand heatmap data around a location
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LatitudeParam'
+        - $ref: '#/components/parameters/LongitudeParam'
+      responses:
+        '200':
+          description: Demand heatmap
+
+  /api/v1/geo/geocode:
+    get:
+      tags: [Geo]
+      summary: Forward geocode an address to coordinates
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: address
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Geocoding results
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          results:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/GeocodingResult'
+
+  /api/v1/geo/geocode/reverse:
+    get:
+      tags: [Geo]
+      summary: Reverse geocode coordinates to an address
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/LatitudeParam'
+        - $ref: '#/components/parameters/LongitudeParam'
+      responses:
+        '200':
+          description: Reverse geocoding results
+
+  /api/v1/geo/geocode/autocomplete:
+    get:
+      tags: [Geo]
+      summary: Place search autocomplete
+      description: Returns place suggestions as the user types. Optionally biased toward a location.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: input
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: latitude
+          in: query
+          schema:
+            type: number
+            format: double
+        - name: longitude
+          in: query
+          schema:
+            type: number
+            format: double
+      responses:
+        '200':
+          description: Autocomplete predictions
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          predictions:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/AutocompleteResult'
+
+  /api/v1/geo/geocode/place:
+    get:
+      tags: [Geo]
+      summary: Get place details by place ID
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: place_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Place details
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/GeocodingResult'
+
+  # ==================== PROMOS ====================
+  /api/v1/promos/validate:
+    post:
+      tags: [Promos]
+      summary: Validate a promo code
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+      responses:
+        '200':
+          description: Promo code validation result
+
+  /api/v1/promos/ride-types:
+    get:
+      tags: [Promos]
+      summary: Get available ride types with pricing
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Ride types
+
+  /api/v1/promos/calculate-fare:
+    post:
+      tags: [Promos]
+      summary: Calculate fare estimate with optional promo code
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [distance_km, ride_type]
+              properties:
+                distance_km:
+                  type: number
+                  format: double
+                ride_type:
+                  type: string
+                promo_code:
+                  type: string
+      responses:
+        '200':
+          description: Fare estimate
+
+  /api/v1/promos/my-referral:
+    get:
+      tags: [Promos]
+      summary: Get my referral code
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Referral code info
+
+  /api/v1/promos/apply-referral:
+    post:
+      tags: [Promos]
+      summary: Apply a referral code
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+      responses:
+        '200':
+          description: Referral applied
+
+  /api/v1/promos/my-earnings:
+    get:
+      tags: [Promos]
+      summary: Get my referral earnings
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Referral earnings
+
+  # ==================== NOTIFICATIONS ====================
+  /api/v1/notifications:
+    get:
+      tags: [Notifications]
+      summary: Get my notifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/PerPageParam'
+      responses:
+        '200':
+          description: Notification list
+
+  /api/v1/notifications/unread/count:
+    get:
+      tags: [Notifications]
+      summary: Get unread notification count
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Unread count
+
+  /api/v1/notifications/{id}/read:
+    post:
+      tags: [Notifications]
+      summary: Mark a notification as read
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Notification marked as read

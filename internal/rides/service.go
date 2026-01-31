@@ -9,11 +9,14 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/pkg/common"
+	"github.com/richxcame/ride-hailing/pkg/eventbus"
 	"github.com/richxcame/ride-hailing/pkg/httpclient"
+	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/models"
 	"github.com/richxcame/ride-hailing/pkg/resilience"
 	"github.com/richxcame/ride-hailing/pkg/tracing"
 	"go.opentelemetry.io/otel/attribute"
+	"go.uber.org/zap"
 )
 
 const (
@@ -31,6 +34,8 @@ type Service struct {
 	surgeCalculator SurgeCalculator
 	mlEtaClient     *httpclient.Client
 	mlEtaBreaker    *resilience.CircuitBreaker
+	matcher         *Matcher
+	eventBus        *eventbus.Bus
 }
 
 // SurgeCalculator defines the interface for surge pricing calculation
@@ -52,6 +57,43 @@ func NewService(repo *Repository, promosServiceURL string, breaker *resilience.C
 // SetSurgeCalculator sets the surge pricing calculator
 func (s *Service) SetSurgeCalculator(calculator SurgeCalculator) {
 	s.surgeCalculator = calculator
+}
+
+// SetMatcher sets the driver-rider matching engine.
+func (s *Service) SetMatcher(matcher *Matcher) {
+	s.matcher = matcher
+}
+
+// SetEventBus sets the NATS event bus for publishing ride lifecycle events.
+func (s *Service) SetEventBus(bus *eventbus.Bus) {
+	s.eventBus = bus
+}
+
+// publishEvent publishes an event asynchronously. Failures are logged but don't affect the caller.
+func (s *Service) publishEvent(subject string, eventType, source string, data interface{}) {
+	if s.eventBus == nil {
+		return
+	}
+	go func() {
+		evt, err := eventbus.NewEvent(eventType, source, data)
+		if err != nil {
+			logger.Warn("failed to create event", zap.String("type", eventType), zap.Error(err))
+			return
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := s.eventBus.Publish(ctx, subject, evt); err != nil {
+			logger.Warn("failed to publish event", zap.String("type", eventType), zap.Error(err))
+		}
+	}()
+}
+
+// MatchDrivers finds and scores the best drivers for a pickup location.
+func (s *Service) MatchDrivers(ctx context.Context, pickupLat, pickupLng float64) ([]*DriverCandidate, error) {
+	if s.matcher == nil {
+		return nil, common.NewInternalServerError("matching engine not configured")
+	}
+	return s.matcher.FindBestDrivers(ctx, pickupLat, pickupLng)
 }
 
 // EnableMLPredictions wires an optional ML ETA client with breaker protection.
@@ -166,6 +208,17 @@ func (s *Service) RequestRide(ctx context.Context, riderID uuid.UUID, req *model
 		attribute.Float64("surge_multiplier", surgeMultiplier),
 	)
 
+	s.publishEvent(eventbus.SubjectRideRequested, "ride.requested", "rides-service", eventbus.RideRequestedData{
+		RideID:      ride.ID,
+		RiderID:     riderID,
+		PickupLat:   req.PickupLatitude,
+		PickupLng:   req.PickupLongitude,
+		DropoffLat:  req.DropoffLatitude,
+		DropoffLng:  req.DropoffLongitude,
+		RideType:    func() string { if rideTypeID != nil { return rideTypeID.String() }; return "" }(),
+		RequestedAt: ride.RequestedAt,
+	})
+
 	return ride, nil
 }
 
@@ -189,32 +242,39 @@ func (s *Service) AcceptRide(ctx context.Context, rideID, driverID uuid.UUID) (*
 		tracing.DriverIDKey.String(driverID.String()),
 	)
 
-	ride, err := s.repo.GetRideByID(ctx, rideID)
+	// Atomic accept: single UPDATE with status guard prevents double-accept race condition
+	accepted, err := s.repo.AtomicAcceptRide(ctx, rideID, driverID)
 	if err != nil {
-		tracing.RecordError(ctx, err)
-		return nil, common.NewNotFoundError("ride not found", nil)
-	}
-
-	if ride.Status != models.RideStatusRequested {
-		err := fmt.Errorf("ride status is %s, not requested", ride.Status)
-		tracing.RecordError(ctx, err)
-		return nil, common.NewBadRequestError("ride is not available for acceptance", nil)
-	}
-
-	if err := s.repo.UpdateRideStatus(ctx, rideID, models.RideStatusAccepted, &driverID); err != nil {
 		tracing.RecordError(ctx, err)
 		return nil, common.NewInternalServerError("failed to accept ride")
 	}
+	if !accepted {
+		return nil, common.NewErrorWithCode(409, common.ErrCodeRideNotAvailable,
+			"ride is no longer available for acceptance", nil)
+	}
 
-	ride.Status = models.RideStatusAccepted
-	ride.DriverID = &driverID
-	now := time.Now()
-	ride.AcceptedAt = &now
+	// Re-fetch ride with updated fields
+	ride, err := s.repo.GetRideByID(ctx, rideID)
+	if err != nil {
+		tracing.RecordError(ctx, err)
+		return nil, common.NewInternalServerError("failed to fetch accepted ride")
+	}
 
 	tracing.AddSpanEvent(ctx, "ride_accepted",
 		attribute.String("ride_id", rideID.String()),
 		attribute.String("driver_id", driverID.String()),
 	)
+
+	s.publishEvent(eventbus.SubjectRideAccepted, "ride.accepted", "rides-service", eventbus.RideAcceptedData{
+		RideID:     rideID,
+		RiderID:    ride.RiderID,
+		DriverID:   driverID,
+		PickupLat:  ride.PickupLatitude,
+		PickupLng:  ride.PickupLongitude,
+		DropoffLat: ride.DropoffLatitude,
+		DropoffLng: ride.DropoffLongitude,
+		AcceptedAt: *ride.AcceptedAt,
+	})
 
 	return ride, nil
 }
@@ -241,6 +301,13 @@ func (s *Service) StartRide(ctx context.Context, rideID, driverID uuid.UUID) (*m
 	ride.Status = models.RideStatusInProgress
 	now := time.Now()
 	ride.StartedAt = &now
+
+	s.publishEvent(eventbus.SubjectRideStarted, "ride.started", "rides-service", eventbus.RideStartedData{
+		RideID:    rideID,
+		RiderID:   ride.RiderID,
+		DriverID:  driverID,
+		StartedAt: now,
+	})
 
 	return ride, nil
 }
@@ -303,6 +370,16 @@ func (s *Service) CompleteRide(ctx context.Context, rideID, driverID uuid.UUID, 
 	now := time.Now()
 	ride.CompletedAt = &now
 
+	s.publishEvent(eventbus.SubjectRideCompleted, "ride.completed", "rides-service", eventbus.RideCompletedData{
+		RideID:      rideID,
+		RiderID:     ride.RiderID,
+		DriverID:    driverID,
+		FareAmount:  finalFare,
+		DistanceKm:  actualDistance,
+		DurationMin: float64(actualDuration),
+		CompletedAt: now,
+	})
+
 	return ride, nil
 }
 
@@ -333,6 +410,23 @@ func (s *Service) CancelRide(ctx context.Context, rideID, userID uuid.UUID, reas
 	now := time.Now()
 	ride.CancelledAt = &now
 	ride.CancellationReason = &reason
+
+	cancelledBy := "rider"
+	if isDriver {
+		cancelledBy = "driver"
+	}
+	driverID := uuid.Nil
+	if ride.DriverID != nil {
+		driverID = *ride.DriverID
+	}
+	s.publishEvent(eventbus.SubjectRideCancelled, "ride.cancelled", "rides-service", eventbus.RideCancelledData{
+		RideID:      rideID,
+		RiderID:     ride.RiderID,
+		DriverID:    driverID,
+		CancelledBy: cancelledBy,
+		Reason:      reason,
+		CancelledAt: now,
+	})
 
 	return ride, nil
 }

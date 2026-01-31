@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"database/sql"
-	"log"
+	stdlog "log"
 	"os"
 	"strings"
 	"time"
@@ -19,8 +19,10 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	"github.com/richxcame/ride-hailing/pkg/redis"
+	"github.com/richxcame/ride-hailing/pkg/swagger"
 	"github.com/richxcame/ride-hailing/pkg/tracing"
 	ws "github.com/richxcame/ride-hailing/pkg/websocket"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -31,7 +33,7 @@ func main() {
 	// Load configuration
 	cfg, err := config.Load("realtime")
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		stdlog.Fatalf("Failed to load config: %v", err)
 	}
 	defer cfg.Close()
 
@@ -41,7 +43,7 @@ func main() {
 		environment = "development"
 	}
 	if err := logger.Init(environment); err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
+		stdlog.Fatalf("Failed to initialize logger: %v", err)
 	}
 	defer logger.Sync()
 
@@ -52,7 +54,7 @@ func main() {
 
 	jwtProvider, err := jwtkeys.NewManagerFromConfig(rootCtx, cfg.JWT, true)
 	if err != nil {
-		log.Fatalf("Failed to initialize JWT key manager: %v", err)
+		logger.Fatal("Failed to initialize JWT key manager", zap.Error(err))
 	}
 	jwtProvider.StartAutoRefresh(rootCtx, time.Duration(cfg.JWT.RefreshMinutes)*time.Minute)
 
@@ -61,25 +63,25 @@ func main() {
 
 	db, err := sql.Open("postgres", dsn)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		logger.Fatal("Failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
 
 	// Test database connection
 	if err := db.Ping(); err != nil {
-		log.Fatalf("Failed to ping database: %v", err)
+		logger.Fatal("Failed to ping database", zap.Error(err))
 	}
-	log.Println("Connected to PostgreSQL database")
+	logger.Info("Connected to PostgreSQL database")
 
 	// Initialize Sentry for error tracking
 	sentryConfig := errors.DefaultSentryConfig()
 	sentryConfig.ServerName = "realtime-service"
 	sentryConfig.Release = "1.0.0"
 	if err := errors.InitSentry(sentryConfig); err != nil {
-		log.Printf("Warning: Failed to initialize Sentry, continuing without error tracking: %v", err)
+		logger.Warn("Failed to initialize Sentry, continuing without error tracking", zap.Error(err))
 	} else {
 		defer errors.Flush(2 * time.Second)
-		log.Println("Sentry error tracking initialized successfully")
+		logger.Info("Sentry error tracking initialized successfully")
 	}
 
 	// Initialize OpenTelemetry tracer
@@ -95,30 +97,30 @@ func main() {
 
 		tp, err := tracing.InitTracer(tracerCfg, logger.Get())
 		if err != nil {
-			log.Printf("Warning: Failed to initialize tracer: %v", err)
+			logger.Warn("Failed to initialize tracer", zap.Error(err))
 		} else {
 			defer func() {
 				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
 				if err := tp.Shutdown(shutdownCtx); err != nil {
-					log.Printf("Warning: Failed to shutdown tracer: %v", err)
+					logger.Warn("Failed to shutdown tracer", zap.Error(err))
 				}
 			}()
-			log.Println("OpenTelemetry tracing initialized successfully")
+			logger.Info("OpenTelemetry tracing initialized successfully")
 		}
 	}
 
 	// Connect to Redis
 	redisClient, err := redis.NewRedisClient(&cfg.Redis)
 	if err != nil {
-		log.Fatalf("Failed to connect to Redis: %v", err)
+		logger.Fatal("Failed to connect to Redis", zap.Error(err))
 	}
-	log.Println("Connected to Redis")
+	logger.Info("Connected to Redis")
 
 	// Create WebSocket hub
 	hub := ws.NewHub()
 	go hub.Run()
-	log.Println("WebSocket hub started")
+	logger.Info("WebSocket hub started")
 
 	// Create service and handler
 	service := realtime.NewService(hub, db, redisClient)
@@ -138,6 +140,7 @@ func main() {
 	router.Use(middleware.RequestTimeout(&cfg.Timeout))
 	router.Use(middleware.RequestLogger("realtime-service"))
 	router.Use(middleware.SecurityHeaders())
+	router.Use(middleware.MaxBodySize(10 << 20)) // 10MB request body limit
 	router.Use(middleware.SanitizeRequest())
 	router.Use(middleware.Metrics("realtime-service"))
 
@@ -159,11 +162,11 @@ func main() {
 			origins[i] = strings.TrimSpace(origins[i])
 		}
 		corsConfig.AllowOrigins = origins
-		log.Printf("CORS configured with origins: %v", origins)
+		logger.Info("CORS configured with origins", zap.Strings("origins", origins))
 	} else {
 		// Development fallback
 		corsConfig.AllowOrigins = []string{"http://localhost:3000"}
-		log.Println("CORS configured for development (localhost:3000)")
+		logger.Info("CORS configured for development (localhost:3000)")
 	}
 	corsConfig.AllowMethods = []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}
 	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
@@ -204,6 +207,7 @@ func main() {
 	})
 
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	swagger.RegisterRoutes(router)
 
 	// API routes
 	api := router.Group("/api/v1")
@@ -230,8 +234,8 @@ func main() {
 
 	// Start server
 	addr := ":" + port
-	log.Printf("Real-time service starting on port %s", port)
+	logger.Info("Real-time service starting", zap.String("port", port))
 	if err := router.Run(addr); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		logger.Fatal("Failed to start server", zap.Error(err))
 	}
 }

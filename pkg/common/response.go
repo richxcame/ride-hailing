@@ -16,8 +16,9 @@ type Response struct {
 
 // ErrorInfo contains error details
 type ErrorInfo struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+	Code      int    `json:"code"`
+	ErrorCode string `json:"error_code,omitempty"`
+	Message   string `json:"message"`
 }
 
 // Meta contains metadata for paginated responses
@@ -89,8 +90,9 @@ func AppErrorResponse(c *gin.Context, err *AppError) {
 	c.JSON(err.Code, Response{
 		Success: false,
 		Error: &ErrorInfo{
-			Code:    err.Code,
-			Message: err.Message,
+			Code:      err.Code,
+			ErrorCode: err.ErrorCode,
+			Message:   err.Message,
 		},
 	})
 }

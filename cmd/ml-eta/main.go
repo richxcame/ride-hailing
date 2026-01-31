@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	stdlog "log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -16,8 +16,11 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/database"
 	"github.com/richxcame/ride-hailing/pkg/errors"
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
+	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	redisClient "github.com/richxcame/ride-hailing/pkg/redis"
+	"github.com/richxcame/ride-hailing/pkg/swagger"
+	"go.uber.org/zap"
 )
 
 const serviceName = "ml-eta"
@@ -30,9 +33,19 @@ func main() {
 	// Load configuration
 	cfg, err := config.Load("ml-eta")
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		stdlog.Fatalf("Failed to load config: %v", err)
 	}
 	defer cfg.Close()
+
+	// Initialize logger
+	environment := os.Getenv("ENVIRONMENT")
+	if environment == "" {
+		environment = "development"
+	}
+	if err := logger.Init(environment); err != nil {
+		stdlog.Fatalf("Failed to initialize logger: %v", err)
+	}
+	defer logger.Sync()
 
 	rootCtx, cancelKeys := context.WithCancel(context.Background())
 	defer cancelKeys()
@@ -40,14 +53,14 @@ func main() {
 	// Initialize database (pgxpool)
 	dbPool, err := database.NewPostgresPool(&cfg.Database, cfg.Timeout.DatabaseQueryTimeout)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		logger.Fatal("Failed to connect to database", zap.Error(err))
 	}
 	defer database.Close(dbPool)
 
 	// Initialize Redis
 	redis, err := redisClient.NewRedisClient(&cfg.Redis)
 	if err != nil {
-		log.Fatalf("Failed to connect to Redis: %v", err)
+		logger.Fatal("Failed to connect to Redis", zap.Error(err))
 	}
 	defer redis.Close()
 
@@ -56,10 +69,10 @@ func main() {
 	sentryConfig.ServerName = serviceName
 	sentryConfig.Release = "1.0.0"
 	if err := errors.InitSentry(sentryConfig); err != nil {
-		log.Printf("Warning: Failed to initialize Sentry, continuing without error tracking: %v", err)
+		logger.Warn("Failed to initialize Sentry, continuing without error tracking", zap.Error(err))
 	} else {
 		defer errors.Flush(2 * time.Second)
-		log.Println("Sentry error tracking initialized successfully")
+		logger.Info("Sentry error tracking initialized successfully")
 	}
 
 	// Initialize ML ETA service
@@ -69,7 +82,7 @@ func main() {
 
 	jwtProvider, err := jwtkeys.NewManagerFromConfig(rootCtx, cfg.JWT, true)
 	if err != nil {
-		log.Fatalf("Failed to initialize JWT key manager: %v", err)
+		logger.Fatal("Failed to initialize JWT key manager", zap.Error(err))
 	}
 	jwtProvider.StartAutoRefresh(rootCtx, time.Duration(cfg.JWT.RefreshMinutes)*time.Minute)
 
@@ -86,6 +99,7 @@ func main() {
 	router.Use(middleware.RequestLogger(serviceName))
 	router.Use(middleware.CORS())
 	router.Use(middleware.SecurityHeaders())
+	router.Use(middleware.MaxBodySize(10 << 20)) // 10MB request body limit
 	router.Use(middleware.SanitizeRequest())
 	router.Use(middleware.Metrics(cfg.Server.ServiceName))
 
@@ -157,6 +171,7 @@ func main() {
 
 	// Prometheus metrics
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	swagger.RegisterRoutes(router)
 
 	// Start server
 	port := cfg.Server.Port
@@ -174,9 +189,9 @@ func main() {
 
 	// Graceful shutdown
 	go func() {
-		log.Printf("🤖 ML ETA Service starting on port %s", port)
+		logger.Info("ML ETA Service starting", zap.String("port", port))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+			logger.Fatal("Failed to start server", zap.Error(err))
 		}
 	}()
 
@@ -185,14 +200,14 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
 
-	log.Println("🛑 Shutting down ML ETA Service...")
+	logger.Info("Shutting down ML ETA Service...")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatalf("Server forced to shutdown: %v", err)
+		logger.Fatal("Server forced to shutdown", zap.Error(err))
 	}
 
-	log.Println("✅ ML ETA Service stopped")
+	logger.Info("ML ETA Service stopped")
 }

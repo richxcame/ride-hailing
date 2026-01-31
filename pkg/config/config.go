@@ -25,6 +25,7 @@ type Config struct {
 	Payments      PaymentsConfig
 	Notifications NotificationsConfig
 	RateLimit     RateLimitConfig
+	NATS          NATSConfig
 	Resilience    ResilienceConfig
 	Timeout       TimeoutConfig
 	Secrets       SecretsSettings
@@ -110,6 +111,13 @@ type JWTConfig struct {
 type PubSubConfig struct {
 	ProjectID string
 	Enabled   bool
+}
+
+// NATSConfig holds NATS event bus configuration.
+type NATSConfig struct {
+	URL        string
+	StreamName string
+	Enabled    bool
 }
 
 // FirebaseConfig holds Firebase configuration
@@ -336,6 +344,11 @@ func Load(serviceName string) (*Config, error) {
 			ProjectID: getEnv("PUBSUB_PROJECT_ID", ""),
 			Enabled:   getEnvAsBool("PUBSUB_ENABLED", false),
 		},
+		NATS: NATSConfig{
+			URL:        getEnv("NATS_URL", "nats://localhost:4222"),
+			StreamName: getEnv("NATS_STREAM_NAME", "RIDEHAILING"),
+			Enabled:    getEnvAsBool("NATS_ENABLED", false),
+		},
 		Firebase: FirebaseConfig{
 			ProjectID:       getEnv("FIREBASE_PROJECT_ID", ""),
 			CredentialsPath: getEnv("FIREBASE_CREDENTIALS_PATH", ""),
@@ -364,6 +377,15 @@ func Load(serviceName string) (*Config, error) {
 			AnonymousLimit: getEnvAsInt("RATE_LIMIT_ANON_LIMIT", 60),
 			AnonymousBurst: getEnvAsInt("RATE_LIMIT_ANON_BURST", 20),
 			RedisPrefix:    getEnv("RATE_LIMIT_REDIS_PREFIX", "rate-limit"),
+			EndpointOverrides: map[string]EndpointRateLimitConfig{
+				// Auth endpoints - strict limits to prevent brute force
+				"POST:/api/v1/auth/login":    {AuthenticatedLimit: 10, AuthenticatedBurst: 3, AnonymousLimit: 5, AnonymousBurst: 2, WindowSeconds: 60},
+				"POST:/api/v1/auth/register": {AuthenticatedLimit: 5, AuthenticatedBurst: 2, AnonymousLimit: 3, AnonymousBurst: 1, WindowSeconds: 60},
+				// Payment endpoints - moderate limits
+				"POST:/api/v1/payments/process": {AuthenticatedLimit: 30, AuthenticatedBurst: 5, AnonymousLimit: 0, AnonymousBurst: 0, WindowSeconds: 60},
+				// Location updates - high frequency allowed for drivers
+				"POST:/api/v1/geo/location": {AuthenticatedLimit: 600, AuthenticatedBurst: 100, AnonymousLimit: 0, AnonymousBurst: 0, WindowSeconds: 60},
+			},
 		},
 		Resilience: ResilienceConfig{
 			CircuitBreaker: CircuitBreakerConfig{
@@ -424,7 +446,9 @@ func Load(serviceName string) (*Config, error) {
 		if err := json.Unmarshal([]byte(overrides), &endpointConfig); err != nil {
 			return nil, fmt.Errorf("invalid RATE_LIMIT_ENDPOINTS value: %w", err)
 		}
-		cfg.RateLimit.EndpointOverrides = endpointConfig
+		for k, v := range endpointConfig {
+			cfg.RateLimit.EndpointOverrides[k] = v
+		}
 	}
 
 	if breakerOverrides := getEnv("CB_SERVICE_OVERRIDES", ""); breakerOverrides != "" {

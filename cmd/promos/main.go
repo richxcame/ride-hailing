@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"log"
+	stdlog "log"
 	"os"
 	"time"
 
@@ -10,12 +10,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/richxcame/ride-hailing/internal/promos"
+	"github.com/richxcame/ride-hailing/pkg/cache"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/errors"
+	redisclient "github.com/richxcame/ride-hailing/pkg/redis"
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
+	"github.com/richxcame/ride-hailing/pkg/swagger"
 	"github.com/richxcame/ride-hailing/pkg/tracing"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -26,7 +30,7 @@ func main() {
 	// Load configuration
 	cfg, err := config.Load("promos")
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		stdlog.Fatalf("Failed to load config: %v", err)
 	}
 	defer cfg.Close()
 
@@ -36,7 +40,7 @@ func main() {
 		environment = "development"
 	}
 	if err := logger.Init(environment); err != nil {
-		log.Fatalf("Failed to initialize logger: %v", err)
+		stdlog.Fatalf("Failed to initialize logger: %v", err)
 	}
 	defer logger.Sync()
 
@@ -47,7 +51,7 @@ func main() {
 
 	jwtProvider, err := jwtkeys.NewManagerFromConfig(rootCtx, cfg.JWT, true)
 	if err != nil {
-		log.Fatalf("Failed to initialize JWT key manager: %v", err)
+		logger.Fatal("Failed to initialize JWT key manager", zap.Error(err))
 	}
 	jwtProvider.StartAutoRefresh(rootCtx, time.Duration(cfg.JWT.RefreshMinutes)*time.Minute)
 
@@ -56,20 +60,20 @@ func main() {
 	dsn := cfg.Database.DSN()
 	dbConfig, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
-		log.Fatalf("Failed to parse database config: %v", err)
+		logger.Fatal("Failed to parse database config", zap.Error(err))
 	}
 
 	db, err := pgxpool.NewWithConfig(ctx, dbConfig)
 	if err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
+		logger.Fatal("Failed to connect to database", zap.Error(err))
 	}
 	defer db.Close()
 
 	// Test database connection
 	if err := db.Ping(ctx); err != nil {
-		log.Fatalf("Failed to ping database: %v", err)
+		logger.Fatal("Failed to ping database", zap.Error(err))
 	}
-	log.Println("Connected to PostgreSQL database")
+	logger.Info("Connected to PostgreSQL database")
 
 	// Set up Gin router
 	serviceName := "promos-service"
@@ -80,10 +84,10 @@ func main() {
 	sentryConfig.ServerName = serviceName
 	sentryConfig.Release = version
 	if err := errors.InitSentry(sentryConfig); err != nil {
-		log.Printf("Warning: Failed to initialize Sentry, continuing without error tracking: %v", err)
+		logger.Warn("Failed to initialize Sentry, continuing without error tracking", zap.Error(err))
 	} else {
 		defer errors.Flush(2 * time.Second)
-		log.Println("Sentry error tracking initialized successfully")
+		logger.Info("Sentry error tracking initialized successfully")
 	}
 
 	// Initialize OpenTelemetry tracer
@@ -99,22 +103,38 @@ func main() {
 
 		tp, err := tracing.InitTracer(tracerCfg, logger.Get())
 		if err != nil {
-			log.Printf("Warning: Failed to initialize tracer: %v", err)
+			logger.Warn("Failed to initialize tracer", zap.Error(err))
 		} else {
 			defer func() {
 				shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				defer cancel()
 				if err := tp.Shutdown(shutdownCtx); err != nil {
-					log.Printf("Warning: Failed to shutdown tracer: %v", err)
+					logger.Warn("Failed to shutdown tracer", zap.Error(err))
 				}
 			}()
-			log.Println("OpenTelemetry tracing initialized successfully")
+			logger.Info("OpenTelemetry tracing initialized successfully")
 		}
+	}
+
+	// Initialize Redis for caching
+	redisClient, err := redisclient.NewRedisClient(&cfg.Redis)
+	if err != nil {
+		logger.Warn("Failed to initialize Redis - caching disabled", zap.Error(err))
+	} else {
+		defer func() {
+			if err := redisClient.Close(); err != nil {
+				logger.Warn("Failed to close redis", zap.Error(err))
+			}
+		}()
 	}
 
 	// Create repository, service and handler
 	repo := promos.NewRepository(db)
 	service := promos.NewService(repo)
+	if redisClient != nil {
+		service.SetCache(cache.NewManager(redisClient))
+		logger.Info("Cache layer enabled for promos service")
+	}
 	handler := promos.NewHandler(service)
 
 	// Set up Gin router
@@ -126,6 +146,7 @@ func main() {
 	router.Use(middleware.RequestLogger(serviceName))
 	router.Use(middleware.CORS())
 	router.Use(middleware.SecurityHeaders())
+	router.Use(middleware.MaxBodySize(10 << 20)) // 10MB request body limit
 	router.Use(middleware.SanitizeRequest())
 	router.Use(middleware.Metrics(serviceName))
 
@@ -166,6 +187,7 @@ func main() {
 	})
 
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	swagger.RegisterRoutes(router)
 
 	// API routes
 	api := router.Group("/api/v1")
@@ -205,8 +227,8 @@ func main() {
 
 	// Start server
 	addr := ":" + port
-	log.Printf("Promos service starting on port %s", port)
+	logger.Info("Promos service starting", zap.String("port", port))
 	if err := router.Run(addr); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		logger.Fatal("Failed to start server", zap.Error(err))
 	}
 }

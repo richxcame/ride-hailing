@@ -19,8 +19,10 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
-	"github.com/richxcame/ride-hailing/pkg/tracing"
+	redisclient "github.com/richxcame/ride-hailing/pkg/redis"
 	"github.com/richxcame/ride-hailing/pkg/resilience"
+	"github.com/richxcame/ride-hailing/pkg/swagger"
+	"github.com/richxcame/ride-hailing/pkg/tracing"
 	"go.uber.org/zap"
 )
 
@@ -116,6 +118,15 @@ func main() {
 		)
 	}
 
+	// Initialize Redis for idempotency
+	redisClient, redisErr := redisclient.NewRedisClient(&cfg.Redis)
+	if redisErr != nil {
+		logger.Warn("Failed to initialize Redis - idempotency disabled", zap.Error(redisErr))
+	} else {
+		defer redisClient.Close()
+		logger.Info("Redis connected for idempotency support")
+	}
+
 	// Initialize payment service
 	paymentRepo := payments.NewRepository(db)
 	stripeClient := payments.NewResilientStripeClient(stripeAPIKey, stripeBreaker)
@@ -143,8 +154,15 @@ func main() {
 	router.Use(middleware.RequestLogger(serviceName))
 	router.Use(middleware.CORS())
 	router.Use(middleware.SecurityHeaders())
+	router.Use(middleware.MaxBodySize(10 << 20)) // 10MB request body limit
 	router.Use(middleware.SanitizeRequest())
 	router.Use(middleware.Metrics(serviceName))
+
+	// Idempotency middleware - prevents duplicate payment processing
+	if redisClient != nil {
+		router.Use(middleware.Idempotency(redisClient))
+		logger.Info("Idempotency middleware enabled")
+	}
 
 	// Add tracing middleware if enabled
 	if tracerEnabled {
@@ -166,6 +184,14 @@ func main() {
 		return db.Ping(ctx)
 	}
 
+	if redisClient != nil {
+		healthChecks["redis"] = func() error {
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			return redisClient.Client.Ping(ctx).Err()
+		}
+	}
+
 	router.GET("/health/ready", common.ReadinessProbe(serviceName, version, healthChecks))
 
 	router.GET("/version", func(c *gin.Context) {
@@ -174,6 +200,7 @@ func main() {
 
 	// Metrics endpoint
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	swagger.RegisterRoutes(router)
 
 	// Register payment routes
 	paymentHandler.RegisterRoutes(router, jwtProvider)

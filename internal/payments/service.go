@@ -30,6 +30,11 @@ func NewService(repo RepositoryInterface, stripeClient StripeClientInterface) *S
 	}
 }
 
+// GetRideDriverID retrieves the driver ID for a given ride
+func (s *Service) GetRideDriverID(ctx context.Context, rideID uuid.UUID) (*uuid.UUID, error) {
+	return s.repo.GetRideDriverID(ctx, rideID)
+}
+
 // ProcessRidePayment processes payment for a completed ride
 func (s *Service) ProcessRidePayment(ctx context.Context, rideID, riderID, driverID uuid.UUID, amount float64, paymentMethod string) (*models.Payment, error) {
 	payment := &models.Payment{

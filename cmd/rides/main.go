@@ -16,6 +16,7 @@ import (
 	"github.com/richxcame/ride-hailing/internal/rides"
 	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
+	"github.com/richxcame/ride-hailing/pkg/eventbus"
 	"github.com/richxcame/ride-hailing/pkg/database"
 	"github.com/richxcame/ride-hailing/pkg/errors"
 	"github.com/richxcame/ride-hailing/pkg/httpclient"
@@ -25,6 +26,7 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/ratelimit"
 	redisclient "github.com/richxcame/ride-hailing/pkg/redis"
 	"github.com/richxcame/ride-hailing/pkg/resilience"
+	"github.com/richxcame/ride-hailing/pkg/swagger"
 	"github.com/richxcame/ride-hailing/pkg/tracing"
 	"go.uber.org/zap"
 )
@@ -111,24 +113,25 @@ func main() {
 		mlEtaBreaker  *resilience.CircuitBreaker
 	)
 
-	if cfg.RateLimit.Enabled {
-		redisClient, err = redisclient.NewRedisClient(&cfg.Redis)
-		if err != nil {
-			logger.Fatal("Failed to initialize redis for rate limiting", zap.Error(err))
-		}
-
-		limiter = ratelimit.NewLimiter(redisClient.Client, cfg.RateLimit)
-		logger.Info("Rate limiting enabled",
-			zap.Int("default_limit", cfg.RateLimit.DefaultLimit),
-			zap.Int("default_burst", cfg.RateLimit.DefaultBurst),
-			zap.Duration("window", cfg.RateLimit.Window()),
-		)
-
+	// Redis is required for idempotency and rate limiting
+	redisClient, err = redisclient.NewRedisClient(&cfg.Redis)
+	if err != nil {
+		logger.Warn("Failed to initialize Redis - idempotency and rate limiting disabled", zap.Error(err))
+	} else {
 		defer func() {
 			if err := redisClient.Close(); err != nil {
 				logger.Warn("Failed to close redis client", zap.Error(err))
 			}
 		}()
+
+		if cfg.RateLimit.Enabled {
+			limiter = ratelimit.NewLimiter(redisClient.Client, cfg.RateLimit)
+			logger.Info("Rate limiting enabled",
+				zap.Int("default_limit", cfg.RateLimit.DefaultLimit),
+				zap.Int("default_burst", cfg.RateLimit.DefaultBurst),
+				zap.Duration("window", cfg.RateLimit.Window()),
+			)
+		}
 	}
 
 	// Get Promos service URL from environment
@@ -180,6 +183,41 @@ func main() {
 	service.SetSurgeCalculator(surgeCalculator)
 	logger.Info("Dynamic surge pricing enabled")
 
+	// Initialize driver-rider matching engine
+	geoServiceURL := os.Getenv("GEO_SERVICE_URL")
+	if geoServiceURL == "" {
+		geoServiceURL = "http://localhost:8083"
+	}
+	geoClient := httpclient.NewClient(geoServiceURL)
+	matchingProvider := rides.NewGeoMatchingProvider(geoClient, repo)
+	if cfg.Resilience.CircuitBreaker.Enabled {
+		cbCfg := cfg.Resilience.CircuitBreaker.SettingsFor("geo-service")
+		geoBreaker := resilience.NewCircuitBreaker(
+			resilience.BuildSettings(fmt.Sprintf("%s-geo", serviceName), cbCfg.IntervalSeconds, cbCfg.TimeoutSeconds, cbCfg.FailureThreshold, cbCfg.SuccessThreshold),
+			nil,
+		)
+		matchingProvider.SetCircuitBreaker(geoBreaker)
+	}
+	matcher := rides.NewMatcher(rides.DefaultMatchingConfig(), matchingProvider)
+	service.SetMatcher(matcher)
+	logger.Info("Driver-rider matching engine enabled")
+
+	// Initialize NATS event bus for async ride lifecycle events
+	if cfg.NATS.Enabled {
+		bus, err := eventbus.New(eventbus.Config{
+			URL:        cfg.NATS.URL,
+			Name:       serviceName,
+			StreamName: cfg.NATS.StreamName,
+		})
+		if err != nil {
+			logger.Warn("Failed to connect to NATS - event bus disabled", zap.Error(err))
+		} else {
+			service.SetEventBus(bus)
+			defer bus.Close()
+			logger.Info("NATS event bus enabled", zap.String("url", cfg.NATS.URL))
+		}
+	}
+
 	handler := rides.NewHandler(service)
 
 	jwtProvider, err := jwtkeys.NewManagerFromConfig(rootCtx, cfg.JWT, true)
@@ -200,8 +238,15 @@ func main() {
 	router.Use(middleware.RequestLogger(serviceName))
 	router.Use(middleware.CORS())
 	router.Use(middleware.SecurityHeaders())
+	router.Use(middleware.MaxBodySize(10 << 20)) // 10MB request body limit
 	router.Use(middleware.SanitizeRequest())
 	router.Use(middleware.Metrics(serviceName))
+
+	// Idempotency middleware - prevents duplicate ride requests on network retries
+	if redisClient != nil {
+		router.Use(middleware.Idempotency(redisClient))
+		logger.Info("Idempotency middleware enabled")
+	}
 
 	// Add tracing middleware if enabled
 	if tracerEnabled {
@@ -240,6 +285,7 @@ func main() {
 		})
 	})
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	swagger.RegisterRoutes(router)
 
 	handler.RegisterRoutes(router, jwtProvider, limiter, cfg.RateLimit)
 

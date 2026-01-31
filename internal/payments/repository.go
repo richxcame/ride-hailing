@@ -94,6 +94,16 @@ func (r *Repository) UpdatePaymentStatus(ctx context.Context, id uuid.UUID, stat
 	return nil
 }
 
+// GetRideDriverID retrieves the driver ID for a given ride
+func (r *Repository) GetRideDriverID(ctx context.Context, rideID uuid.UUID) (*uuid.UUID, error) {
+	var driverID *uuid.UUID
+	err := r.db.QueryRow(ctx, "SELECT driver_id FROM rides WHERE id = $1", rideID).Scan(&driverID)
+	if err != nil {
+		return nil, common.NewNotFoundError("ride not found", err)
+	}
+	return driverID, nil
+}
+
 // GetPaymentsByRideID retrieves payments for a specific ride
 func (r *Repository) GetPaymentsByRideID(ctx context.Context, rideID uuid.UUID) ([]*models.Payment, error) {
 	query := `

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/richxcame/ride-hailing/pkg/cache"
 )
 
 const (
@@ -43,7 +44,8 @@ type PromosRepository interface {
 
 // Service handles promo code and referral business logic
 type Service struct {
-	repo PromosRepository
+	repo  PromosRepository
+	cache *cache.Manager
 }
 
 // NewService creates a new promos service
@@ -264,8 +266,27 @@ func (s *Service) ApplyReferralCode(ctx context.Context, referralCode string, ne
 	return nil
 }
 
-// GetAllRideTypes retrieves all available ride types
+// SetCache sets an optional cache manager for read-heavy operations.
+func (s *Service) SetCache(cm *cache.Manager) {
+	s.cache = cm
+}
+
+// GetAllRideTypes retrieves all available ride types (cached for 15 minutes).
 func (s *Service) GetAllRideTypes(ctx context.Context) ([]*RideType, error) {
+	if s.cache != nil {
+		var cached []*RideType
+		err := s.cache.GetOrSet(ctx, "ride_types:all", cache.TTL.Medium(), &cached, func() (interface{}, error) {
+			return s.repo.GetAllRideTypes(ctx)
+		})
+		if err == nil {
+			if cached == nil {
+				cached = []*RideType{}
+			}
+			return cached, nil
+		}
+		// Fall through to DB on cache error
+	}
+
 	rideTypes, err := s.repo.GetAllRideTypes(ctx)
 	if err != nil {
 		return nil, err
@@ -276,14 +297,23 @@ func (s *Service) GetAllRideTypes(ctx context.Context) ([]*RideType, error) {
 	return rideTypes, nil
 }
 
-// GetRideTypeByID retrieves a specific ride type
+// GetRideTypeByID retrieves a specific ride type (cached for 15 minutes).
 func (s *Service) GetRideTypeByID(ctx context.Context, id uuid.UUID) (*RideType, error) {
+	if s.cache != nil {
+		var cached RideType
+		err := s.cache.GetOrSet(ctx, cache.Keys.RideType(id.String()), cache.TTL.Medium(), &cached, func() (interface{}, error) {
+			return s.repo.GetRideTypeByID(ctx, id)
+		})
+		if err == nil {
+			return &cached, nil
+		}
+	}
 	return s.repo.GetRideTypeByID(ctx, id)
 }
 
 // CalculateFareForRideType calculates fare based on ride type
 func (s *Service) CalculateFareForRideType(ctx context.Context, rideTypeID uuid.UUID, distance float64, duration int, surgeMultiplier float64) (float64, error) {
-	rideType, err := s.repo.GetRideTypeByID(ctx, rideTypeID)
+	rideType, err := s.GetRideTypeByID(ctx, rideTypeID)
 	if err != nil {
 		return 0, err
 	}

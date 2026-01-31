@@ -56,14 +56,14 @@ func NewHandler(service *Service) *Handler {
 
 // HandleWebSocket handles WebSocket connection upgrades
 func (h *Handler) HandleWebSocket(c *gin.Context) {
-	// Extract user ID and role from JWT token
+	// Extract user ID and role from JWT token (set by auth middleware)
 	userID, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		return
 	}
 
-	role, exists := c.Get("role")
+	role, exists := c.Get("user_role")
 	if !exists {
 		role = "rider" // Default to rider
 	}

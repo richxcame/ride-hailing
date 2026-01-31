@@ -19,6 +19,8 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
 	redisClient "github.com/richxcame/ride-hailing/pkg/redis"
+	"github.com/richxcame/ride-hailing/pkg/resilience"
+	"github.com/richxcame/ride-hailing/pkg/swagger"
 	"github.com/richxcame/ride-hailing/pkg/tracing"
 	"go.uber.org/zap"
 )
@@ -97,7 +99,45 @@ func main() {
 	logger.Info("Connected to Redis")
 
 	service := geo.NewService(redis)
-	handler := geo.NewHandler(service)
+
+	// Initialize location batching pipeline
+	locationBuffer := geo.NewLocationBuffer(redis, geo.DefaultLocationBufferConfig())
+	service.SetLocationBuffer(locationBuffer)
+	defer locationBuffer.Stop()
+	logger.Info("Location batching pipeline enabled")
+
+	// Initialize geocoding service
+	googleAPIKey := os.Getenv("GOOGLE_MAPS_API_KEY")
+	if googleAPIKey == "" {
+		logger.Warn("GOOGLE_MAPS_API_KEY not set, geocoding will not work")
+	}
+	geocodingSvc := geo.NewGeocodingService(googleAPIKey, redis)
+	if cfg.Resilience.CircuitBreaker.Enabled {
+		cbCfg := cfg.Resilience.CircuitBreaker.SettingsFor("google-maps-api")
+		geocodingBreaker := resilience.NewCircuitBreaker(
+			resilience.BuildSettings(fmt.Sprintf("%s-geocoding", serviceName), cbCfg.IntervalSeconds, cbCfg.TimeoutSeconds, cbCfg.FailureThreshold, cbCfg.SuccessThreshold),
+			nil,
+		)
+		geocodingSvc.SetCircuitBreaker(geocodingBreaker)
+		logger.Info("Circuit breaker enabled for geocoding API")
+	}
+	if region := os.Getenv("GEOCODING_REGION_BIAS"); region != "" {
+		geocodingSvc.RegionBias = region
+	}
+	if lang := os.Getenv("GEOCODING_LANGUAGE"); lang != "" {
+		geocodingSvc.LanguageBias = lang
+	}
+
+	// Initialize real-time ETA tracker
+	realtimeServiceURL := os.Getenv("REALTIME_SERVICE_URL")
+	if realtimeServiceURL == "" {
+		realtimeServiceURL = "http://localhost:8086"
+	}
+	etaTracker := geo.NewETATracker(redis, realtimeServiceURL)
+	service.SetETATracker(etaTracker)
+	logger.Info("Real-time ETA tracking enabled")
+
+	handler := geo.NewHandler(service, geocodingSvc)
 
 	jwtProvider, err := jwtkeys.NewManagerFromConfig(rootCtx, cfg.JWT, true)
 	if err != nil {
@@ -117,6 +157,7 @@ func main() {
 	router.Use(middleware.RequestLogger(serviceName))
 	router.Use(middleware.CORS())
 	router.Use(middleware.SecurityHeaders())
+	router.Use(middleware.MaxBodySize(10 << 20)) // 10MB request body limit
 	router.Use(middleware.SanitizeRequest())
 	router.Use(middleware.Metrics(serviceName))
 
@@ -146,6 +187,7 @@ func main() {
 		c.JSON(http.StatusOK, gin.H{"service": serviceName, "version": version})
 	})
 	router.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	swagger.RegisterRoutes(router)
 
 	handler.RegisterRoutes(router, jwtProvider)
 
