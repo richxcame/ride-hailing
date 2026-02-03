@@ -31,6 +31,24 @@ type Config struct {
 	Timeout       TimeoutConfig
 	Secrets       SecretsSettings
 	Maps          MapsConfig
+	Checkr        CheckrConfig
+	Onfido        OnfidoConfig
+}
+
+// CheckrConfig holds Checkr background check configuration
+type CheckrConfig struct {
+	APIKey     string
+	WebhookKey string
+	Package    string // e.g., "driver_standard"
+	Enabled    bool
+}
+
+// OnfidoConfig holds Onfido identity verification configuration
+type OnfidoConfig struct {
+	APIKey     string
+	WebhookKey string
+	WorkflowID string
+	Enabled    bool
 }
 
 // MapsConfig holds maps service configuration
@@ -441,6 +459,18 @@ func Load(serviceName string) (*Config, error) {
 			TrafficEnabled:      getEnvAsBool("MAPS_TRAFFIC_ENABLED", true),
 			TrafficRefreshSecs:  getEnvAsInt("MAPS_TRAFFIC_REFRESH_SECONDS", 60),
 			FallbackToHaversine: getEnvAsBool("MAPS_FALLBACK_HAVERSINE", true),
+		},
+		Checkr: CheckrConfig{
+			APIKey:     getEnv("CHECKR_API_KEY", ""),
+			WebhookKey: getEnv("CHECKR_WEBHOOK_KEY", ""),
+			Package:    getEnv("CHECKR_PACKAGE", "driver_standard"),
+			Enabled:    getEnvAsBool("CHECKR_ENABLED", false),
+		},
+		Onfido: OnfidoConfig{
+			APIKey:     getEnv("ONFIDO_API_KEY", ""),
+			WebhookKey: getEnv("ONFIDO_WEBHOOK_KEY", ""),
+			WorkflowID: getEnv("ONFIDO_WORKFLOW_ID", ""),
+			Enabled:    getEnvAsBool("ONFIDO_ENABLED", false),
 		},
 		Secrets: SecretsSettings{
 			Provider:        secrets.ProviderType(getEnv("SECRETS_PROVIDER", "")),
