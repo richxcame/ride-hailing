@@ -30,6 +30,20 @@ type Config struct {
 	Resilience    ResilienceConfig
 	Timeout       TimeoutConfig
 	Secrets       SecretsSettings
+	Maps          MapsConfig
+}
+
+// MapsConfig holds maps service configuration
+type MapsConfig struct {
+	Enabled              bool   `json:"enabled"`
+	PrimaryProvider      string `json:"primary_provider"` // google, here
+	GoogleAPIKey         string `json:"google_api_key"`
+	HEREAPIKey           string `json:"here_api_key"`
+	CacheEnabled         bool   `json:"cache_enabled"`
+	CacheTTLSeconds      int    `json:"cache_ttl_seconds"`
+	TrafficEnabled       bool   `json:"traffic_enabled"`
+	TrafficRefreshSecs   int    `json:"traffic_refresh_seconds"`
+	FallbackToHaversine  bool   `json:"fallback_to_haversine"`
 }
 
 // ServerConfig holds server-specific configuration
@@ -416,6 +430,17 @@ func Load(serviceName string) (*Config, error) {
 			WebSocketConnectionTimeout: getEnvAsInt("WS_CONNECTION_TIMEOUT", DefaultWebSocketConnectionTimeout),
 			DefaultRequestTimeout:      getEnvAsInt("DEFAULT_REQUEST_TIMEOUT", DefaultRequestTimeout),
 			RouteOverrides:             make(map[string]int),
+		},
+		Maps: MapsConfig{
+			Enabled:             getEnvAsBool("MAPS_ENABLED", false),
+			PrimaryProvider:     getEnv("MAPS_PRIMARY_PROVIDER", "google"),
+			GoogleAPIKey:        getEnv("GOOGLE_MAPS_API_KEY", ""),
+			HEREAPIKey:          getEnv("HERE_API_KEY", ""),
+			CacheEnabled:        getEnvAsBool("MAPS_CACHE_ENABLED", true),
+			CacheTTLSeconds:     getEnvAsInt("MAPS_CACHE_TTL_SECONDS", 300),
+			TrafficEnabled:      getEnvAsBool("MAPS_TRAFFIC_ENABLED", true),
+			TrafficRefreshSecs:  getEnvAsInt("MAPS_TRAFFIC_REFRESH_SECONDS", 60),
+			FallbackToHaversine: getEnvAsBool("MAPS_FALLBACK_HAVERSINE", true),
 		},
 		Secrets: SecretsSettings{
 			Provider:        secrets.ProviderType(getEnv("SECRETS_PROVIDER", "")),

@@ -162,6 +162,24 @@ func NewServiceUnavailableError(message string) *AppError {
 	}
 }
 
+func NewTooManyRequestsError(message string) *AppError {
+	return &AppError{
+		Code:      http.StatusTooManyRequests,
+		ErrorCode: ErrCodeRateLimited,
+		Message:   message,
+		Err:       errors.New("rate limit exceeded"),
+	}
+}
+
+func NewForbiddenError(message string) *AppError {
+	return &AppError{
+		Code:      http.StatusForbidden,
+		ErrorCode: ErrCodeForbidden,
+		Message:   message,
+		Err:       ErrForbidden,
+	}
+}
+
 // NewErrorWithCode creates an AppError with a custom error code.
 func NewErrorWithCode(httpCode int, errorCode, message string, err error) *AppError {
 	return &AppError{

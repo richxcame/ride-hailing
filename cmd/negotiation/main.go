@@ -240,7 +240,7 @@ func main() {
 
 	// API routes with authentication
 	api := router.Group("/api/v1")
-	api.Use(middleware.JWTAuthMiddleware(jwtProvider))
+	api.Use(middleware.AuthMiddlewareWithProvider(jwtProvider))
 
 	// Register negotiation routes
 	negotiationHandler.RegisterRoutes(api)
