@@ -621,14 +621,19 @@ func (r *Repository) GetPendingOCRJobs(ctx context.Context, limit int) ([]*OCRPr
 	return jobs, nil
 }
 
-// UpdateOCRJobStatus updates an OCR job status
-func (r *Repository) UpdateOCRJobStatus(ctx context.Context, jobID uuid.UUID, status, provider string, startedAt *time.Time) error {
+// UpdateOCRJobStatus updates an OCR job with full status info
+func (r *Repository) UpdateOCRJobStatus(ctx context.Context, jobID uuid.UUID, status string, result, errorMsg *string) error {
 	query := `
 		UPDATE ocr_processing_queue
-		SET status = $1, provider = $2, started_at = $3, updated_at = NOW()
+		SET status = $1,
+		    extracted_data = CASE WHEN $2::text IS NOT NULL THEN $2::jsonb ELSE extracted_data END,
+		    error_message = $3,
+		    completed_at = CASE WHEN $1 IN ('completed', 'failed') THEN NOW() ELSE completed_at END,
+		    started_at = CASE WHEN $1 = 'processing' AND started_at IS NULL THEN NOW() ELSE started_at END,
+		    updated_at = NOW()
 		WHERE id = $4
 	`
-	_, err := r.db.Exec(ctx, query, status, provider, startedAt, jobID)
+	_, err := r.db.Exec(ctx, query, status, result, errorMsg, jobID)
 	return err
 }
 
@@ -655,5 +660,16 @@ func (r *Repository) FailOCRJob(ctx context.Context, jobID uuid.UUID, errorMessa
 		WHERE id = $2
 	`
 	_, err := r.db.Exec(ctx, query, errorMessage, jobID)
+	return err
+}
+
+// UpdateOCRJobRetry updates an OCR job for retry
+func (r *Repository) UpdateOCRJobRetry(ctx context.Context, jobID uuid.UUID, retryCount int, nextRetry time.Time) error {
+	query := `
+		UPDATE ocr_processing_queue
+		SET status = 'pending', retry_count = $1, next_retry_at = $2, updated_at = NOW()
+		WHERE id = $3
+	`
+	_, err := r.db.Exec(ctx, query, retryCount, nextRetry, jobID)
 	return err
 }
