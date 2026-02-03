@@ -153,7 +153,7 @@ func startRidesService(cfg *config.Config) *serviceInstance {
 
 func startPaymentsService(cfg *config.Config) *serviceInstance {
 	repo := payments.NewRepository(dbPool)
-	service := payments.NewService(repo, &fakeStripeClient{})
+	service := payments.NewService(repo, &fakeStripeClient{}, &cfg.Business)
 	handler := payments.NewHandler(service)
 
 	router := newRouter(cfg.Server.ServiceName)

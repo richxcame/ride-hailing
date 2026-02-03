@@ -131,7 +131,7 @@ func main() {
 	// Initialize payment service
 	paymentRepo := payments.NewRepository(db)
 	stripeClient := payments.NewResilientStripeClient(stripeAPIKey, stripeBreaker)
-	paymentService := payments.NewService(paymentRepo, stripeClient)
+	paymentService := payments.NewService(paymentRepo, stripeClient, &cfg.Business)
 	paymentHandler := payments.NewHandler(paymentService)
 
 	// Initialize NATS event bus for driver payout on ride completion

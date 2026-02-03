@@ -23,6 +23,7 @@ type Config struct {
 	PubSub        PubSubConfig
 	Firebase      FirebaseConfig
 	Payments      PaymentsConfig
+	Business      BusinessConfig
 	Notifications NotificationsConfig
 	RateLimit     RateLimitConfig
 	NATS          NATSConfig
@@ -131,6 +132,12 @@ type FirebaseConfig struct {
 // PaymentsConfig holds payment provider configuration.
 type PaymentsConfig struct {
 	StripeAPIKey string
+}
+
+// BusinessConfig holds configurable business logic parameters.
+type BusinessConfig struct {
+	CommissionRate      float64 // Platform commission rate (default: 0.20 = 20%)
+	CancellationFeeRate float64 // Cancellation fee rate (default: 0.10 = 10%)
 }
 
 // NotificationsConfig stores third-party notification credentials.
@@ -357,6 +364,10 @@ func Load(serviceName string) (*Config, error) {
 		},
 		Payments: PaymentsConfig{
 			StripeAPIKey: getEnv("STRIPE_API_KEY", ""),
+		},
+		Business: BusinessConfig{
+			CommissionRate:      getEnvAsFloat("COMMISSION_RATE", 0.20),
+			CancellationFeeRate: getEnvAsFloat("CANCELLATION_FEE_RATE", 0.10),
 		},
 		Notifications: NotificationsConfig{
 			TwilioAccountSID: getEnv("TWILIO_ACCOUNT_SID", ""),
@@ -830,6 +841,14 @@ func getEnvAsInt(key string, defaultValue int) int {
 func getEnvAsBool(key string, defaultValue bool) bool {
 	valueStr := getEnv(key, "")
 	if value, err := strconv.ParseBool(valueStr); err == nil {
+		return value
+	}
+	return defaultValue
+}
+
+func getEnvAsFloat(key string, defaultValue float64) float64 {
+	valueStr := getEnv(key, "")
+	if value, err := strconv.ParseFloat(valueStr, 64); err == nil {
 		return value
 	}
 	return defaultValue

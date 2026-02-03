@@ -18,7 +18,7 @@ func TestService_ProcessRidePayment_Wallet_Success(t *testing.T) {
 	// Arrange
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	rideID := uuid.New()
@@ -44,7 +44,7 @@ func TestService_ProcessRidePayment_Stripe_Success(t *testing.T) {
 	// Arrange
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	rideID := uuid.New()
@@ -77,7 +77,7 @@ func TestService_ProcessRidePayment_InvalidMethod(t *testing.T) {
 	// Arrange
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	rideID := uuid.New()
@@ -100,7 +100,7 @@ func TestService_ProcessRidePayment_Stripe_CreatePaymentIntentFails(t *testing.T
 	// Arrange
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	rideID := uuid.New()
@@ -124,7 +124,7 @@ func TestService_TopUpWallet_Success(t *testing.T) {
 	// Arrange
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	userID := uuid.New()
@@ -166,7 +166,7 @@ func TestService_TopUpWallet_CreateWalletIfNotExists(t *testing.T) {
 	// Arrange
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	userID := uuid.New()
@@ -197,7 +197,7 @@ func TestService_PayoutToDriver_Success(t *testing.T) {
 	// Arrange
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	paymentID := uuid.New()
@@ -239,7 +239,7 @@ func TestService_PayoutToDriver_PaymentNotCompleted(t *testing.T) {
 	// Arrange
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	paymentID := uuid.New()
@@ -266,7 +266,7 @@ func TestService_ProcessRefund_RiderCancelled_WithCancellationFee(t *testing.T) 
 	// Arrange
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	paymentID := uuid.New()
@@ -312,7 +312,7 @@ func TestService_ProcessRefund_Stripe_FullRefund(t *testing.T) {
 	// Arrange
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	paymentID := uuid.New()
@@ -356,7 +356,7 @@ func TestService_ProcessRefund_AlreadyRefunded(t *testing.T) {
 	// Arrange
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	paymentID := uuid.New()
@@ -383,7 +383,7 @@ func TestService_GetWallet_Success(t *testing.T) {
 	// Arrange
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	userID := uuid.New()
@@ -413,7 +413,7 @@ func TestService_GetWalletTransactions_Success(t *testing.T) {
 	// Arrange
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	userID := uuid.New()
@@ -448,7 +448,7 @@ func TestService_ConfirmWalletTopUp_Success(t *testing.T) {
 	// Arrange
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	userID := uuid.New()
@@ -480,7 +480,7 @@ func TestService_HandleStripeWebhook_PaymentIntentSucceeded(t *testing.T) {
 	// Arrange
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	// Act
@@ -494,7 +494,7 @@ func TestService_HandleStripeWebhook_PaymentIntentFailed(t *testing.T) {
 	// Arrange
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	// Act
@@ -527,7 +527,7 @@ func TestCommissionCalculation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			commission := tt.totalAmount * commissionRate
+			commission := tt.totalAmount * defaultCommissionRate
 			earnings := tt.totalAmount - commission
 
 			assert.InDelta(t, tt.expectedCommission, commission, 0.01)
@@ -559,7 +559,7 @@ func TestCancellationFeeCalculation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			fee := tt.amount * cancellationFeeRate
+			fee := tt.amount * defaultCancellationFeeRate
 			refund := tt.amount - fee
 
 			assert.InDelta(t, tt.expectedFee, fee, 0.01)
@@ -573,7 +573,7 @@ func TestCancellationFeeCalculation(t *testing.T) {
 func TestService_ProcessRidePayment_Wallet_RepositoryError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	rideID := uuid.New()
@@ -594,7 +594,7 @@ func TestService_ProcessRidePayment_Wallet_RepositoryError(t *testing.T) {
 func TestService_ProcessRidePayment_Stripe_CreatePaymentIntentError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	rideID := uuid.New()
@@ -617,7 +617,7 @@ func TestService_ProcessRidePayment_Stripe_CreatePaymentIntentError(t *testing.T
 func TestService_ProcessRidePayment_Stripe_CreatePaymentError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	rideID := uuid.New()
@@ -647,7 +647,7 @@ func TestService_ProcessRidePayment_Stripe_CreatePaymentError(t *testing.T) {
 func TestService_TopUpWallet_CreateWalletError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	userID := uuid.New()
@@ -667,7 +667,7 @@ func TestService_TopUpWallet_CreateWalletError(t *testing.T) {
 func TestService_TopUpWallet_StripeError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	userID := uuid.New()
@@ -696,7 +696,7 @@ func TestService_TopUpWallet_StripeError(t *testing.T) {
 func TestService_TopUpWallet_CreateTransactionError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	userID := uuid.New()
@@ -730,7 +730,7 @@ func TestService_TopUpWallet_CreateTransactionError(t *testing.T) {
 func TestService_ConfirmWalletTopUp_GetWalletError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	userID := uuid.New()
@@ -747,7 +747,7 @@ func TestService_ConfirmWalletTopUp_GetWalletError(t *testing.T) {
 func TestService_ConfirmWalletTopUp_UpdateBalanceError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	userID := uuid.New()
@@ -771,7 +771,7 @@ func TestService_ConfirmWalletTopUp_UpdateBalanceError(t *testing.T) {
 func TestService_ConfirmWalletTopUp_CreateTransactionError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	userID := uuid.New()
@@ -797,7 +797,7 @@ func TestService_ConfirmWalletTopUp_CreateTransactionError(t *testing.T) {
 func TestService_PayoutToDriver_GetPaymentError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	paymentID := uuid.New()
@@ -814,7 +814,7 @@ func TestService_PayoutToDriver_GetPaymentError(t *testing.T) {
 func TestService_PayoutToDriver_CreateWalletError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	paymentID := uuid.New()
@@ -843,7 +843,7 @@ func TestService_PayoutToDriver_CreateWalletError(t *testing.T) {
 func TestService_PayoutToDriver_UpdateBalanceError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	paymentID := uuid.New()
@@ -882,7 +882,7 @@ func TestService_PayoutToDriver_UpdateBalanceError(t *testing.T) {
 func TestService_PayoutToDriver_CreateTransactionError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	paymentID := uuid.New()
@@ -922,7 +922,7 @@ func TestService_PayoutToDriver_CreateTransactionError(t *testing.T) {
 func TestService_ProcessRefund_GetPaymentError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	paymentID := uuid.New()
@@ -939,7 +939,7 @@ func TestService_ProcessRefund_GetPaymentError(t *testing.T) {
 func TestService_ProcessRefund_Wallet_GetWalletError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	paymentID := uuid.New()
@@ -968,7 +968,7 @@ func TestService_ProcessRefund_Wallet_GetWalletError(t *testing.T) {
 func TestService_ProcessRefund_Wallet_UpdateBalanceError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	paymentID := uuid.New()
@@ -1006,7 +1006,7 @@ func TestService_ProcessRefund_Wallet_UpdateBalanceError(t *testing.T) {
 func TestService_ProcessRefund_Wallet_CreateTransactionError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	paymentID := uuid.New()
@@ -1045,7 +1045,7 @@ func TestService_ProcessRefund_Wallet_CreateTransactionError(t *testing.T) {
 func TestService_ProcessRefund_Wallet_UpdateStatusError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	paymentID := uuid.New()
@@ -1085,7 +1085,7 @@ func TestService_ProcessRefund_Wallet_UpdateStatusError(t *testing.T) {
 func TestService_GetWalletTransactions_GetWalletError(t *testing.T) {
 	mockRepo := new(mocks.MockPaymentsRepository)
 	mockStripe := new(mocks.MockStripeClient)
-	service := NewService(mockRepo, mockStripe)
+	service := NewService(mockRepo, mockStripe, nil)
 	ctx := context.Background()
 
 	userID := uuid.New()
