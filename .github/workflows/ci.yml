@@ -25,9 +25,9 @@ jobs:
           cache: true
 
       - name: Run golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: v2
           args: --timeout=5m
 
       - name: Check code formatting
@@ -65,12 +65,12 @@ jobs:
           cache: true
 
       - name: Run Gosec Security Scanner
-        uses: securego/gosec@master
+        uses: securego/gosec@v2.22.11
         with:
           args: "-no-fail -fmt sarif -out gosec-results.sarif ./..."
 
       - name: Upload Gosec results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: gosec-results.sarif
@@ -159,7 +159,7 @@ jobs:
           echo "✅ Coverage $coverage% meets threshold $threshold%"
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           files: ./coverage.txt
           flags: unittests
@@ -212,7 +212,7 @@ jobs:
 
       - name: Upload build artifacts
         if: ${{ success() && hashFiles(format('bin/{0}', matrix.service)) != '' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.service }}-binary
           path: bin/${{ matrix.service }}
