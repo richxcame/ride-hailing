@@ -18,7 +18,7 @@ import (
 
 // Service handles safety business logic
 type Service struct {
-	repo            *Repository
+	repo            RepositoryInterface
 	eventBus        *eventbus.Bus
 	wsHub           *websocket.Hub
 	redis           redisclient.ClientInterface
@@ -37,7 +37,7 @@ type Config struct {
 }
 
 // NewService creates a new safety service
-func NewService(repo *Repository, cfg Config) *Service {
+func NewService(repo RepositoryInterface, cfg Config) *Service {
 	return &Service{
 		repo:               repo,
 		baseShareURL:       cfg.BaseShareURL,

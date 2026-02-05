@@ -30,6 +30,13 @@ func TestService_UpdateDriverLocation_Success(t *testing.T) {
 
 	mockRedis.On("GeoAdd", ctx, driverGeoIndexKey, longitude, latitude, driverID.String()).Return(nil)
 
+	// Mock H3 cell update expectations (called by updateDriverH3Cell)
+	mockRedis.On("GetString", ctx, "driver:h3cell:"+driverID.String()).Return("", errors.New("not found"))
+	mockRedis.On("SetWithExpiration", ctx, "driver:h3cell:"+driverID.String(), mock.AnythingOfType("[]uint8"), driverLocationTTL).Return(nil)
+	mockRedis.On("SetWithExpiration", ctx, mock.MatchedBy(func(key string) bool {
+		return len(key) > len(h3CellDriversPrefix) && key[:len(h3CellDriversPrefix)] == h3CellDriversPrefix
+	}), mock.AnythingOfType("[]uint8"), h3CellDriversTTL).Return(nil)
+
 	// Act
 	err := service.UpdateDriverLocation(ctx, driverID, latitude, longitude)
 
@@ -173,8 +180,8 @@ func TestService_FindNearbyDrivers_Success(t *testing.T) {
 	driver1ID := uuid.New()
 	driver2ID := uuid.New()
 
-	// Mock GeoRadius to return driver IDs
-	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers).
+	// Mock GeoRadius to return driver IDs (service passes maxDrivers*2 for over-fetching)
+	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers*2).
 		Return([]string{driver1ID.String(), driver2ID.String()}, nil)
 
 	// Mock GetDriverLocation for each driver
@@ -217,8 +224,8 @@ func TestService_FindNearbyDrivers_NoDriversFound(t *testing.T) {
 	pickupLon := -122.4194
 	maxDrivers := 5
 
-	// Mock GeoRadius to return empty list
-	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers).
+	// Mock GeoRadius to return empty list (service passes maxDrivers*2)
+	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers*2).
 		Return([]string{}, nil)
 
 	// Act
@@ -239,7 +246,7 @@ func TestService_FindNearbyDrivers_GeoRadiusError(t *testing.T) {
 	pickupLon := -122.4194
 	maxDrivers := 5
 
-	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers).
+	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers*2).
 		Return(nil, errors.New("redis error"))
 
 	// Act
@@ -281,6 +288,7 @@ func TestService_SetDriverStatus_Offline(t *testing.T) {
 	mockRedis.On("SetWithExpiration", ctx, "driver:status:"+driverID.String(),
 		mock.AnythingOfType("[]uint8"), driverLocationTTL).Return(nil)
 	mockRedis.On("GeoRemove", ctx, driverGeoIndexKey, driverID.String()).Return(nil)
+	mockRedis.On("Delete", ctx, []string{"driver:h3cell:" + driverID.String()}).Return(nil)
 
 	// Act
 	err := service.SetDriverStatus(ctx, driverID, status)
@@ -452,7 +460,8 @@ func TestService_FindAvailableDrivers_Success(t *testing.T) {
 	driver3ID := uuid.New()
 
 	// Mock GeoRadius to return 3 drivers
-	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers*2).
+	// FindAvailableDrivers passes maxDrivers*2 to FindNearbyDrivers, which internally doubles again
+	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers*2*2).
 		Return([]string{driver1ID.String(), driver2ID.String(), driver3ID.String()}, nil)
 
 	// Mock GetDriverLocation for each driver
@@ -499,7 +508,8 @@ func TestService_FindAvailableDrivers_NoneAvailable(t *testing.T) {
 
 	driver1ID := uuid.New()
 
-	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers*2).
+	// FindAvailableDrivers passes maxDrivers*2 to FindNearbyDrivers, which internally doubles again
+	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers*2*2).
 		Return([]string{driver1ID.String()}, nil)
 
 	location1 := &DriverLocation{DriverID: driver1ID, Latitude: 37.7750, Longitude: -122.4195, Timestamp: time.Now()}

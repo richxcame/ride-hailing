@@ -13,14 +13,14 @@ import (
 
 // Service handles negotiation business logic
 type Service struct {
-	repo       *Repository
-	pricingSvc *pricing.Service
-	geoSvc     *geography.Service
+	repo       RepositoryInterface
+	pricingSvc PricingServiceInterface
+	geoSvc     GeographyServiceInterface
 	eventBus   *eventbus.Bus
 }
 
 // NewService creates a new negotiation service
-func NewService(repo *Repository, pricingSvc *pricing.Service, geoSvc *geography.Service) *Service {
+func NewService(repo RepositoryInterface, pricingSvc PricingServiceInterface, geoSvc GeographyServiceInterface) *Service {
 	return &Service{
 		repo:       repo,
 		pricingSvc: pricingSvc,

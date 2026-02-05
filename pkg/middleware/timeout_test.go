@@ -140,14 +140,14 @@ func TestRequestTimeout(t *testing.T) {
 		})
 
 		req := httptest.NewRequest(http.MethodGet, "/slow", nil)
-		req.Header.Set(CorrelationIDHeader, "test-correlation-id")
+		req.Header.Set(CorrelationIDHeader, "550e8400-e29b-41d4-a716-446655440000")
 		w := httptest.NewRecorder()
 
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusGatewayTimeout, w.Code)
 		// Correlation ID should be in response headers
-		assert.Equal(t, "test-correlation-id", w.Header().Get(CorrelationIDHeader))
+		assert.Equal(t, "550e8400-e29b-41d4-a716-446655440000", w.Header().Get(CorrelationIDHeader))
 	})
 }
 

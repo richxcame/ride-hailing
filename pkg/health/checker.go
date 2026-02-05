@@ -34,6 +34,10 @@ func DatabaseChecker(db *sql.DB) Checker {
 // DatabaseCheckerWithConfig returns a database health checker with custom configuration
 func DatabaseCheckerWithConfig(db *sql.DB, cfg CheckerConfig) Checker {
 	return func() error {
+		if db == nil {
+			return fmt.Errorf("database connection is nil")
+		}
+
 		ctx, cancel := context.WithTimeout(context.Background(), cfg.Timeout)
 		defer cancel()
 

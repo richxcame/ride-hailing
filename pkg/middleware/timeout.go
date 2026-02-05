@@ -50,6 +50,11 @@ func RequestTimeout(timeoutConfig *config.TimeoutConfig) gin.HandlerFunc {
 			// Set timeout header for debugging
 			c.Writer.Header().Set("X-Timeout", "true")
 
+			// Preserve correlation ID from the original request context
+			if correlationID := GetCorrelationID(c); correlationID != "" {
+				c.Writer.Header().Set(CorrelationIDHeader, correlationID)
+			}
+
 			if !c.Writer.Written() {
 				c.Abort()
 				c.JSON(http.StatusGatewayTimeout, gin.H{

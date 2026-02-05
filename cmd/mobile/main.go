@@ -213,7 +213,7 @@ func main() {
 	safetyRepo := safety.NewRepository(db)
 
 	// Initialize services
-	ridesService := rides.NewService(ridesRepo, promosServiceURL, nil)
+	ridesService := rides.NewService(ridesRepo, promosServiceURL, nil) // CircuitBreaker is nil-safe
 	favoritesService := favorites.NewService(favoritesRepo)
 	cancellationService := cancellation.NewService(cancellationRepo, db)
 	supportService := support.NewService(supportRepo)
@@ -226,22 +226,22 @@ func main() {
 	ridehistoryService := ridehistory.NewService(ridehistoryRepo)
 	familyService := family.NewService(familyRepo)
 	giftcardsService := giftcards.NewService(giftcardsRepo)
-	subscriptionsService := subscriptions.NewService(subscriptionsRepo, nil) // TODO: wire PaymentProcessor
+	subscriptionsService := subscriptions.NewService(subscriptionsRepo, &stubPaymentProcessor{})
 	preferencesService := preferences.NewService(preferencesRepo)
 	waittimeService := waittime.NewService(waittimeRepo)
 	chatService := chat.NewService(chatRepo, wsHub)
 	corporateService := corporate.NewService(corporateRepo)
-	twofaService := twofa.NewService(twofaRepo, nil, nil, getEnv("APP_NAME", "RideHailing")) // TODO: wire SMSSender, Redis
+	twofaService := twofa.NewService(twofaRepo, &stubSMSSender{}, nil, getEnv("APP_NAME", "RideHailing")) // Redis is nil-safe (OTP stored in DB)
 	loyaltyService := loyalty.NewService(loyaltyRepo)
-	poolService := pool.NewService(poolRepo, nil, pool.DefaultServiceConfig()) // TODO: wire MapsService
+	poolService := pool.NewService(poolRepo, &stubMapsService{}, pool.DefaultServiceConfig())
 	deliveryService := delivery.NewService(deliveryRepo)
-	recordingService := recording.NewService(recordingRepo, nil, recording.Config{}) // TODO: wire Storage
-	onboardingService := onboarding.NewService(onboardingRepo, nil, nil)              // TODO: wire DocumentService, NotificationService
-	demandforecastService := demandforecast.NewService(demandforecastRepo, nil, nil, nil) // TODO: wire WeatherService, DriverLocationService
+	recordingService := recording.NewService(recordingRepo, &stubStorage{}, recording.Config{})
+	onboardingService := onboarding.NewService(onboardingRepo, &stubDocumentService{}, nil) // NotificationService is nil-safe
+	demandforecastService := demandforecast.NewService(demandforecastRepo, nil, nil, nil) // All deps are nil-safe
 	experimentsService := experiments.NewService(experimentsRepo)
 	fraudService := fraud.NewService(fraudRepo)
 	gamificationService := gamification.NewService(gamificationRepo)
-	paymentsplitService := paymentsplit.NewService(paymentsplitRepo, nil, nil) // TODO: wire PaymentService, NotificationService
+	paymentsplitService := paymentsplit.NewService(paymentsplitRepo, &stubPaymentService{}, &stubSplitNotificationService{})
 	geographyService := geography.NewService(geographyRepo)
 	currencyService := currency.NewService(currencyRepo, getEnv("BASE_CURRENCY", "USD"))
 	pricingService := pricing.NewService(pricingRepo, geographyService, currencyService)

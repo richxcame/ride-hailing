@@ -188,15 +188,13 @@ func TestDatabaseChecker(t *testing.T) {
 	// This test requires a real database connection
 	// You should set up a test database or use a mock
 	t.Run("with mock database", func(t *testing.T) {
-		// Mock database that always succeeds
-		mockDB := &sql.DB{}
+		// Nil database should return an error, not panic
+		var mockDB *sql.DB
 		checker := health.DatabaseChecker(mockDB)
 
-		// Note: This will fail with a real sql.DB that's not connected
-		// In a real test, you'd connect to a test database
 		err := checker()
-		// We expect an error because mockDB is not actually connected
 		assert.Error(t, err)
+		assert.Contains(t, err.Error(), "database connection is nil")
 	})
 }
 

@@ -17,12 +17,12 @@ type PaymentProcessor interface {
 
 // Service handles subscription business logic
 type Service struct {
-	repo      *Repository
+	repo      RepositoryInterface
 	payments  PaymentProcessor
 }
 
 // NewService creates a new subscription service
-func NewService(repo *Repository, payments PaymentProcessor) *Service {
+func NewService(repo RepositoryInterface, payments PaymentProcessor) *Service {
 	return &Service{
 		repo:     repo,
 		payments: payments,
