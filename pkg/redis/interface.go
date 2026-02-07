@@ -13,6 +13,10 @@ type ClientInterface interface {
 	Exists(ctx context.Context, key string) (bool, error)
 	Close() error
 
+	// Batch operations
+	MGet(ctx context.Context, keys ...string) ([]interface{}, error)
+	MGetStrings(ctx context.Context, keys ...string) ([]string, error)
+
 	// Geospatial operations
 	GeoAdd(ctx context.Context, key string, longitude, latitude float64, member string) error
 	GeoRadius(ctx context.Context, key string, longitude, latitude, radiusKm float64, count int) ([]string, error)

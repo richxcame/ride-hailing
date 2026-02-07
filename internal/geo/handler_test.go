@@ -448,16 +448,13 @@ func TestHandler_FindNearbyDrivers_Success(t *testing.T) {
 	mockRedis.On("GeoRadius", mock.Anything, driverGeoIndexKey, float64(-122.4194), float64(37.7749), searchRadiusKm, 80).
 		Return([]string{driver1ID.String(), driver2ID.String()}, nil)
 
-	mockRedis.On("GetString", mock.Anything, "driver:location:"+driver1ID.String()).
-		Return(string(location1JSON), nil)
-	mockRedis.On("GetString", mock.Anything, "driver:location:"+driver2ID.String()).
-		Return(string(location2JSON), nil)
+	// Batch fetch for driver locations (new optimized path)
+	mockRedis.On("MGetStrings", mock.Anything, mock.Anything).
+		Return([]string{string(location1JSON), string(location2JSON)}, nil)
 
-	// Mock status checks for available drivers
-	mockRedis.On("GetString", mock.Anything, "driver:status:"+driver1ID.String()).
-		Return(`{"status":"available"}`, nil)
-	mockRedis.On("GetString", mock.Anything, "driver:status:"+driver2ID.String()).
-		Return(`{"status":"available"}`, nil)
+	// Batch fetch for driver statuses (new optimized path)
+	mockRedis.On("MGetStrings", mock.Anything, mock.Anything).
+		Return([]string{`{"status":"available"}`, `{"status":"available"}`}, nil)
 
 	c, w := setupTestContextWithQuery("GET", "/api/v1/geo/drivers/nearby", map[string]string{
 		"latitude":  "37.7749",
@@ -1827,21 +1824,13 @@ func TestHandler_MultipleDriversWithDifferentStatuses(t *testing.T) {
 	mockRedis.On("GeoRadius", mock.Anything, driverGeoIndexKey, mock.Anything, mock.Anything, searchRadiusKm, 80).
 		Return([]string{driver1ID.String(), driver2ID.String(), driver3ID.String()}, nil)
 
-	// Mock location lookups
-	mockRedis.On("GetString", mock.Anything, "driver:location:"+driver1ID.String()).
-		Return(string(location1JSON), nil)
-	mockRedis.On("GetString", mock.Anything, "driver:location:"+driver2ID.String()).
-		Return(string(location2JSON), nil)
-	mockRedis.On("GetString", mock.Anything, "driver:location:"+driver3ID.String()).
-		Return(string(location3JSON), nil)
+	// Mock MGetStrings batch fetch for driver locations
+	mockRedis.On("MGetStrings", mock.Anything, mock.Anything).
+		Return([]string{string(location1JSON), string(location2JSON), string(location3JSON)}, nil).Once()
 
-	// Mock status checks - only driver1 and driver3 are available
-	mockRedis.On("GetString", mock.Anything, "driver:status:"+driver1ID.String()).
-		Return(`{"status":"available"}`, nil)
-	mockRedis.On("GetString", mock.Anything, "driver:status:"+driver2ID.String()).
-		Return(`{"status":"busy"}`, nil)
-	mockRedis.On("GetString", mock.Anything, "driver:status:"+driver3ID.String()).
-		Return(`{"status":"available"}`, nil)
+	// Mock MGetStrings batch fetch for driver statuses - only driver1 and driver3 are available
+	mockRedis.On("MGetStrings", mock.Anything, mock.Anything).
+		Return([]string{`{"status":"available"}`, `{"status":"busy"}`, `{"status":"available"}`}, nil).Once()
 
 	c, w := setupTestContextWithQuery("GET", "/api/v1/geo/drivers/nearby", map[string]string{
 		"latitude":  "37.7749",

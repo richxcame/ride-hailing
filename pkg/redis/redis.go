@@ -205,6 +205,25 @@ func (c *Client) MGet(ctx context.Context, keys ...string) ([]interface{}, error
 	return c.Client.MGet(ctx, keys...).Result()
 }
 
+// MGetStrings retrieves multiple keys at once and returns them as strings.
+// Missing keys are returned as empty strings.
+func (c *Client) MGetStrings(ctx context.Context, keys ...string) ([]string, error) {
+	result, err := c.Client.MGet(ctx, keys...).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	strs := make([]string, len(result))
+	for i, v := range result {
+		if v != nil {
+			if s, ok := v.(string); ok {
+				strs[i] = s
+			}
+		}
+	}
+	return strs, nil
+}
+
 // MSet sets multiple key-value pairs at once
 func (c *Client) MSet(ctx context.Context, values map[string]interface{}) error {
 	pairs := make([]interface{}, 0, len(values)*2)

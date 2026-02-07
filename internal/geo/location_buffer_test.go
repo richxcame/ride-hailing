@@ -88,6 +88,30 @@ func (m *mockRedis) GeoRemove(_ context.Context, key, member string) error {
 
 func (m *mockRedis) Expire(_ context.Context, _ string, _ time.Duration) error { return nil }
 
+func (m *mockRedis) MGet(_ context.Context, keys ...string) ([]interface{}, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	result := make([]interface{}, len(keys))
+	for i, key := range keys {
+		if v, ok := m.store[key]; ok {
+			result[i] = v
+		}
+	}
+	return result, nil
+}
+
+func (m *mockRedis) MGetStrings(_ context.Context, keys ...string) ([]string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	result := make([]string, len(keys))
+	for i, key := range keys {
+		if v, ok := m.store[key]; ok {
+			result[i] = v
+		}
+	}
+	return result, nil
+}
+
 func (m *mockRedis) keyCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()

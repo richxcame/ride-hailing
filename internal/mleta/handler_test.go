@@ -141,6 +141,22 @@ func (m *MockRedisClient) SetNX(ctx context.Context, key string, value string, e
 	return args.Bool(0), args.Error(1)
 }
 
+func (m *MockRedisClient) MGet(ctx context.Context, keys ...string) ([]interface{}, error) {
+	args := m.Called(ctx, keys)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]interface{}), args.Error(1)
+}
+
+func (m *MockRedisClient) MGetStrings(ctx context.Context, keys ...string) ([]string, error) {
+	args := m.Called(ctx, keys)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}
+
 // ============================================================================
 // Helper Functions
 // ============================================================================

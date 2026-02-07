@@ -184,7 +184,7 @@ func TestService_FindNearbyDrivers_Success(t *testing.T) {
 	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers*2).
 		Return([]string{driver1ID.String(), driver2ID.String()}, nil)
 
-	// Mock GetDriverLocation for each driver
+	// Mock MGetStrings batch fetch for driver locations
 	location1 := &DriverLocation{
 		DriverID:  driver1ID,
 		Latitude:  37.7750,
@@ -201,10 +201,10 @@ func TestService_FindNearbyDrivers_Success(t *testing.T) {
 	location1JSON, _ := json.Marshal(location1)
 	location2JSON, _ := json.Marshal(location2)
 
-	mockRedis.On("GetString", ctx, "driver:location:"+driver1ID.String()).
-		Return(string(location1JSON), nil)
-	mockRedis.On("GetString", ctx, "driver:location:"+driver2ID.String()).
-		Return(string(location2JSON), nil)
+	mockRedis.On("MGetStrings", ctx, []string{
+		"driver:location:" + driver1ID.String(),
+		"driver:location:" + driver2ID.String(),
+	}).Return([]string{string(location1JSON), string(location2JSON)}, nil)
 
 	// Act
 	locations, err := service.FindNearbyDrivers(ctx, pickupLat, pickupLon, maxDrivers)
@@ -464,7 +464,7 @@ func TestService_FindAvailableDrivers_Success(t *testing.T) {
 	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers*2*2).
 		Return([]string{driver1ID.String(), driver2ID.String(), driver3ID.String()}, nil)
 
-	// Mock GetDriverLocation for each driver
+	// Mock MGetStrings batch fetch for driver locations
 	location1 := &DriverLocation{DriverID: driver1ID, Latitude: 37.7750, Longitude: -122.4195, Timestamp: time.Now()}
 	location2 := &DriverLocation{DriverID: driver2ID, Latitude: 37.7751, Longitude: -122.4196, Timestamp: time.Now()}
 	location3 := &DriverLocation{DriverID: driver3ID, Latitude: 37.7752, Longitude: -122.4197, Timestamp: time.Now()}
@@ -473,20 +473,26 @@ func TestService_FindAvailableDrivers_Success(t *testing.T) {
 	location2JSON, _ := json.Marshal(location2)
 	location3JSON, _ := json.Marshal(location3)
 
-	mockRedis.On("GetString", ctx, "driver:location:"+driver1ID.String()).Return(string(location1JSON), nil)
-	mockRedis.On("GetString", ctx, "driver:location:"+driver2ID.String()).Return(string(location2JSON), nil)
-	mockRedis.On("GetString", ctx, "driver:location:"+driver3ID.String()).Return(string(location3JSON), nil)
+	mockRedis.On("MGetStrings", ctx, []string{
+		"driver:location:" + driver1ID.String(),
+		"driver:location:" + driver2ID.String(),
+		"driver:location:" + driver3ID.String(),
+	}).Return([]string{string(location1JSON), string(location2JSON), string(location3JSON)}, nil)
 
-	// Mock GetDriverStatus - 2 available, 1 busy
+	// Mock MGetStrings batch fetch for driver statuses - 2 available, 1 busy
 	status1 := map[string]interface{}{"status": "available", "timestamp": time.Now()}
 	status2 := map[string]interface{}{"status": "available", "timestamp": time.Now()}
+	status3 := map[string]interface{}{"status": "busy", "timestamp": time.Now()}
 
 	status1JSON, _ := json.Marshal(status1)
 	status2JSON, _ := json.Marshal(status2)
+	status3JSON, _ := json.Marshal(status3)
 
-	mockRedis.On("GetString", ctx, "driver:status:"+driver1ID.String()).Return(string(status1JSON), nil)
-	mockRedis.On("GetString", ctx, "driver:status:"+driver2ID.String()).Return(string(status2JSON), nil)
-	// Driver 3 won't be checked since we break after finding maxDrivers (2) available drivers
+	mockRedis.On("MGetStrings", ctx, []string{
+		"driver:status:" + driver1ID.String(),
+		"driver:status:" + driver2ID.String(),
+		"driver:status:" + driver3ID.String(),
+	}).Return([]string{string(status1JSON), string(status2JSON), string(status3JSON)}, nil)
 
 	// Act
 	locations, err := service.FindAvailableDrivers(ctx, pickupLat, pickupLon, maxDrivers)
@@ -512,14 +518,19 @@ func TestService_FindAvailableDrivers_NoneAvailable(t *testing.T) {
 	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers*2*2).
 		Return([]string{driver1ID.String()}, nil)
 
+	// Mock MGetStrings batch fetch for driver locations
 	location1 := &DriverLocation{DriverID: driver1ID, Latitude: 37.7750, Longitude: -122.4195, Timestamp: time.Now()}
 	location1JSON, _ := json.Marshal(location1)
-	mockRedis.On("GetString", ctx, "driver:location:"+driver1ID.String()).Return(string(location1JSON), nil)
+	mockRedis.On("MGetStrings", ctx, []string{
+		"driver:location:" + driver1ID.String(),
+	}).Return([]string{string(location1JSON)}, nil)
 
-	// Driver is busy
+	// Mock MGetStrings batch fetch for driver statuses - driver is busy
 	status1 := map[string]interface{}{"status": "busy", "timestamp": time.Now()}
 	status1JSON, _ := json.Marshal(status1)
-	mockRedis.On("GetString", ctx, "driver:status:"+driver1ID.String()).Return(string(status1JSON), nil)
+	mockRedis.On("MGetStrings", ctx, []string{
+		"driver:status:" + driver1ID.String(),
+	}).Return([]string{string(status1JSON)}, nil)
 
 	// Act
 	locations, err := service.FindAvailableDrivers(ctx, pickupLat, pickupLon, maxDrivers)

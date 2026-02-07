@@ -34,9 +34,10 @@ type DriverLocation struct {
 	DriverID  uuid.UUID `json:"driver_id"`
 	Latitude  float64   `json:"latitude"`
 	Longitude float64   `json:"longitude"`
-	H3Cell    string    `json:"h3_cell"`            // H3 cell at matching resolution
+	H3Cell    string    `json:"h3_cell"`             // H3 cell at matching resolution
 	Heading   float64   `json:"heading,omitempty"`   // Direction the driver is facing (0-360)
 	Speed     float64   `json:"speed,omitempty"`     // Speed in km/h
+	Status    string    `json:"status,omitempty"`    // Driver availability status (available, busy, offline)
 	Timestamp time.Time `json:"timestamp"`
 }
 
@@ -177,6 +178,7 @@ func (s *Service) GetDriverLocation(ctx context.Context, driverID uuid.UUID) (*D
 
 // FindNearbyDrivers finds drivers near a given location using Redis GEO,
 // sorted by distance (closest first).
+// Uses batch fetch (MGetStrings) to reduce Redis round-trips from O(n) to O(1).
 func (s *Service) FindNearbyDrivers(ctx context.Context, latitude, longitude float64, maxDrivers int) ([]*DriverLocation, error) {
 	// Use Redis GEORADIUS to find nearby drivers
 	driverIDs, err := s.redis.GeoRadius(ctx, driverGeoIndexKey, longitude, latitude, searchRadiusKm, maxDrivers*2)
@@ -188,27 +190,49 @@ func (s *Service) FindNearbyDrivers(ctx context.Context, latitude, longitude flo
 		return []*DriverLocation{}, nil
 	}
 
-	// Get detailed location data for each driver and calculate distance
+	// Build all location keys at once for batch fetch
+	locationKeys := make([]string, len(driverIDs))
+	validDriverIDs := make([]uuid.UUID, 0, len(driverIDs))
+	for i, driverIDStr := range driverIDs {
+		driverID, err := uuid.Parse(driverIDStr)
+		if err != nil {
+			continue
+		}
+		locationKeys[i] = fmt.Sprintf("%s%s", driverLocationPrefix, driverIDStr)
+		validDriverIDs = append(validDriverIDs, driverID)
+	}
+
+	// Single batch fetch for all driver locations
+	locationData, err := s.redis.MGetStrings(ctx, locationKeys...)
+	if err != nil {
+		return nil, common.NewInternalErrorWithError("failed to batch fetch driver locations", err)
+	}
+
+	// Parse results and calculate distances
 	type driverWithDistance struct {
 		location *DriverLocation
 		distance float64
 	}
 
 	var drivers []driverWithDistance
-	for _, driverIDStr := range driverIDs {
-		driverID, err := uuid.Parse(driverIDStr)
-		if err != nil {
+	for i, data := range locationData {
+		if data == "" {
 			continue
 		}
 
-		location, err := s.GetDriverLocation(ctx, driverID)
-		if err != nil {
+		var location DriverLocation
+		if err := json.Unmarshal([]byte(data), &location); err != nil {
 			continue
+		}
+
+		// Ensure driver ID is set (in case it's missing from stored data)
+		if location.DriverID == uuid.Nil && i < len(validDriverIDs) {
+			location.DriverID = validDriverIDs[i]
 		}
 
 		distance := s.CalculateDistance(latitude, longitude, location.Latitude, location.Longitude)
 		if distance <= searchRadiusKm {
-			drivers = append(drivers, driverWithDistance{location: location, distance: distance})
+			drivers = append(drivers, driverWithDistance{location: &location, distance: distance})
 		}
 	}
 
@@ -276,13 +300,72 @@ func (s *Service) GetDriverStatus(ctx context.Context, driverID uuid.UUID) (stri
 	return "offline", nil
 }
 
-// FindAvailableDrivers finds nearby available drivers (not busy with a ride)
+// FindAvailableDrivers finds nearby available drivers (not busy with a ride).
+// Uses batch fetch (MGetStrings) to reduce Redis round-trips from O(n) to O(1).
 func (s *Service) FindAvailableDrivers(ctx context.Context, latitude, longitude float64, maxDrivers int) ([]*DriverLocation, error) {
 	nearbyDrivers, err := s.FindNearbyDrivers(ctx, latitude, longitude, maxDrivers*2)
 	if err != nil {
 		return nil, err
 	}
 
+	if len(nearbyDrivers) == 0 {
+		return []*DriverLocation{}, nil
+	}
+
+	// Build all status keys at once for batch fetch
+	statusKeys := make([]string, len(nearbyDrivers))
+	for i, driver := range nearbyDrivers {
+		statusKeys[i] = fmt.Sprintf("%s%s", driverStatusPrefix, driver.DriverID.String())
+	}
+
+	// Single batch fetch for all driver statuses
+	statusData, err := s.redis.MGetStrings(ctx, statusKeys...)
+	if err != nil {
+		// Fallback to individual lookups if batch fails
+		logger.WarnContext(ctx, "batch status fetch failed, falling back to individual lookups", zap.Error(err))
+		return s.findAvailableDriversFallback(ctx, nearbyDrivers, maxDrivers)
+	}
+
+	// Filter available drivers
+	availableDrivers := make([]*DriverLocation, 0, maxDrivers)
+	for i, driver := range nearbyDrivers {
+		if i >= len(statusData) {
+			break
+		}
+
+		status := s.parseDriverStatus(statusData[i])
+		if status == "available" {
+			driver.Status = status // Cache status in location
+			availableDrivers = append(availableDrivers, driver)
+			if len(availableDrivers) >= maxDrivers {
+				break
+			}
+		}
+	}
+
+	return availableDrivers, nil
+}
+
+// parseDriverStatus extracts status from JSON status data
+func (s *Service) parseDriverStatus(data string) string {
+	if data == "" {
+		return "offline"
+	}
+
+	var statusData map[string]interface{}
+	if err := json.Unmarshal([]byte(data), &statusData); err != nil {
+		return "offline"
+	}
+
+	if status, ok := statusData["status"].(string); ok {
+		return status
+	}
+
+	return "offline"
+}
+
+// findAvailableDriversFallback is the original O(n) implementation for fallback
+func (s *Service) findAvailableDriversFallback(ctx context.Context, nearbyDrivers []*DriverLocation, maxDrivers int) ([]*DriverLocation, error) {
 	var availableDrivers []*DriverLocation
 	for _, driver := range nearbyDrivers {
 		status, err := s.GetDriverStatus(ctx, driver.DriverID)
@@ -290,6 +373,7 @@ func (s *Service) FindAvailableDrivers(ctx context.Context, latitude, longitude 
 			continue
 		}
 
+		driver.Status = status
 		availableDrivers = append(availableDrivers, driver)
 		if len(availableDrivers) >= maxDrivers {
 			break

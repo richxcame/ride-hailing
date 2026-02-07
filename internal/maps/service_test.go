@@ -171,6 +171,22 @@ func (m *mockRedisClient) Expire(ctx context.Context, key string, expiration tim
 	return args.Error(0)
 }
 
+func (m *mockRedisClient) MGet(ctx context.Context, keys ...string) ([]interface{}, error) {
+	args := m.Called(ctx, keys)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]interface{}), args.Error(1)
+}
+
+func (m *mockRedisClient) MGetStrings(ctx context.Context, keys ...string) ([]string, error) {
+	args := m.Called(ctx, keys)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).([]string), args.Error(1)
+}
+
 // ========================================
 // TEST HELPERS
 // ========================================
