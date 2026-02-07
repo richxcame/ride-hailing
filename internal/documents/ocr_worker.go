@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/pkg/logger"
+	"github.com/richxcame/ride-hailing/pkg/resilience"
 	"github.com/richxcame/ride-hailing/pkg/storage"
 	"go.uber.org/zap"
 )
@@ -40,11 +41,12 @@ type OCRWorkerConfig struct {
 
 // OCRWorker processes documents from the OCR queue
 type OCRWorker struct {
-	repo      *Repository
-	storage   storage.Storage
-	config    OCRWorkerConfig
-	processor OCRProcessor
-	stopCh    chan struct{}
+	repo        *Repository
+	storage     storage.Storage
+	config      OCRWorkerConfig
+	processor   OCRProcessor
+	stopCh      chan struct{}
+	retryConfig resilience.RetryConfig
 }
 
 // OCRProcessor interface for different OCR implementations
@@ -71,11 +73,20 @@ func NewOCRWorker(repo *Repository, storage storage.Storage, config OCRWorkerCon
 		config.ProcessorTimeout = 60 * time.Second
 	}
 
+	// Configure retry with jittered exponential backoff for OCR processing
+	retryConfig := resilience.DefaultRetryConfig()
+	retryConfig.MaxAttempts = config.MaxRetries
+	retryConfig.InitialBackoff = 2 * time.Second
+	retryConfig.MaxBackoff = 30 * time.Second
+	retryConfig.EnableJitter = true
+	retryConfig.RetryableChecker = isOCRRetryable
+
 	worker := &OCRWorker{
-		repo:    repo,
-		storage: storage,
-		config:  config,
-		stopCh:  make(chan struct{}),
+		repo:        repo,
+		storage:     storage,
+		config:      config,
+		stopCh:      make(chan struct{}),
+		retryConfig: retryConfig,
 	}
 
 	// Initialize processor based on provider
@@ -313,8 +324,10 @@ func (w *OCRWorker) handleProcessingError(ctx context.Context, job *OCRProcessin
 		return
 	}
 
-	// Schedule retry with exponential backoff
-	nextRetry := time.Now().Add(time.Duration(job.RetryCount*job.RetryCount) * time.Minute)
+	// Schedule retry with jittered exponential backoff using resilience package pattern
+	backoffDuration := calculateOCRBackoff(job.RetryCount, w.retryConfig)
+	nextRetry := time.Now().Add(backoffDuration)
+
 	if updateErr := w.repo.UpdateOCRJobRetry(ctx, job.ID, job.RetryCount, nextRetry); updateErr != nil {
 		logger.Error("Failed to update OCR job for retry", zap.Error(updateErr))
 	}
@@ -322,9 +335,101 @@ func (w *OCRWorker) handleProcessingError(ctx context.Context, job *OCRProcessin
 	logger.Warn("OCR job will be retried",
 		zap.String("job_id", job.ID.String()),
 		zap.Int("retry_count", job.RetryCount),
+		zap.Duration("backoff", backoffDuration),
 		zap.Time("next_retry", nextRetry),
 		zap.Error(err),
 	)
+}
+
+// isOCRRetryable determines if an OCR error should be retried
+func isOCRRetryable(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errMsg := strings.ToLower(err.Error())
+
+	// Retry on transient errors
+	retryablePatterns := []string{
+		"timeout",
+		"connection",
+		"network",
+		"temporary",
+		"503",
+		"502",
+		"504",
+		"429",
+		"rate limit",
+		"quota exceeded",
+		"service unavailable",
+		"internal error",
+	}
+
+	for _, pattern := range retryablePatterns {
+		if strings.Contains(errMsg, pattern) {
+			return true
+		}
+	}
+
+	// Don't retry on permanent errors
+	nonRetryablePatterns := []string{
+		"invalid image",
+		"unsupported format",
+		"invalid request",
+		"authentication",
+		"authorization",
+		"forbidden",
+		"not configured",
+	}
+
+	for _, pattern := range nonRetryablePatterns {
+		if strings.Contains(errMsg, pattern) {
+			return false
+		}
+	}
+
+	// Default to retry for unknown errors
+	return true
+}
+
+// calculateOCRBackoff calculates backoff duration with jitter for OCR retries
+func calculateOCRBackoff(attempt int, config resilience.RetryConfig) time.Duration {
+	// Exponential backoff: initial * (multiplier ^ (attempt - 1))
+	backoff := float64(config.InitialBackoff) * pow(config.BackoffMultiplier, float64(attempt-1))
+
+	// Apply max backoff cap
+	if backoff > float64(config.MaxBackoff) {
+		backoff = float64(config.MaxBackoff)
+	}
+
+	duration := time.Duration(backoff)
+
+	// Add jitter to prevent thundering herd
+	if config.EnableJitter {
+		duration = addOCRJitter(duration)
+	}
+
+	return duration
+}
+
+// pow calculates base^exp for float64
+func pow(base, exp float64) float64 {
+	result := 1.0
+	for i := 0; i < int(exp); i++ {
+		result *= base
+	}
+	return result
+}
+
+// addOCRJitter adds randomization to backoff duration
+func addOCRJitter(duration time.Duration) time.Duration {
+	if duration <= 0 {
+		return duration
+	}
+	// Use simple jitter: 50% to 100% of the duration
+	jitterRange := int64(duration) / 2
+	jitter := time.Duration(jitterRange + (time.Now().UnixNano() % jitterRange))
+	return jitter
 }
 
 // ========================================

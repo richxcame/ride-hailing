@@ -1,11 +1,9 @@
 package verification
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -18,9 +16,12 @@ import (
 
 // Service handles verification business logic
 type Service struct {
-	repo       RepositoryInterface
-	cfg        *config.Config
-	httpClient *http.Client
+	repo          RepositoryInterface
+	cfg           *config.Config
+	httpClient    *http.Client
+	checkrClient  *ResilientHTTPClient
+	onfidoClient  *ResilientHTTPClient
+	sterlingClient *ResilientHTTPClient
 }
 
 // NewService creates a new verification service
@@ -31,6 +32,9 @@ func NewService(repo RepositoryInterface, cfg *config.Config) *Service {
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
+		checkrClient:   NewResilientHTTPClient("checkr", 30*time.Second),
+		onfidoClient:   NewResilientHTTPClient("onfido", 30*time.Second),
+		sterlingClient: NewResilientHTTPClient("sterling", 30*time.Second),
 	}
 }
 
@@ -301,24 +305,30 @@ func (s *Service) GetDriverVerificationStatus(ctx context.Context, driverID uuid
 // PROVIDER INTEGRATIONS
 // ========================================
 
-// Checkr integration
+// Checkr integration with circuit breaker and retry
 func (s *Service) initiateCheckrCheck(ctx context.Context, req *InitiateBackgroundCheckRequest, checkID uuid.UUID) (string, error) {
 	apiKey := s.cfg.Checkr.APIKey
 	if apiKey == "" {
 		return "", fmt.Errorf("checkr API key not configured")
 	}
 
-	// Create candidate
+	// Check if circuit breaker allows requests
+	if !s.checkrClient.Allow() {
+		logger.WarnContext(ctx, "Checkr circuit breaker open, rejecting request")
+		return "", fmt.Errorf("checkr service temporarily unavailable")
+	}
+
+	// Create candidate with resilient client
 	candidatePayload := map[string]interface{}{
-		"first_name":       req.FirstName,
-		"last_name":        req.LastName,
-		"email":            req.Email,
-		"phone":            req.Phone,
-		"dob":              req.DateOfBirth,
-		"ssn":              req.SSN,
+		"first_name":            req.FirstName,
+		"last_name":             req.LastName,
+		"email":                 req.Email,
+		"phone":                 req.Phone,
+		"dob":                   req.DateOfBirth,
+		"ssn":                   req.SSN,
 		"driver_license_number": req.LicenseNumber,
 		"driver_license_state":  req.LicenseState,
-		"zipcode":          req.ZipCode,
+		"zipcode":               req.ZipCode,
 		"work_locations": []map[string]string{
 			{
 				"city":    req.City,
@@ -328,27 +338,24 @@ func (s *Service) initiateCheckrCheck(ctx context.Context, req *InitiateBackgrou
 		},
 	}
 
-	candidateBody, _ := json.Marshal(candidatePayload)
-	candidateReq, _ := http.NewRequestWithContext(ctx, "POST", "https://api.checkr.com/v1/candidates", bytes.NewBuffer(candidateBody))
-	candidateReq.SetBasicAuth(apiKey, "")
-	candidateReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := s.httpClient.Do(candidateReq)
-	if err != nil {
-		return "", err
+	headers := map[string]string{
+		"Authorization": "Basic " + basicAuth(apiKey, ""),
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("checkr candidate creation failed: %s", string(body))
+	respBody, statusCode, err := s.checkrClient.Post(ctx, "https://api.checkr.com/v1/candidates", candidatePayload, headers)
+	if err != nil {
+		return "", fmt.Errorf("checkr candidate creation failed: %w", err)
+	}
+
+	if statusCode != http.StatusCreated {
+		return "", fmt.Errorf("checkr candidate creation failed: %s", string(respBody))
 	}
 
 	var candidateResp struct {
 		ID string `json:"id"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&candidateResp); err != nil {
-		return "", err
+	if err := json.Unmarshal(respBody, &candidateResp); err != nil {
+		return "", fmt.Errorf("failed to parse checkr response: %w", err)
 	}
 
 	// Create invitation (triggers background check)
@@ -357,30 +364,58 @@ func (s *Service) initiateCheckrCheck(ctx context.Context, req *InitiateBackgrou
 		"package":      "driver_standard",
 	}
 
-	invitationBody, _ := json.Marshal(invitationPayload)
-	invitationReq, _ := http.NewRequestWithContext(ctx, "POST", "https://api.checkr.com/v1/invitations", bytes.NewBuffer(invitationBody))
-	invitationReq.SetBasicAuth(apiKey, "")
-	invitationReq.Header.Set("Content-Type", "application/json")
-
-	resp, err = s.httpClient.Do(invitationReq)
+	respBody, statusCode, err = s.checkrClient.Post(ctx, "https://api.checkr.com/v1/invitations", invitationPayload, headers)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("checkr invitation creation failed: %w", err)
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("checkr invitation creation failed: %s", string(body))
+	if statusCode != http.StatusCreated {
+		return "", fmt.Errorf("checkr invitation creation failed: %s", string(respBody))
 	}
 
 	var invitationResp struct {
 		ID string `json:"id"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&invitationResp); err != nil {
-		return "", err
+	if err := json.Unmarshal(respBody, &invitationResp); err != nil {
+		return "", fmt.Errorf("failed to parse checkr invitation response: %w", err)
 	}
 
+	logger.InfoContext(ctx, "Checkr background check initiated",
+		zap.String("candidate_id", candidateResp.ID),
+		zap.String("invitation_id", invitationResp.ID),
+	)
+
 	return invitationResp.ID, nil
+}
+
+// basicAuth encodes username and password for HTTP Basic Authentication
+func basicAuth(username, password string) string {
+	auth := username + ":" + password
+	return base64Encode([]byte(auth))
+}
+
+func base64Encode(data []byte) string {
+	return string(base64EncodeBytes(data))
+}
+
+func base64EncodeBytes(data []byte) []byte {
+	const base64Table = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+	result := make([]byte, 0, (len(data)+2)/3*4)
+	for i := 0; i < len(data); i += 3 {
+		var b uint32
+		remaining := len(data) - i
+		if remaining >= 3 {
+			b = uint32(data[i])<<16 | uint32(data[i+1])<<8 | uint32(data[i+2])
+			result = append(result, base64Table[b>>18&0x3F], base64Table[b>>12&0x3F], base64Table[b>>6&0x3F], base64Table[b&0x3F])
+		} else if remaining == 2 {
+			b = uint32(data[i])<<16 | uint32(data[i+1])<<8
+			result = append(result, base64Table[b>>18&0x3F], base64Table[b>>12&0x3F], base64Table[b>>6&0x3F], '=')
+		} else {
+			b = uint32(data[i]) << 16
+			result = append(result, base64Table[b>>18&0x3F], base64Table[b>>12&0x3F], '=', '=')
+		}
+	}
+	return result
 }
 
 func (s *Service) mapCheckrStatus(payload *WebhookPayload) (BackgroundCheckStatus, []string) {
@@ -414,50 +449,57 @@ func (s *Service) mapSterlingStatus(payload *WebhookPayload) (BackgroundCheckSta
 	}
 }
 
-// Onfido integration
+// Onfido integration with circuit breaker and retry
 func (s *Service) initiateOnfidoCheck(ctx context.Context, req *InitiateBackgroundCheckRequest, checkID uuid.UUID) (string, error) {
 	apiKey := s.cfg.Onfido.APIKey
 	if apiKey == "" {
 		return "", fmt.Errorf("onfido API key not configured")
 	}
 
-	// Create applicant
+	// Check if circuit breaker allows requests
+	if !s.onfidoClient.Allow() {
+		logger.WarnContext(ctx, "Onfido circuit breaker open, rejecting request")
+		return "", fmt.Errorf("onfido service temporarily unavailable")
+	}
+
+	// Create applicant with resilient client
 	applicantPayload := map[string]interface{}{
 		"first_name": req.FirstName,
 		"last_name":  req.LastName,
 		"email":      req.Email,
 		"dob":        req.DateOfBirth,
 		"address": map[string]string{
-			"street":      req.StreetAddress,
-			"city":        req.City,
-			"state":       req.State,
-			"postcode":    req.ZipCode,
-			"country":     "USA",
+			"street":   req.StreetAddress,
+			"city":     req.City,
+			"state":    req.State,
+			"postcode": req.ZipCode,
+			"country":  "USA",
 		},
 	}
 
-	applicantBody, _ := json.Marshal(applicantPayload)
-	applicantReq, _ := http.NewRequestWithContext(ctx, "POST", "https://api.onfido.com/v3/applicants", bytes.NewBuffer(applicantBody))
-	applicantReq.Header.Set("Authorization", "Token token="+apiKey)
-	applicantReq.Header.Set("Content-Type", "application/json")
-
-	resp, err := s.httpClient.Do(applicantReq)
-	if err != nil {
-		return "", err
+	headers := map[string]string{
+		"Authorization": "Token token=" + apiKey,
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
-		body, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("onfido applicant creation failed: %s", string(body))
+	respBody, statusCode, err := s.onfidoClient.Post(ctx, "https://api.onfido.com/v3/applicants", applicantPayload, headers)
+	if err != nil {
+		return "", fmt.Errorf("onfido applicant creation failed: %w", err)
+	}
+
+	if statusCode != http.StatusCreated {
+		return "", fmt.Errorf("onfido applicant creation failed: %s", string(respBody))
 	}
 
 	var applicantResp struct {
 		ID string `json:"id"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&applicantResp); err != nil {
-		return "", err
+	if err := json.Unmarshal(respBody, &applicantResp); err != nil {
+		return "", fmt.Errorf("failed to parse onfido response: %w", err)
 	}
+
+	logger.InfoContext(ctx, "Onfido applicant created",
+		zap.String("applicant_id", applicantResp.ID),
+	)
 
 	return applicantResp.ID, nil
 }

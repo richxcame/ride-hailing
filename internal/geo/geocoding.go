@@ -52,6 +52,7 @@ type GeocodingService struct {
 	httpClient *http.Client
 	redis      redisClient.ClientInterface
 	breaker    *resilience.CircuitBreaker
+	retry      resilience.RetryConfig
 	// Optional: restrict results to a region/country
 	RegionBias   string // e.g. "tm" for Turkmenistan
 	LanguageBias string // e.g. "tk" for Turkmen
@@ -59,13 +60,61 @@ type GeocodingService struct {
 
 // NewGeocodingService creates a new geocoding service.
 func NewGeocodingService(apiKey string, redis redisClient.ClientInterface) *GeocodingService {
+	// Configure retry with conservative settings for geocoding
+	retryConfig := resilience.ConservativeRetryConfig()
+	retryConfig.RetryableChecker = isGeocodingRetryable
+
 	return &GeocodingService{
 		apiKey: apiKey,
 		httpClient: &http.Client{
 			Timeout: 5 * time.Second,
 		},
 		redis: redis,
+		retry: retryConfig,
 	}
+}
+
+// isGeocodingRetryable determines if a geocoding error should be retried
+func isGeocodingRetryable(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	errMsg := strings.ToLower(err.Error())
+
+	// Retry on transient errors
+	retryablePatterns := []string{
+		"timeout",
+		"connection",
+		"network",
+		"503",
+		"502",
+		"504",
+		"over_query_limit", // Google Maps rate limit
+		"unknown_error",    // Google Maps transient error
+	}
+
+	for _, pattern := range retryablePatterns {
+		if strings.Contains(errMsg, pattern) {
+			return true
+		}
+	}
+
+	// Don't retry on permanent errors
+	nonRetryablePatterns := []string{
+		"invalid_request",
+		"request_denied",
+		"zero_results",
+		"not_found",
+	}
+
+	for _, pattern := range nonRetryablePatterns {
+		if strings.Contains(errMsg, pattern) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // SetCircuitBreaker enables circuit breaker protection for external API calls.
@@ -307,7 +356,7 @@ func (g *GeocodingService) fetchGeocodingResults(ctx context.Context, reqURL str
 	return results, nil
 }
 
-// doRequest executes an HTTP request, optionally wrapped by the circuit breaker.
+// doRequest executes an HTTP request with retry and optional circuit breaker.
 func (g *GeocodingService) doRequest(ctx context.Context, reqURL string) ([]byte, error) {
 	call := func(_ context.Context) (interface{}, error) {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, reqURL, nil)
@@ -319,21 +368,32 @@ func (g *GeocodingService) doRequest(ctx context.Context, reqURL string) ([]byte
 			return nil, err
 		}
 		defer resp.Body.Close()
+
+		// Check for retryable HTTP status codes
+		if resilience.IsRetryableHTTPStatus(resp.StatusCode) {
+			body, _ := io.ReadAll(resp.Body)
+			return nil, fmt.Errorf("geocoding API returned status %d: %s", resp.StatusCode, string(body))
+		}
+
 		return io.ReadAll(resp.Body)
 	}
 
-	if g.breaker != nil {
-		result, err := g.breaker.Execute(ctx, call)
-		if err != nil {
-			return nil, common.NewInternalErrorWithError("geocoding API circuit open or request failed", err)
+	// Wrap with retry logic
+	retryOperation := func(ctx context.Context) (interface{}, error) {
+		if g.breaker != nil {
+			return g.breaker.Execute(ctx, call)
 		}
-		return result.([]byte), nil
+		return call(ctx)
 	}
 
-	result, err := call(ctx)
+	result, err := resilience.RetryWithName(ctx, g.retry, retryOperation, "geocoding-api")
 	if err != nil {
+		if g.breaker != nil && !g.breaker.Allow() {
+			return nil, common.NewServiceUnavailableError("geocoding service temporarily unavailable")
+		}
 		return nil, common.NewInternalErrorWithError("geocoding API request failed", err)
 	}
+
 	return result.([]byte), nil
 }
 
