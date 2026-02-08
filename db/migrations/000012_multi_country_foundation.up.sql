@@ -55,7 +55,7 @@ CREATE TABLE exchange_rates (
 );
 
 CREATE INDEX idx_exchange_rates_lookup ON exchange_rates(from_currency, to_currency, valid_until DESC);
-CREATE INDEX idx_exchange_rates_valid ON exchange_rates(valid_until) WHERE valid_until > NOW();
+CREATE INDEX idx_exchange_rates_valid ON exchange_rates(valid_until DESC);
 
 -- ========================================
 -- GEOGRAPHIC HIERARCHY
