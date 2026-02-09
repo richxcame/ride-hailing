@@ -14,6 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/richxcame/ride-hailing/internal/promos"
 	"github.com/richxcame/ride-hailing/pkg/cache"
+	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/errors"
 	redisclient "github.com/richxcame/ride-hailing/pkg/redis"
@@ -154,6 +155,9 @@ func main() {
 
 	// Set up Gin router
 	router := gin.New()
+	router.HandleMethodNotAllowed = true
+	router.NoRoute(common.NoRouteHandler())
+	router.NoMethod(common.NoMethodHandler())
 	router.Use(middleware.RecoveryWithSentry()) // Custom recovery with Sentry
 	router.Use(middleware.SentryMiddleware())   // Sentry integration
 	router.Use(middleware.CorrelationID())

@@ -140,6 +140,9 @@ func main() {
 
 	// Set up Gin router
 	router := gin.New()
+	router.HandleMethodNotAllowed = true
+	router.NoRoute(common.NoRouteHandler())
+	router.NoMethod(common.NoMethodHandler())
 	router.Use(middleware.RecoveryWithSentry()) // Custom recovery with Sentry
 	router.Use(middleware.SentryMiddleware())   // Sentry integration
 	router.Use(middleware.CorrelationID())

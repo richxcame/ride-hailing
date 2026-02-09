@@ -86,6 +86,35 @@ func ErrorResponse(c *gin.Context, statusCode int, message string) {
 	})
 }
 
+// NoRouteHandler returns a gin.HandlerFunc for unregistered routes (404)
+func NoRouteHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.JSON(http.StatusNotFound, Response{
+			Success: false,
+			Error: &ErrorInfo{
+				Code:      http.StatusNotFound,
+				ErrorCode: ErrCodeNotFound,
+				Message:   "route not found",
+			},
+			CorrelationID: logger.CorrelationIDFromContext(c.Request.Context()),
+		})
+	}
+}
+
+// NoMethodHandler returns a gin.HandlerFunc for unsupported methods (405)
+func NoMethodHandler() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.JSON(http.StatusMethodNotAllowed, Response{
+			Success: false,
+			Error: &ErrorInfo{
+				Code:    http.StatusMethodNotAllowed,
+				Message: "method not allowed",
+			},
+			CorrelationID: logger.CorrelationIDFromContext(c.Request.Context()),
+		})
+	}
+}
+
 // AppErrorResponse sends an AppError response
 func AppErrorResponse(c *gin.Context, err *AppError) {
 	c.JSON(err.Code, Response{

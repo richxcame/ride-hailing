@@ -116,6 +116,9 @@ func main() {
 	}
 
 	router := gin.New()
+	router.HandleMethodNotAllowed = true
+	router.NoRoute(common.NoRouteHandler())
+	router.NoMethod(common.NoMethodHandler())
 	router.Use(gin.Recovery())
 	router.Use(middleware.RequestTimeout(&cfg.Timeout))
 	router.Use(middleware.RecoveryWithSentry()) // Custom recovery with Sentry

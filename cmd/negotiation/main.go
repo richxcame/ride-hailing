@@ -187,6 +187,9 @@ func main() {
 	}
 
 	router := gin.New()
+	router.HandleMethodNotAllowed = true
+	router.NoRoute(common.NoRouteHandler())
+	router.NoMethod(common.NoMethodHandler())
 
 	// Global middleware
 	router.Use(middleware.RecoveryWithSentry())

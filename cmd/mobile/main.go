@@ -48,6 +48,7 @@ import (
 	"github.com/richxcame/ride-hailing/internal/twofa"
 	"github.com/richxcame/ride-hailing/internal/vehicle"
 	"github.com/richxcame/ride-hailing/internal/waittime"
+	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/errors"
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
@@ -288,6 +289,9 @@ func main() {
 
 	// Set up Gin router
 	router := gin.New()
+	router.HandleMethodNotAllowed = true
+	router.NoRoute(common.NoRouteHandler())
+	router.NoMethod(common.NoMethodHandler())
 	router.Use(middleware.RecoveryWithSentry()) // Custom recovery with Sentry
 	router.Use(middleware.SentryMiddleware())   // Sentry integration
 	router.Use(middleware.CorrelationID())
