@@ -2,6 +2,7 @@ package realtime
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
@@ -71,17 +72,11 @@ func (h *Handler) HandleWebSocket(c *gin.Context) {
 		role = "rider" // Default to rider
 	}
 
-	// Safely extract userID and role as strings
-	userIDStr, ok := userID.(string)
-	if !ok {
-		common.ErrorResponse(c, http.StatusInternalServerError, "invalid user context")
-		return
-	}
+	// Safely extract userID and role as strings.
+	// Auth middleware stores user_id as uuid.UUID and user_role as models.UserRole.
+	userIDStr := fmt.Sprintf("%v", userID)
 
-	roleStr, ok := role.(string)
-	if !ok {
-		roleStr = "rider" // Default to rider if type assertion fails
-	}
+	roleStr := fmt.Sprintf("%v", role)
 
 	// Upgrade HTTP connection to WebSocket
 	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)

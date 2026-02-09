@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-contrib/timeout"
 	"github.com/gin-gonic/gin"
@@ -24,8 +25,17 @@ var (
 
 // RequestTimeout applies a timeout to incoming requests
 // Uses route-specific timeouts from config when available, otherwise uses default timeout
+// WebSocket upgrade requests are skipped because the timeout middleware wraps
+// the ResponseWriter in a way that doesn't implement http.Hijacker.
 func RequestTimeout(timeoutConfig *config.TimeoutConfig) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// Skip timeout for WebSocket upgrade requests — the wrapped ResponseWriter
+		// does not implement http.Hijacker, which breaks websocket.Upgrade().
+		if strings.EqualFold(c.GetHeader("Upgrade"), "websocket") {
+			c.Next()
+			return
+		}
+
 		// Add panic recovery specifically for timeout middleware
 		defer func() {
 			if r := recover(); r != nil {
