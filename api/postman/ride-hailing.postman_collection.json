@@ -1035,6 +1035,42 @@
         {
           "item": [
             {
+              "name": "Available Ride Types",
+              "request": {
+                "description": "Get ride types available at a location. Uses cascading resolution: city-level > country-level > global fallback.",
+                "header": [],
+                "method": "GET",
+                "url": {
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "ride-types",
+                    "available"
+                  ],
+                  "query": [
+                    {
+                      "key": "lat",
+                      "value": "41.2995"
+                    },
+                    {
+                      "key": "lng",
+                      "value": "69.2401"
+                    }
+                  ],
+                  "raw": "{{base_url}}/api/v1/ride-types/available?lat=41.2995&lng=69.2401"
+                }
+              },
+              "response": []
+            }
+          ],
+          "name": "Ride Types"
+        },
+        {
+          "item": [
+            {
               "name": "Rider History",
               "request": {
                 "description": "Get ride history for rider",
@@ -13343,7 +13379,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\n  \"base_fare\": 5,\n  \"capacity\": 4,\n  \"description\": \"Standard ride\",\n  \"is_active\": true,\n  \"minimum_fare\": 3,\n  \"name\": \"Standard\",\n  \"per_km_rate\": 1.5,\n  \"per_minute_rate\": 0.3\n}"
+                      "raw": "{\n  \"name\": \"Economy\",\n  \"description\": \"Affordable everyday rides\",\n  \"icon\": \"car-economy\",\n  \"capacity\": 4,\n  \"sort_order\": 0,\n  \"is_active\": true\n}"
                     },
                     "header": [
                       {
@@ -13407,7 +13443,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\n  \"base_fare\": 6,\n  \"name\": \"Standard Updated\"\n}"
+                      "raw": "{\n  \"name\": \"Economy Plus\",\n  \"icon\": \"car-economy-plus\",\n  \"capacity\": 4,\n  \"sort_order\": 1\n}"
                     },
                     "header": [
                       {
@@ -13464,6 +13500,300 @@
                 }
               ],
               "name": "Ride Types"
+            },
+            {
+              "item": [
+                {
+                  "name": "List Country Ride Types",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "countries",
+                        "{{countryId}}",
+                        "ride-types"
+                      ],
+                      "query": [
+                        {
+                          "key": "include_inactive",
+                          "value": "true"
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/countries/{{countryId}}/ride-types?include_inactive=true"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Add Ride Type to Country",
+                  "request": {
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"ride_type_id\": \"{{rideTypeId}}\",\n  \"is_active\": true,\n  \"sort_order\": 0\n}"
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "countries",
+                        "{{countryId}}",
+                        "ride-types"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/countries/{{countryId}}/ride-types"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Update Country Ride Type",
+                  "request": {
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"is_active\": true,\n  \"sort_order\": 1\n}"
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "PUT",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "countries",
+                        "{{countryId}}",
+                        "ride-types",
+                        "{{rideTypeId}}"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/countries/{{countryId}}/ride-types/{{rideTypeId}}"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Remove Ride Type from Country",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "DELETE",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "countries",
+                        "{{countryId}}",
+                        "ride-types",
+                        "{{rideTypeId}}"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/countries/{{countryId}}/ride-types/{{rideTypeId}}"
+                    }
+                  },
+                  "response": []
+                }
+              ],
+              "name": "Country Ride Types"
+            },
+            {
+              "item": [
+                {
+                  "name": "List City Ride Types",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "cities",
+                        "{{cityId}}",
+                        "ride-types"
+                      ],
+                      "query": [
+                        {
+                          "key": "include_inactive",
+                          "value": "true"
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/cities/{{cityId}}/ride-types?include_inactive=true"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Add Ride Type to City",
+                  "request": {
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"ride_type_id\": \"{{rideTypeId}}\",\n  \"is_active\": true,\n  \"sort_order\": 0\n}"
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "cities",
+                        "{{cityId}}",
+                        "ride-types"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/cities/{{cityId}}/ride-types"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Update City Ride Type",
+                  "request": {
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"is_active\": false,\n  \"sort_order\": 2\n}"
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "PUT",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "cities",
+                        "{{cityId}}",
+                        "ride-types",
+                        "{{rideTypeId}}"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/cities/{{cityId}}/ride-types/{{rideTypeId}}"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Remove Ride Type from City",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "DELETE",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "cities",
+                        "{{cityId}}",
+                        "ride-types",
+                        "{{rideTypeId}}"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/cities/{{cityId}}/ride-types/{{rideTypeId}}"
+                    }
+                  },
+                  "response": []
+                }
+              ],
+              "name": "City Ride Types"
             }
           ],
           "name": "Admin CRUD"
