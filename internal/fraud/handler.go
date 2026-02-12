@@ -82,7 +82,7 @@ func (h *Handler) GetAlert(c *gin.Context) {
 
 	alert, err := h.service.GetAlert(c.Request.Context(), alertID)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusNotFound, err.Error())
+		common.ErrorResponse(c, http.StatusNotFound, "Alert not found")
 		return
 	}
 
@@ -117,7 +117,7 @@ func (h *Handler) CreateAlert(c *gin.Context) {
 	}
 
 	if err := h.service.CreateAlert(c.Request.Context(), alert); err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to create alert")
 		return
 	}
 
@@ -152,7 +152,7 @@ func (h *Handler) InvestigateAlert(c *gin.Context) {
 	}
 
 	if err := h.service.InvestigateAlert(c.Request.Context(), alertID, investigatorID, req.Notes); err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to investigate alert")
 		return
 	}
 
@@ -189,7 +189,7 @@ func (h *Handler) ResolveAlert(c *gin.Context) {
 	}
 
 	if err := h.service.ResolveAlert(c.Request.Context(), alertID, investigatorID, req.Confirmed, req.Notes, req.ActionTaken); err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to resolve alert")
 		return
 	}
 
@@ -230,7 +230,7 @@ func (h *Handler) GetUserRiskProfile(c *gin.Context) {
 
 	profile, err := h.service.GetUserRiskProfile(c.Request.Context(), userID)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to get user risk profile")
 		return
 	}
 
@@ -247,7 +247,7 @@ func (h *Handler) AnalyzeUser(c *gin.Context) {
 
 	profile, err := h.service.AnalyzeUser(c.Request.Context(), userID)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to analyze user")
 		return
 	}
 
@@ -282,7 +282,7 @@ func (h *Handler) SuspendUser(c *gin.Context) {
 	}
 
 	if err := h.service.SuspendUser(c.Request.Context(), userID, adminUUID, req.Reason); err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to suspend user")
 		return
 	}
 
@@ -317,7 +317,7 @@ func (h *Handler) ReinstateUser(c *gin.Context) {
 	}
 
 	if err := h.service.ReinstateUser(c.Request.Context(), userID, adminUUID, req.Reason); err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to reinstate user")
 		return
 	}
 
@@ -333,7 +333,7 @@ func (h *Handler) DetectPaymentFraud(c *gin.Context) {
 	}
 
 	if err := h.service.DetectPaymentFraud(c.Request.Context(), userID); err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to detect payment fraud")
 		return
 	}
 
@@ -349,7 +349,7 @@ func (h *Handler) DetectRideFraud(c *gin.Context) {
 	}
 
 	if err := h.service.DetectRideFraud(c.Request.Context(), userID); err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to detect ride fraud")
 		return
 	}
 
@@ -365,7 +365,7 @@ func (h *Handler) DetectAccountFraud(c *gin.Context) {
 	}
 
 	if err := h.service.DetectAccountFraud(c.Request.Context(), userID); err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to detect account fraud")
 		return
 	}
 
@@ -394,7 +394,7 @@ func (h *Handler) GetFraudStatistics(c *gin.Context) {
 
 	stats, err := h.service.GetFraudStatistics(c.Request.Context(), start, end)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to get fraud statistics")
 		return
 	}
 
@@ -414,7 +414,7 @@ func (h *Handler) GetFraudPatterns(c *gin.Context) {
 
 	patterns, err := h.service.GetFraudPatterns(c.Request.Context(), limit)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to get fraud patterns")
 		return
 	}
 

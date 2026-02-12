@@ -55,6 +55,8 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
+	"github.com/richxcame/ride-hailing/pkg/ratelimit"
+	redisclient "github.com/richxcame/ride-hailing/pkg/redis"
 	"github.com/richxcame/ride-hailing/pkg/swagger"
 	"github.com/richxcame/ride-hailing/pkg/tracing"
 	ws "github.com/richxcame/ride-hailing/pkg/websocket"
@@ -132,6 +134,28 @@ func main() {
 		logger.Fatal("Failed to ping database", zap.Error(err))
 	}
 	logger.Info("Connected to PostgreSQL database")
+
+	// Initialize Redis for rate limiting
+	var limiter *ratelimit.Limiter
+	redisClient, redisErr := redisclient.NewRedisClient(&cfg.Redis)
+	if redisErr != nil {
+		logger.Warn("Failed to initialize Redis - rate limiting disabled", zap.Error(redisErr))
+	} else {
+		defer func() {
+			if err := redisClient.Close(); err != nil {
+				logger.Warn("Failed to close redis client", zap.Error(err))
+			}
+		}()
+
+		if cfg.RateLimit.Enabled {
+			limiter = ratelimit.NewLimiter(redisClient.Client, cfg.RateLimit)
+			logger.Info("Rate limiting enabled",
+				zap.Int("default_limit", cfg.RateLimit.DefaultLimit),
+				zap.Int("default_burst", cfg.RateLimit.DefaultBurst),
+				zap.Duration("window", cfg.RateLimit.Window()),
+			)
+		}
+	}
 
 	// Initialize Sentry for error tracking
 	sentryConfig := errors.DefaultSentryConfig()
@@ -309,6 +333,9 @@ func main() {
 	if tracerEnabled {
 		router.Use(middleware.TracingMiddleware("mobile-service"))
 	}
+
+	// Rate limiting (no-op if limiter is nil or rate limiting is disabled)
+	router.Use(middleware.RateLimit(limiter, cfg.RateLimit))
 
 	// Add Sentry error handler (should be near the end of middleware chain)
 	router.Use(middleware.ErrorHandler())

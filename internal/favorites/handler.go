@@ -53,7 +53,7 @@ func (h *Handler) CreateFavorite(c *gin.Context) {
 	)
 
 	if err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to create favorite location")
 		return
 	}
 
@@ -79,7 +79,7 @@ func (h *Handler) GetFavorites(c *gin.Context) {
 	)
 
 	if err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch favorite locations")
 		return
 	}
 
@@ -161,7 +161,7 @@ func (h *Handler) UpdateFavorite(c *gin.Context) {
 	)
 
 	if err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to update favorite location")
 		return
 	}
 
@@ -194,7 +194,7 @@ func (h *Handler) DeleteFavorite(c *gin.Context) {
 	)
 
 	if err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to delete favorite location")
 		return
 	}
 

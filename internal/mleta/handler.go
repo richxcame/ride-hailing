@@ -33,7 +33,7 @@ func (h *Handler) PredictETA(c *gin.Context) {
 
 	prediction, err := h.service.PredictETA(c.Request.Context(), &req)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to predict ETA: "+err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to predict ETA")
 		return
 	}
 
@@ -62,7 +62,7 @@ func (h *Handler) BatchPredictETA(c *gin.Context) {
 
 	predictions, err := h.service.BatchPredictETA(c.Request.Context(), requests)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to predict ETAs: "+err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to predict ETAs")
 		return
 	}
 
@@ -106,7 +106,7 @@ func (h *Handler) GetModelAccuracy(c *gin.Context) {
 
 	metrics, err := h.service.repo.GetAccuracyMetrics(c.Request.Context(), days)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to get accuracy metrics: "+err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to get accuracy metrics")
 		return
 	}
 
@@ -178,7 +178,7 @@ func (h *Handler) GetPredictionHistory(c *gin.Context) {
 
 	predictions, err := h.service.repo.GetPredictionHistory(c.Request.Context(), params.Limit, params.Offset)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to get prediction history: "+err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to get prediction history")
 		return
 	}
 
@@ -200,7 +200,7 @@ func (h *Handler) GetAccuracyTrends(c *gin.Context) {
 
 	metrics, err := h.service.repo.GetAccuracyMetrics(c.Request.Context(), days)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to get accuracy trends: "+err.Error())
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to get accuracy trends")
 		return
 	}
 

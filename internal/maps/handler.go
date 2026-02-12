@@ -568,7 +568,7 @@ func (h *Handler) RegisterInternalRoutes(rg *gin.RouterGroup) {
 			ctx := c.Request.Context()
 			resp, err := h.service.GetETA(ctx, req)
 			if err != nil {
-				common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+				common.ErrorResponse(c, http.StatusInternalServerError, "Failed to get ETA")
 				return
 			}
 
@@ -593,7 +593,7 @@ func (h *Handler) RegisterInternalRoutes(rg *gin.RouterGroup) {
 			ctx := c.Request.Context()
 			resp, err := h.service.GetTrafficFlow(ctx, req)
 			if err != nil {
-				common.ErrorResponse(c, http.StatusInternalServerError, err.Error())
+				common.ErrorResponse(c, http.StatusInternalServerError, "Failed to get traffic flow")
 				return
 			}
 
