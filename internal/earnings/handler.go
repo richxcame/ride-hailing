@@ -323,6 +323,197 @@ func (h *Handler) AdminRecordBonus(c *gin.Context) {
 	common.CreatedResponse(c, earning)
 }
 
+// AdminGetAllPayouts returns all payouts across all drivers with filtering
+// GET /api/v1/admin/earnings/payouts?status=pending&driver_id=...
+func (h *Handler) AdminGetAllPayouts(c *gin.Context) {
+	params := pagination.ParseParams(c)
+
+	filter := &AdminPayoutFilter{}
+	if driverIDStr := c.Query("driver_id"); driverIDStr != "" {
+		if id, err := uuid.Parse(driverIDStr); err == nil {
+			filter.DriverID = &id
+		}
+	}
+	if status := c.Query("status"); status != "" {
+		filter.Status = status
+	}
+
+	payouts, total, err := h.service.repo.GetAllPayouts(c.Request.Context(), params.Limit, params.Offset, filter)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get payouts")
+		return
+	}
+	if payouts == nil {
+		payouts = []DriverPayout{}
+	}
+
+	meta := pagination.BuildMeta(params.Limit, params.Offset, total)
+	common.SuccessResponseWithMeta(c, payouts, meta)
+}
+
+// AdminGetPayout retrieves a single payout by ID
+// GET /api/v1/admin/earnings/payouts/:id
+func (h *Handler) AdminGetPayout(c *gin.Context) {
+	payoutID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid payout ID")
+		return
+	}
+
+	payout, err := h.service.repo.GetPayoutByID(c.Request.Context(), payoutID)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusNotFound, "payout not found")
+		return
+	}
+
+	common.SuccessResponse(c, payout)
+}
+
+// AdminApprovePayout approves a pending payout
+// POST /api/v1/admin/earnings/payouts/:id/approve
+func (h *Handler) AdminApprovePayout(c *gin.Context) {
+	payoutID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid payout ID")
+		return
+	}
+
+	payout, err := h.service.repo.GetPayoutByID(c.Request.Context(), payoutID)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusNotFound, "payout not found")
+		return
+	}
+
+	if payout.Status != PayoutStatusPending {
+		common.ErrorResponse(c, http.StatusBadRequest, "payout is not in pending status")
+		return
+	}
+
+	if err := h.service.repo.UpdatePayoutStatus(c.Request.Context(), payoutID, PayoutStatusProcessing, nil); err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to approve payout")
+		return
+	}
+
+	common.SuccessResponseWithStatus(c, http.StatusOK, nil, "Payout approved and processing")
+}
+
+// AdminRejectPayout rejects a pending payout
+// POST /api/v1/admin/earnings/payouts/:id/reject
+func (h *Handler) AdminRejectPayout(c *gin.Context) {
+	payoutID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid payout ID")
+		return
+	}
+
+	var req struct {
+		Reason string `json:"reason" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "reason is required")
+		return
+	}
+
+	payout, err := h.service.repo.GetPayoutByID(c.Request.Context(), payoutID)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusNotFound, "payout not found")
+		return
+	}
+
+	if payout.Status != PayoutStatusPending {
+		common.ErrorResponse(c, http.StatusBadRequest, "payout is not in pending status")
+		return
+	}
+
+	if err := h.service.repo.UpdatePayoutStatus(c.Request.Context(), payoutID, PayoutStatusFailed, &req.Reason); err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to reject payout")
+		return
+	}
+
+	common.SuccessResponseWithStatus(c, http.StatusOK, nil, "Payout rejected")
+}
+
+// AdminGetPlatformStats returns platform-wide earnings statistics
+// GET /api/v1/admin/earnings/stats?period=this_month
+func (h *Handler) AdminGetPlatformStats(c *gin.Context) {
+	period := c.DefaultQuery("period", "this_month")
+
+	from, to, err := h.service.periodToTimeRange(period)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			common.AppErrorResponse(c, appErr)
+			return
+		}
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid period")
+		return
+	}
+
+	stats, err := h.service.repo.GetPlatformEarningsStats(c.Request.Context(), from, to)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get platform stats")
+		return
+	}
+
+	common.SuccessResponse(c, stats)
+}
+
+// AdminGetTopDrivers returns top earning drivers
+// GET /api/v1/admin/earnings/top-drivers?period=this_month&limit=10
+func (h *Handler) AdminGetTopDrivers(c *gin.Context) {
+	period := c.DefaultQuery("period", "this_month")
+
+	from, to, err := h.service.periodToTimeRange(period)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			common.AppErrorResponse(c, appErr)
+			return
+		}
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid period")
+		return
+	}
+
+	params := pagination.ParseParams(c)
+	limit := params.Limit
+	if limit > 50 {
+		limit = 50
+	}
+
+	drivers, err := h.service.repo.GetTopEarningDrivers(c.Request.Context(), from, to, limit)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get top drivers")
+		return
+	}
+	if drivers == nil {
+		drivers = []TopDriverEarning{}
+	}
+
+	common.SuccessResponse(c, drivers)
+}
+
+// AdminGetDriverEarnings returns earnings for a specific driver (admin view)
+// GET /api/v1/admin/earnings/drivers/:id?period=this_month
+func (h *Handler) AdminGetDriverEarnings(c *gin.Context) {
+	driverID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid driver ID")
+		return
+	}
+
+	period := c.DefaultQuery("period", "this_month")
+
+	summary, err := h.service.GetEarningsSummary(c.Request.Context(), driverID, period)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			common.AppErrorResponse(c, appErr)
+			return
+		}
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get driver earnings")
+		return
+	}
+
+	common.SuccessResponse(c, summary)
+}
+
 // ========================================
 // ROUTE REGISTRATION
 // ========================================
@@ -360,5 +551,21 @@ func (h *Handler) RegisterRoutes(r *gin.Engine, jwtProvider jwtkeys.KeyProvider)
 	admin.Use(middleware.RequireRole(models.RoleAdmin))
 	{
 		admin.POST("/bonus", h.AdminRecordBonus)
+	}
+}
+
+// RegisterAdminRoutes registers only admin earnings routes on an existing router group.
+// Use this when wiring into the admin service to avoid registering driver routes.
+func (h *Handler) RegisterAdminRoutes(rg *gin.RouterGroup) {
+	earnings := rg.Group("/earnings")
+	{
+		earnings.POST("/bonus", h.AdminRecordBonus)
+		earnings.GET("/payouts", h.AdminGetAllPayouts)
+		earnings.GET("/payouts/:id", h.AdminGetPayout)
+		earnings.POST("/payouts/:id/approve", h.AdminApprovePayout)
+		earnings.POST("/payouts/:id/reject", h.AdminRejectPayout)
+		earnings.GET("/stats", h.AdminGetPlatformStats)
+		earnings.GET("/top-drivers", h.AdminGetTopDrivers)
+		earnings.GET("/drivers/:id", h.AdminGetDriverEarnings)
 	}
 }

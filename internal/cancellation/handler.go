@@ -276,3 +276,13 @@ func (h *Handler) RegisterRoutes(r *gin.Engine, jwtProvider jwtkeys.KeyProvider)
 		admin.GET("/users/:userId/stats", h.AdminGetUserStats)
 	}
 }
+
+// RegisterAdminRoutes registers only admin cancellation routes on an existing router group.
+func (h *Handler) RegisterAdminRoutes(rg *gin.RouterGroup) {
+	cancellations := rg.Group("/cancellations")
+	{
+		cancellations.GET("/stats", h.AdminGetStats)
+		cancellations.POST("/:id/waive", h.AdminWaiveFee)
+		cancellations.GET("/users/:userId/stats", h.AdminGetUserStats)
+	}
+}

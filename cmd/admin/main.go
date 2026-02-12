@@ -15,9 +15,18 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/richxcame/ride-hailing/internal/admin"
+	"github.com/richxcame/ride-hailing/internal/analytics"
+	"github.com/richxcame/ride-hailing/internal/cancellation"
+	"github.com/richxcame/ride-hailing/internal/disputes"
+	"github.com/richxcame/ride-hailing/internal/documents"
+	"github.com/richxcame/ride-hailing/internal/earnings"
+	"github.com/richxcame/ride-hailing/internal/fraud"
 	"github.com/richxcame/ride-hailing/internal/geography"
+	"github.com/richxcame/ride-hailing/internal/payments"
 	"github.com/richxcame/ride-hailing/internal/pricing"
+	"github.com/richxcame/ride-hailing/internal/promos"
 	"github.com/richxcame/ride-hailing/internal/ridetypes"
+	"github.com/richxcame/ride-hailing/internal/support"
 	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/errors"
@@ -156,6 +165,51 @@ func main() {
 	rideTypeSvc := ridetypes.NewService(rideTypeRepo, geoSvc)
 	rideTypeHandler := ridetypes.NewAdminHandler(rideTypeSvc)
 
+	// Initialize disputes
+	disputesRepo := disputes.NewRepository(db)
+	disputesSvc := disputes.NewService(disputesRepo)
+	disputesHandler := disputes.NewHandler(disputesSvc)
+
+	// Initialize support
+	supportRepo := support.NewRepository(db)
+	supportSvc := support.NewService(supportRepo)
+	supportHandler := support.NewHandler(supportSvc)
+
+	// Initialize promos
+	promosRepo := promos.NewRepository(db)
+	promosSvc := promos.NewService(promosRepo)
+	promosHandler := promos.NewHandler(promosSvc)
+
+	// Initialize cancellation
+	cancellationRepo := cancellation.NewRepository(db)
+	cancellationSvc := cancellation.NewService(cancellationRepo, db)
+	cancellationHandler := cancellation.NewHandler(cancellationSvc)
+
+	// Initialize analytics
+	analyticsRepo := analytics.NewRepository(db)
+	analyticsSvc := analytics.NewService(analyticsRepo)
+	analyticsHandler := analytics.NewHandler(analyticsSvc)
+
+	// Initialize fraud
+	fraudRepo := fraud.NewRepository(db)
+	fraudSvc := fraud.NewService(fraudRepo)
+	fraudHandler := fraud.NewHandler(fraudSvc)
+
+	// Initialize earnings
+	earningsRepo := earnings.NewRepository(db)
+	earningsSvc := earnings.NewService(earningsRepo)
+	earningsHandler := earnings.NewHandler(earningsSvc)
+
+	// Initialize payments (nil stripe client — admin endpoints use repo directly)
+	paymentsRepo := payments.NewRepository(db)
+	paymentsSvc := payments.NewService(paymentsRepo, nil, nil)
+	paymentsHandler := payments.NewHandler(paymentsSvc)
+
+	// Initialize documents (stub storage + stub driver service — admin only reviews documents)
+	documentsRepo := documents.NewRepository(db)
+	documentsSvc := documents.NewService(documentsRepo, &stubStorage{}, documents.ServiceConfig{})
+	documentsHandler := documents.NewHandler(documentsSvc, &stubDriverService{})
+
 	// Set up Gin router
 	router := gin.New()
 	router.HandleMethodNotAllowed = true
@@ -252,6 +306,9 @@ func main() {
 			rides.GET("/:id", handler.GetRide)
 		}
 
+		// Audit logs
+		api.GET("/audit-logs", handler.GetAuditLogs)
+
 		// Geography management (countries, regions, cities, pricing zones)
 		geoAdminHandler.RegisterRoutes(api)
 
@@ -260,6 +317,33 @@ func main() {
 
 		// Ride type management
 		rideTypeHandler.RegisterRoutes(api)
+
+		// Disputes management
+		disputesHandler.RegisterAdminRoutes(api)
+
+		// Support ticket management
+		supportHandler.RegisterAdminRoutes(api)
+
+		// Promos & referrals management
+		promosHandler.RegisterAdminRoutes(api)
+
+		// Cancellation management
+		cancellationHandler.RegisterAdminRoutes(api)
+
+		// Analytics
+		analyticsHandler.RegisterAdminRoutes(api)
+
+		// Fraud detection & management
+		fraudHandler.RegisterAdminRoutes(api)
+
+		// Earnings & payouts management
+		earningsHandler.RegisterAdminRoutes(api)
+
+		// Payment management
+		paymentsHandler.RegisterAdminRoutes(api)
+
+		// Document verification management
+		documentsHandler.RegisterAdminRoutes(api)
 	}
 
 	// Create HTTP server with timeouts

@@ -44,6 +44,89 @@ type AuditLog struct {
 	CreatedAt  time.Time              `json:"created_at"`
 }
 
+// AuditLogFilter contains filter parameters for audit log queries
+type AuditLogFilter struct {
+	AdminID    *uuid.UUID
+	Action     string
+	TargetType string
+	TargetID   *uuid.UUID
+}
+
+// GetAuditLogs retrieves audit logs with pagination and filters
+func (r *Repository) GetAuditLogs(ctx context.Context, limit, offset int, filter *AuditLogFilter) ([]*AuditLog, int64, error) {
+	whereClause := "WHERE 1=1"
+	args := make([]interface{}, 0)
+	argIndex := 1
+
+	if filter != nil {
+		if filter.AdminID != nil {
+			whereClause += fmt.Sprintf(" AND al.admin_id = $%d", argIndex)
+			args = append(args, *filter.AdminID)
+			argIndex++
+		}
+		if filter.Action != "" {
+			whereClause += fmt.Sprintf(" AND al.action = $%d", argIndex)
+			args = append(args, filter.Action)
+			argIndex++
+		}
+		if filter.TargetType != "" {
+			whereClause += fmt.Sprintf(" AND al.target_type = $%d", argIndex)
+			args = append(args, filter.TargetType)
+			argIndex++
+		}
+		if filter.TargetID != nil {
+			whereClause += fmt.Sprintf(" AND al.target_id = $%d", argIndex)
+			args = append(args, *filter.TargetID)
+			argIndex++
+		}
+	}
+
+	var total int64
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM audit_logs al %s", whereClause)
+	err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count audit logs: %w", err)
+	}
+
+	query := fmt.Sprintf(`
+		SELECT al.id, al.admin_id, al.action, al.target_type, al.target_id, al.metadata, al.created_at,
+		       COALESCE(u.first_name || ' ' || u.last_name, '') as admin_name
+		FROM audit_logs al
+		LEFT JOIN users u ON al.admin_id = u.id
+		%s
+		ORDER BY al.created_at DESC
+		LIMIT $%d OFFSET $%d
+	`, whereClause, argIndex, argIndex+1)
+
+	args = append(args, limit, offset)
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get audit logs: %w", err)
+	}
+	defer rows.Close()
+
+	logs := make([]*AuditLog, 0)
+	for rows.Next() {
+		log := &AuditLog{}
+		var adminName string
+		err := rows.Scan(
+			&log.ID, &log.AdminID, &log.Action, &log.TargetType,
+			&log.TargetID, &log.Metadata, &log.CreatedAt, &adminName,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan audit log: %w", err)
+		}
+		if log.Metadata == nil {
+			log.Metadata = map[string]interface{}{}
+		}
+		log.Metadata["admin_name"] = adminName
+		logs = append(logs, log)
+	}
+
+	return logs, total, nil
+}
+
 // InsertAuditLog records an admin action in the audit log.
 // Failures are logged but do not block the calling operation.
 func (r *Repository) InsertAuditLog(ctx context.Context, adminID uuid.UUID, action, targetType string, targetID uuid.UUID, metadata map[string]interface{}) {

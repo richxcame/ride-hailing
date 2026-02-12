@@ -24,6 +24,13 @@ type RepositoryInterface interface {
 	GetPaymentsByRideID(ctx context.Context, rideID uuid.UUID) ([]*models.Payment, error)
 }
 
+// AdminRepositoryInterface extends RepositoryInterface with admin-only methods
+type AdminRepositoryInterface interface {
+	RepositoryInterface
+	GetAllPayments(ctx context.Context, limit, offset int, filter *AdminPaymentFilter) ([]*models.Payment, int64, error)
+	GetPaymentStats(ctx context.Context) (*PaymentStats, error)
+}
+
 // StripeClientInterface defines the interface for Stripe operations
 type StripeClientInterface interface {
 	CreateCustomer(email, name string, metadata map[string]string) (*stripe.Customer, error)

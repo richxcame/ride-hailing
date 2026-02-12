@@ -422,3 +422,43 @@ func (h *Handler) GetActionItems(c *gin.Context) {
 
 	common.SuccessResponse(c, items)
 }
+
+// GetAuditLogs retrieves audit logs with pagination and filters
+func (h *Handler) GetAuditLogs(c *gin.Context) {
+	params := pagination.ParseParams(c)
+	if c.Query("limit") == "" {
+		params.Limit = 50
+	}
+
+	filter := &AuditLogFilter{}
+
+	if adminIDStr := c.Query("admin_id"); adminIDStr != "" {
+		if id, err := uuid.Parse(adminIDStr); err == nil {
+			filter.AdminID = &id
+		}
+	}
+	if action := c.Query("action"); action != "" {
+		filter.Action = action
+	}
+	if targetType := c.Query("target_type"); targetType != "" {
+		filter.TargetType = targetType
+	}
+	if targetIDStr := c.Query("target_id"); targetIDStr != "" {
+		if id, err := uuid.Parse(targetIDStr); err == nil {
+			filter.TargetID = &id
+		}
+	}
+
+	logs, total, err := h.service.GetAuditLogs(c.Request.Context(), params.Limit, params.Offset, filter)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			common.AppErrorResponse(c, appErr)
+			return
+		}
+		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch audit logs")
+		return
+	}
+
+	meta := pagination.BuildMeta(params.Limit, params.Offset, total)
+	common.SuccessResponseWithMeta(c, logs, meta)
+}

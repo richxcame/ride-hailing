@@ -40,4 +40,5 @@ type RepositoryInterface interface {
 
 	// Audit logging
 	InsertAuditLog(ctx context.Context, adminID uuid.UUID, action, targetType string, targetID uuid.UUID, metadata map[string]interface{})
+	GetAuditLogs(ctx context.Context, limit, offset int, filter *AuditLogFilter) ([]*AuditLog, int64, error)
 }

@@ -19,11 +19,17 @@ import (
 
 type Handler struct {
 	service       *Service
+	adminRepo     AdminRepositoryInterface
 	webhookSecret string
 }
 
 func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+	// Try to use the service repo as admin repo if it supports admin methods
+	var adminRepo AdminRepositoryInterface
+	if ar, ok := service.repo.(AdminRepositoryInterface); ok {
+		adminRepo = ar
+	}
+	return &Handler{service: service, adminRepo: adminRepo}
 }
 
 // NewHandlerWithWebhookSecret creates a new handler with Stripe webhook secret for signature verification
@@ -386,4 +392,120 @@ func (h *Handler) HandleStripeWebhook(c *gin.Context) {
 	}
 
 	common.SuccessResponse(c, gin.H{"received": true})
+}
+
+// ========================================
+// ADMIN ENDPOINTS
+// ========================================
+
+// AdminGetAllPayments returns all payments with filtering (admin only)
+// GET /api/v1/admin/payments?status=completed&payment_method=wallet&rider_id=...&driver_id=...
+func (h *Handler) AdminGetAllPayments(c *gin.Context) {
+	params := pagination.ParseParams(c)
+
+	filter := &AdminPaymentFilter{}
+	if status := c.Query("status"); status != "" {
+		filter.Status = status
+	}
+	if method := c.Query("payment_method"); method != "" {
+		filter.PaymentMethod = method
+	}
+	if riderIDStr := c.Query("rider_id"); riderIDStr != "" {
+		if id, err := uuid.Parse(riderIDStr); err == nil {
+			filter.RiderID = &id
+		}
+	}
+	if driverIDStr := c.Query("driver_id"); driverIDStr != "" {
+		if id, err := uuid.Parse(driverIDStr); err == nil {
+			filter.DriverID = &id
+		}
+	}
+
+	if h.adminRepo == nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "admin operations not available")
+		return
+	}
+
+	payments, total, err := h.adminRepo.GetAllPayments(c.Request.Context(), params.Limit, params.Offset, filter)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get payments")
+		return
+	}
+
+	meta := pagination.BuildMeta(params.Limit, params.Offset, total)
+	common.SuccessResponseWithMeta(c, payments, meta)
+}
+
+// AdminGetPayment retrieves a single payment by ID (admin only)
+// GET /api/v1/admin/payments/:id
+func (h *Handler) AdminGetPayment(c *gin.Context) {
+	paymentID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid payment ID")
+		return
+	}
+
+	payment, err := h.service.repo.GetPaymentByID(c.Request.Context(), paymentID)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusNotFound, "payment not found")
+		return
+	}
+
+	common.SuccessResponse(c, payment)
+}
+
+// AdminRefundPayment processes a refund for any payment (admin only)
+// POST /api/v1/admin/payments/:id/refund
+func (h *Handler) AdminRefundPayment(c *gin.Context) {
+	paymentID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid payment ID")
+		return
+	}
+
+	var req RefundRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	err = h.service.ProcessRefund(c.Request.Context(), paymentID, req.Reason)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			common.AppErrorResponse(c, appErr)
+			return
+		}
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to process refund")
+		return
+	}
+
+	common.SuccessResponseWithStatus(c, http.StatusOK, nil, "Refund processed successfully")
+}
+
+// AdminGetPaymentStats returns platform-wide payment statistics (admin only)
+// GET /api/v1/admin/payments/stats
+func (h *Handler) AdminGetPaymentStats(c *gin.Context) {
+	if h.adminRepo == nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "admin operations not available")
+		return
+	}
+
+	stats, err := h.adminRepo.GetPaymentStats(c.Request.Context())
+	if err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get payment stats")
+		return
+	}
+
+	common.SuccessResponse(c, stats)
+}
+
+// RegisterAdminRoutes registers only admin payment routes on an existing router group.
+func (h *Handler) RegisterAdminRoutes(rg *gin.RouterGroup) {
+	payments := rg.Group("/payments")
+	{
+		payments.GET("", h.AdminGetAllPayments)
+		payments.GET("/stats", h.AdminGetPaymentStats)
+		payments.GET("/:id", h.AdminGetPayment)
+		payments.POST("/:id/refund", h.AdminRefundPayment)
+	}
 }

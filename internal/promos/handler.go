@@ -333,3 +333,22 @@ func (h *Handler) GetMyReferralEarnings(c *gin.Context) {
 
 	common.SuccessResponse(c, earnings)
 }
+
+// RegisterAdminRoutes registers only admin promo routes on an existing router group.
+func (h *Handler) RegisterAdminRoutes(rg *gin.RouterGroup) {
+	promos := rg.Group("/promos")
+	{
+		promos.POST("", h.CreatePromoCode)
+		promos.GET("", h.GetAllPromoCodes)
+		promos.GET("/:id", h.GetPromoCode)
+		promos.PUT("/:id", h.UpdatePromoCode)
+		promos.POST("/:id/deactivate", h.DeactivatePromoCode)
+		promos.GET("/:id/usage-stats", h.GetPromoCodeUsageStats)
+	}
+
+	referrals := rg.Group("/referrals")
+	{
+		referrals.GET("", h.GetAllReferralCodes)
+		referrals.GET("/:id", h.GetReferralDetails)
+	}
+}

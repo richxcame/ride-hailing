@@ -435,3 +435,16 @@ func (h *Handler) RegisterRoutes(r *gin.Engine, jwtProvider jwtkeys.KeyProvider)
 		admin.GET("/stats", h.AdminGetStats)
 	}
 }
+
+// RegisterAdminRoutes registers only admin support routes on an existing router group.
+func (h *Handler) RegisterAdminRoutes(rg *gin.RouterGroup) {
+	support := rg.Group("/support")
+	{
+		support.GET("/tickets", h.AdminGetTickets)
+		support.GET("/stats", h.AdminGetStats)
+		support.GET("/tickets/:id", h.AdminGetTicket)
+		support.GET("/tickets/:id/messages", h.AdminGetMessages)
+		support.POST("/tickets/:id/reply", h.AdminReply)
+		support.PUT("/tickets/:id", h.AdminUpdateTicket)
+	}
+}

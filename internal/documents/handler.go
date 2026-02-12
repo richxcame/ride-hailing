@@ -493,6 +493,19 @@ func (h *Handler) RegisterRoutes(r *gin.Engine, jwtProvider jwtkeys.KeyProvider)
 	}
 }
 
+// RegisterAdminRoutes registers only admin document routes on an existing router group.
+func (h *Handler) RegisterAdminRoutes(rg *gin.RouterGroup) {
+	documents := rg.Group("/documents")
+	{
+		documents.GET("/pending", h.GetPendingReviews)
+		documents.GET("/expiring", h.GetExpiringDocuments)
+		documents.POST("/:id/start-review", h.StartDocumentReview)
+		documents.POST("/:id/review", h.ReviewDocument)
+		documents.GET("/drivers/:driver_id", h.GetDriverDocumentsAdmin)
+		documents.GET("/drivers/:driver_id/verification-status", h.GetDriverVerificationStatusAdmin)
+	}
+}
+
 // RegisterRoutesOnGroup registers document routes on an existing router group
 func (h *Handler) RegisterRoutesOnGroup(rg *gin.RouterGroup) {
 	// Document types (public within API)

@@ -2,6 +2,7 @@ package payments
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
@@ -303,6 +304,142 @@ func (r *Repository) GetWalletTransactionsWithTotal(ctx context.Context, walletI
 	}
 
 	return transactions, total, nil
+}
+
+// ========================================
+// ADMIN METHODS
+// ========================================
+
+// AdminPaymentFilter contains filter parameters for admin payment queries
+type AdminPaymentFilter struct {
+	Status        string
+	PaymentMethod string
+	RiderID       *uuid.UUID
+	DriverID      *uuid.UUID
+}
+
+// GetAllPayments returns all payments with pagination and filters (admin use)
+func (r *Repository) GetAllPayments(ctx context.Context, limit, offset int, filter *AdminPaymentFilter) ([]*models.Payment, int64, error) {
+	whereClause := "WHERE 1=1"
+	args := make([]interface{}, 0)
+	argIndex := 1
+
+	if filter != nil {
+		if filter.Status != "" {
+			whereClause += fmt.Sprintf(" AND p.status = $%d", argIndex)
+			args = append(args, filter.Status)
+			argIndex++
+		}
+		if filter.PaymentMethod != "" {
+			whereClause += fmt.Sprintf(" AND p.payment_method = $%d", argIndex)
+			args = append(args, filter.PaymentMethod)
+			argIndex++
+		}
+		if filter.RiderID != nil {
+			whereClause += fmt.Sprintf(" AND p.rider_id = $%d", argIndex)
+			args = append(args, *filter.RiderID)
+			argIndex++
+		}
+		if filter.DriverID != nil {
+			whereClause += fmt.Sprintf(" AND p.driver_id = $%d", argIndex)
+			args = append(args, *filter.DriverID)
+			argIndex++
+		}
+	}
+
+	var total int64
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM payments p %s", whereClause)
+	err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, common.NewInternalError("failed to count payments", err)
+	}
+
+	query := fmt.Sprintf(`
+		SELECT p.id, p.ride_id, p.rider_id, p.driver_id, p.amount, p.currency,
+			p.payment_method, p.status, p.stripe_payment_id, p.stripe_charge_id,
+			p.metadata, p.created_at, p.updated_at
+		FROM payments p
+		%s
+		ORDER BY p.created_at DESC
+		LIMIT $%d OFFSET $%d`, whereClause, argIndex, argIndex+1)
+
+	args = append(args, limit, offset)
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, common.NewInternalError("failed to get payments", err)
+	}
+	defer rows.Close()
+
+	payments := make([]*models.Payment, 0)
+	for rows.Next() {
+		payment := &models.Payment{}
+		err := rows.Scan(
+			&payment.ID, &payment.RideID, &payment.RiderID, &payment.DriverID,
+			&payment.Amount, &payment.Currency, &payment.PaymentMethod,
+			&payment.Status, &payment.StripePaymentID, &payment.StripeChargeID,
+			&payment.Metadata, &payment.CreatedAt, &payment.UpdatedAt,
+		)
+		if err != nil {
+			return nil, 0, common.NewInternalError("failed to scan payment", err)
+		}
+		payments = append(payments, payment)
+	}
+
+	return payments, total, nil
+}
+
+// PaymentStats represents platform-wide payment statistics
+type PaymentStats struct {
+	TotalPayments   int64   `json:"total_payments"`
+	TotalAmount     float64 `json:"total_amount"`
+	CompletedAmount float64 `json:"completed_amount"`
+	RefundedAmount  float64 `json:"refunded_amount"`
+	PendingAmount   float64 `json:"pending_amount"`
+	WalletPayments  int     `json:"wallet_payments"`
+	StripePayments  int     `json:"stripe_payments"`
+	CompletedCount  int     `json:"completed_count"`
+	RefundedCount   int     `json:"refunded_count"`
+	PendingCount    int     `json:"pending_count"`
+	FailedCount     int     `json:"failed_count"`
+}
+
+// GetPaymentStats returns payment statistics
+func (r *Repository) GetPaymentStats(ctx context.Context) (*PaymentStats, error) {
+	stats := &PaymentStats{}
+
+	err := r.db.QueryRow(ctx, `
+		SELECT
+			COUNT(*),
+			COALESCE(SUM(amount), 0),
+			COALESCE(SUM(CASE WHEN status = 'completed' THEN amount ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN status = 'refunded' THEN amount ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN status = 'pending' THEN amount ELSE 0 END), 0),
+			COUNT(CASE WHEN payment_method = 'wallet' THEN 1 END),
+			COUNT(CASE WHEN payment_method = 'stripe' THEN 1 END),
+			COUNT(CASE WHEN status = 'completed' THEN 1 END),
+			COUNT(CASE WHEN status = 'refunded' THEN 1 END),
+			COUNT(CASE WHEN status = 'pending' THEN 1 END),
+			COUNT(CASE WHEN status = 'failed' THEN 1 END)
+		FROM payments`,
+	).Scan(
+		&stats.TotalPayments,
+		&stats.TotalAmount,
+		&stats.CompletedAmount,
+		&stats.RefundedAmount,
+		&stats.PendingAmount,
+		&stats.WalletPayments,
+		&stats.StripePayments,
+		&stats.CompletedCount,
+		&stats.RefundedCount,
+		&stats.PendingCount,
+		&stats.FailedCount,
+	)
+	if err != nil {
+		return nil, common.NewInternalError("failed to get payment stats", err)
+	}
+
+	return stats, nil
 }
 
 // ProcessPaymentWithWallet handles payment using wallet balance in a transaction

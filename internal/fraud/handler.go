@@ -54,6 +54,35 @@ func (h *Handler) RegisterRoutes(router *gin.Engine, jwtProvider jwtkeys.KeyProv
 	}
 }
 
+// RegisterAdminRoutes registers fraud detection routes on an existing router group.
+func (h *Handler) RegisterAdminRoutes(rg *gin.RouterGroup) {
+	fraud := rg.Group("/fraud")
+	{
+		// Fraud alerts
+		fraud.GET("/alerts", h.GetPendingAlerts)
+		fraud.GET("/alerts/:id", h.GetAlert)
+		fraud.POST("/alerts", h.CreateAlert)
+		fraud.PUT("/alerts/:id/investigate", h.InvestigateAlert)
+		fraud.PUT("/alerts/:id/resolve", h.ResolveAlert)
+
+		// User risk management
+		fraud.GET("/users/:id/alerts", h.GetUserAlerts)
+		fraud.GET("/users/:id/risk-profile", h.GetUserRiskProfile)
+		fraud.POST("/users/:id/analyze", h.AnalyzeUser)
+		fraud.POST("/users/:id/suspend", h.SuspendUser)
+		fraud.POST("/users/:id/reinstate", h.ReinstateUser)
+
+		// Fraud detection
+		fraud.POST("/detect/payment/:user_id", h.DetectPaymentFraud)
+		fraud.POST("/detect/ride/:user_id", h.DetectRideFraud)
+		fraud.POST("/detect/account/:user_id", h.DetectAccountFraud)
+
+		// Statistics and patterns
+		fraud.GET("/statistics", h.GetFraudStatistics)
+		fraud.GET("/patterns", h.GetFraudPatterns)
+	}
+}
+
 // GetPendingAlerts retrieves all pending fraud alerts
 func (h *Handler) GetPendingAlerts(c *gin.Context) {
 	params := pagination.ParseParams(c)

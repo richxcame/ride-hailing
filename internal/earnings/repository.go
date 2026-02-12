@@ -447,6 +447,195 @@ func (r *Repository) ResetGoals(ctx context.Context, period string) error {
 }
 
 // ========================================
+// ADMIN METHODS
+// ========================================
+
+// AdminPayoutFilter contains filter parameters for admin payout queries
+type AdminPayoutFilter struct {
+	DriverID *uuid.UUID
+	Status   string
+}
+
+// GetAllPayouts returns all payouts across all drivers with pagination and filters
+func (r *Repository) GetAllPayouts(ctx context.Context, limit, offset int, filter *AdminPayoutFilter) ([]DriverPayout, int64, error) {
+	whereClause := "WHERE 1=1"
+	args := make([]interface{}, 0)
+	argIndex := 1
+
+	if filter != nil {
+		if filter.DriverID != nil {
+			whereClause += fmt.Sprintf(" AND dp.driver_id = $%d", argIndex)
+			args = append(args, *filter.DriverID)
+			argIndex++
+		}
+		if filter.Status != "" {
+			whereClause += fmt.Sprintf(" AND dp.status = $%d", argIndex)
+			args = append(args, filter.Status)
+			argIndex++
+		}
+	}
+
+	var total int64
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM driver_payouts dp %s", whereClause)
+	err := r.db.QueryRow(ctx, countQuery, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count payouts: %w", err)
+	}
+
+	query := fmt.Sprintf(`
+		SELECT dp.id, dp.driver_id, dp.amount, dp.currency, dp.method, dp.status,
+			dp.bank_account_id, dp.reference, dp.earning_count,
+			dp.period_start, dp.period_end, dp.processed_at,
+			dp.failure_reason, dp.created_at, dp.updated_at
+		FROM driver_payouts dp
+		%s
+		ORDER BY dp.created_at DESC
+		LIMIT $%d OFFSET $%d`, whereClause, argIndex, argIndex+1)
+
+	args = append(args, limit, offset)
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get payouts: %w", err)
+	}
+	defer rows.Close()
+
+	var payouts []DriverPayout
+	for rows.Next() {
+		p := DriverPayout{}
+		if err := rows.Scan(
+			&p.ID, &p.DriverID, &p.Amount, &p.Currency, &p.Method, &p.Status,
+			&p.BankAccountID, &p.Reference, &p.EarningCount,
+			&p.PeriodStart, &p.PeriodEnd, &p.ProcessedAt,
+			&p.FailureReason, &p.CreatedAt, &p.UpdatedAt,
+		); err != nil {
+			return nil, 0, fmt.Errorf("failed to scan payout: %w", err)
+		}
+		payouts = append(payouts, p)
+	}
+	return payouts, total, nil
+}
+
+// GetPayoutByID retrieves a single payout by ID
+func (r *Repository) GetPayoutByID(ctx context.Context, payoutID uuid.UUID) (*DriverPayout, error) {
+	p := &DriverPayout{}
+	err := r.db.QueryRow(ctx, `
+		SELECT id, driver_id, amount, currency, method, status,
+			bank_account_id, reference, earning_count,
+			period_start, period_end, processed_at,
+			failure_reason, created_at, updated_at
+		FROM driver_payouts WHERE id = $1`, payoutID,
+	).Scan(
+		&p.ID, &p.DriverID, &p.Amount, &p.Currency, &p.Method, &p.Status,
+		&p.BankAccountID, &p.Reference, &p.EarningCount,
+		&p.PeriodStart, &p.PeriodEnd, &p.ProcessedAt,
+		&p.FailureReason, &p.CreatedAt, &p.UpdatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get payout: %w", err)
+	}
+	return p, nil
+}
+
+// PlatformEarningsStats represents platform-wide earnings statistics
+type PlatformEarningsStats struct {
+	TotalGrossEarnings  float64 `json:"total_gross_earnings"`
+	TotalCommission     float64 `json:"total_commission"`
+	TotalNetEarnings    float64 `json:"total_net_earnings"`
+	TotalPaidOut        float64 `json:"total_paid_out"`
+	TotalPending        float64 `json:"total_pending"`
+	PendingPayoutsCount int     `json:"pending_payouts_count"`
+	ActiveDrivers       int     `json:"active_drivers"`
+	AvgEarningPerDriver float64 `json:"avg_earning_per_driver"`
+}
+
+// GetPlatformEarningsStats returns platform-wide earnings statistics
+func (r *Repository) GetPlatformEarningsStats(ctx context.Context, from, to time.Time) (*PlatformEarningsStats, error) {
+	stats := &PlatformEarningsStats{}
+
+	err := r.db.QueryRow(ctx, `
+		SELECT
+			COALESCE(SUM(gross_amount), 0),
+			COALESCE(SUM(commission), 0),
+			COALESCE(SUM(net_amount), 0),
+			COUNT(DISTINCT driver_id)
+		FROM driver_earnings
+		WHERE created_at >= $1 AND created_at < $2`,
+		from, to,
+	).Scan(
+		&stats.TotalGrossEarnings,
+		&stats.TotalCommission,
+		&stats.TotalNetEarnings,
+		&stats.ActiveDrivers,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get platform earnings stats: %w", err)
+	}
+
+	if stats.ActiveDrivers > 0 {
+		stats.AvgEarningPerDriver = stats.TotalNetEarnings / float64(stats.ActiveDrivers)
+	}
+
+	r.db.QueryRow(ctx, `
+		SELECT COALESCE(SUM(amount), 0) FROM driver_payouts WHERE status = 'completed'`,
+	).Scan(&stats.TotalPaidOut)
+
+	r.db.QueryRow(ctx, `
+		SELECT COALESCE(SUM(amount), 0), COUNT(*) FROM driver_payouts WHERE status = 'pending'`,
+	).Scan(&stats.TotalPending, &stats.PendingPayoutsCount)
+
+	return stats, nil
+}
+
+// TopDriverEarning represents a top-earning driver entry
+type TopDriverEarning struct {
+	DriverID      uuid.UUID `json:"driver_id"`
+	DriverName    string    `json:"driver_name"`
+	TotalEarnings float64   `json:"total_earnings"`
+	RideCount     int       `json:"ride_count"`
+	AvgPerRide    float64   `json:"avg_per_ride"`
+}
+
+// GetTopEarningDrivers returns the top earning drivers for a period
+func (r *Repository) GetTopEarningDrivers(ctx context.Context, from, to time.Time, limit int) ([]TopDriverEarning, error) {
+	if limit <= 0 || limit > 50 {
+		limit = 10
+	}
+
+	rows, err := r.db.Query(ctx, `
+		SELECT de.driver_id,
+			   COALESCE(u.first_name || ' ' || u.last_name, 'Unknown') as driver_name,
+			   COALESCE(SUM(de.net_amount), 0) as total_earnings,
+			   COUNT(CASE WHEN de.type = 'ride_fare' THEN 1 END) as ride_count
+		FROM driver_earnings de
+		LEFT JOIN drivers d ON de.driver_id = d.id
+		LEFT JOIN users u ON d.user_id = u.id
+		WHERE de.created_at >= $1 AND de.created_at < $2
+		GROUP BY de.driver_id, u.first_name, u.last_name
+		ORDER BY total_earnings DESC
+		LIMIT $3`,
+		from, to, limit,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get top earning drivers: %w", err)
+	}
+	defer rows.Close()
+
+	var drivers []TopDriverEarning
+	for rows.Next() {
+		d := TopDriverEarning{}
+		if err := rows.Scan(&d.DriverID, &d.DriverName, &d.TotalEarnings, &d.RideCount); err != nil {
+			return nil, fmt.Errorf("failed to scan top driver: %w", err)
+		}
+		if d.RideCount > 0 {
+			d.AvgPerRide = d.TotalEarnings / float64(d.RideCount)
+		}
+		drivers = append(drivers, d)
+	}
+	return drivers, nil
+}
+
+// ========================================
 // STATS
 // ========================================
 

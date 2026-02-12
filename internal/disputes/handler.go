@@ -332,3 +332,15 @@ func (h *Handler) RegisterRoutes(r *gin.Engine, jwtProvider jwtkeys.KeyProvider)
 		admin.POST("/:id/comments", h.AdminAddComment)
 	}
 }
+
+// RegisterAdminRoutes registers only admin dispute routes on an existing router group.
+func (h *Handler) RegisterAdminRoutes(rg *gin.RouterGroup) {
+	disputes := rg.Group("/disputes")
+	{
+		disputes.GET("", h.AdminGetDisputes)
+		disputes.GET("/stats", h.AdminGetStats)
+		disputes.GET("/:id", h.AdminGetDisputeDetail)
+		disputes.POST("/:id/resolve", h.AdminResolveDispute)
+		disputes.POST("/:id/comments", h.AdminAddComment)
+	}
+}

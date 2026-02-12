@@ -193,6 +193,17 @@ func (s *Service) GetActionItems(ctx context.Context) (*ActionItems, error) {
 	return s.repo.GetActionItems(ctx)
 }
 
+// GetAuditLogs retrieves audit logs with pagination and filters
+func (s *Service) GetAuditLogs(ctx context.Context, limit, offset int, filter *AuditLogFilter) ([]*AuditLog, int64, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	return s.repo.GetAuditLogs(ctx, limit, offset, filter)
+}
+
 // DashboardStats represents overall dashboard statistics
 type DashboardStats struct {
 	Users      *UserStats `json:"users"`

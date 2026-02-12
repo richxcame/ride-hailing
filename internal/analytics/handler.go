@@ -447,3 +447,26 @@ func parseDateRange(c *gin.Context) (time.Time, time.Time, error) {
 
 	return startDate, endDate, nil
 }
+
+// RegisterAdminRoutes registers analytics routes on an existing router group.
+func (h *Handler) RegisterAdminRoutes(rg *gin.RouterGroup) {
+	analytics := rg.Group("/analytics")
+	{
+		analytics.GET("/dashboard", h.GetDashboardMetrics)
+		analytics.GET("/revenue", h.GetRevenueMetrics)
+		analytics.GET("/revenue/time-series", h.GetRevenueTimeSeries)
+		analytics.GET("/revenue/hourly", h.GetHourlyDistribution)
+		analytics.GET("/rides", h.GetRideMetrics)
+		analytics.GET("/ride-types", h.GetRideTypeStats)
+		analytics.GET("/drivers", h.GetDriverAnalytics)
+		analytics.GET("/drivers/top", h.GetTopDrivers)
+		analytics.GET("/drivers/top/detailed", h.GetTopDriversDetailed)
+		analytics.GET("/riders/growth", h.GetRiderGrowth)
+		analytics.GET("/promos", h.GetPromoCodePerformance)
+		analytics.GET("/referrals", h.GetReferralMetrics)
+		analytics.GET("/demand/heatmap", h.GetDemandHeatMap)
+		analytics.GET("/demand/zones", h.GetDemandZones)
+		analytics.GET("/financial-report", h.GetFinancialReport)
+		analytics.GET("/period-comparison", h.GetPeriodComparison)
+	}
+}
