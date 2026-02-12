@@ -40,6 +40,7 @@ import (
 	"github.com/richxcame/ride-hailing/internal/ratings"
 	"github.com/richxcame/ride-hailing/internal/recording"
 	"github.com/richxcame/ride-hailing/internal/ridehistory"
+	"github.com/richxcame/ride-hailing/internal/ridetypes"
 	"github.com/richxcame/ride-hailing/internal/rides"
 	"github.com/richxcame/ride-hailing/internal/safety"
 	"github.com/richxcame/ride-hailing/internal/subscriptions"
@@ -212,6 +213,7 @@ func main() {
 	pricingRepo := pricing.NewRepository(db)
 	negotiationRepo := negotiation.NewRepository(db)
 	safetyRepo := safety.NewRepository(db)
+	rideTypesRepo := ridetypes.NewRepository(db)
 
 	// Initialize services
 	ridesService := rides.NewService(ridesRepo, promosServiceURL, nil) // CircuitBreaker is nil-safe
@@ -247,6 +249,7 @@ func main() {
 	currencyService := currency.NewService(currencyRepo, getEnv("BASE_CURRENCY", "USD"))
 	pricingService := pricing.NewService(pricingRepo, geographyService, currencyService)
 	ridesService.SetPricingService(pricingService)
+	rideTypesService := ridetypes.NewService(rideTypesRepo, geographyService)
 	negotiationService := negotiation.NewService(negotiationRepo, pricingService, geographyService)
 	safetyService := safety.NewService(safetyRepo, safety.Config{
 		EmergencyNumber: getEnv("EMERGENCY_NUMBER", "112"),
@@ -286,6 +289,7 @@ func main() {
 	currencyHandler := currency.NewHandler(currencyService)
 	pricingHandler := pricing.NewHandler(pricingService)
 	negotiationHandler := negotiation.NewHandler(negotiationService)
+	rideTypesHandler := ridetypes.NewHandler(rideTypesService)
 	safetyHandler := safety.NewHandler(safetyService)
 
 	// Set up Gin router
@@ -406,6 +410,7 @@ func main() {
 	currencyHandler.RegisterRoutes(apiGroup)
 	pricingHandler.RegisterRoutes(apiGroup)
 	negotiationHandler.RegisterRoutes(apiGroup)
+	rideTypesHandler.RegisterRoutes(apiGroup)
 	safetyHandler.RegisterRoutes(apiGroup)
 
 	// Create HTTP server with timeouts

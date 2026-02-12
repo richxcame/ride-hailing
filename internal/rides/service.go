@@ -200,16 +200,7 @@ func (s *Service) RequestRide(ctx context.Context, riderID uuid.UUID, req *model
 			surgeMultiplier = calculateSurgeMultiplier(time.Now())
 		}
 
-		if rideTypeID != nil {
-			calculatedFare, err := s.calculateFareWithRideType(ctx, *rideTypeID, distance, duration, surgeMultiplier)
-			if err != nil {
-				fare = s.calculateFare(distance, duration, surgeMultiplier)
-			} else {
-				fare = calculatedFare
-			}
-		} else {
-			fare = s.calculateFare(distance, duration, surgeMultiplier)
-		}
+		fare = s.calculateFare(distance, duration, surgeMultiplier)
 		currencyCode = "USD"
 	}
 
@@ -745,35 +736,6 @@ func (s *Service) predictETAFromML(ctx context.Context, req *models.RideRequest)
 	return resp.EstimatedMinutes, true
 }
 
-// RideTypeFareResponse represents the response from ride type fare calculation
-type RideTypeFareResponse struct {
-	Fare            float64 `json:"fare"`
-	Distance        float64 `json:"distance"`
-	Duration        int     `json:"duration"`
-	SurgeMultiplier float64 `json:"surge_multiplier"`
-}
-
-// calculateFareWithRideType calculates fare using the Promos service ride type pricing
-func (s *Service) calculateFareWithRideType(ctx context.Context, rideTypeID uuid.UUID, distance float64, duration int, surgeMultiplier float64) (float64, error) {
-	requestBody := map[string]interface{}{
-		"ride_type_id":     rideTypeID.String(),
-		"distance":         distance,
-		"duration":         duration,
-		"surge_multiplier": surgeMultiplier,
-	}
-
-	respBody, err := s.postToPromos(ctx, "/api/v1/ride-types/calculate-fare", requestBody, nil)
-	if err != nil {
-		return 0, fmt.Errorf("failed to calculate fare with ride type: %w", err)
-	}
-
-	var fareResp RideTypeFareResponse
-	if err := json.Unmarshal(respBody, &fareResp); err != nil {
-		return 0, fmt.Errorf("failed to parse fare response: %w", err)
-	}
-
-	return fareResp.Fare, nil
-}
 
 func (s *Service) postToPromos(ctx context.Context, path string, body interface{}, headers map[string]string) ([]byte, error) {
 	if s.promosBreaker == nil {

@@ -153,7 +153,7 @@ func main() {
 
 	// Initialize ride types admin
 	rideTypeRepo := ridetypes.NewRepository(db)
-	rideTypeSvc := ridetypes.NewService(rideTypeRepo)
+	rideTypeSvc := ridetypes.NewService(rideTypeRepo, geoSvc)
 	rideTypeHandler := ridetypes.NewAdminHandler(rideTypeSvc)
 
 	// Set up Gin router
