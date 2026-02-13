@@ -13794,6 +13794,2654 @@
                 }
               ],
               "name": "City Ride Types"
+            },
+            {
+              "item": [
+                {
+                  "name": "List Audit Logs",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "audit-logs"
+                      ],
+                      "query": [
+                        {
+                          "key": "admin_id",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "action",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "target_type",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "target_id",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "limit",
+                          "value": "20",
+                          "disabled": true
+                        },
+                        {
+                          "key": "offset",
+                          "value": "0",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/audit-logs"
+                    }
+                  },
+                  "response": []
+                }
+              ],
+              "name": "Audit Logs"
+            },
+            {
+              "item": [
+                {
+                  "name": "List Payouts",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "earnings",
+                        "payouts"
+                      ],
+                      "query": [
+                        {
+                          "key": "driver_id",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "status",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "limit",
+                          "value": "20",
+                          "disabled": true
+                        },
+                        {
+                          "key": "offset",
+                          "value": "0",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/earnings/payouts"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Payout",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "earnings",
+                        "payouts",
+                        ":id"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/earnings/payouts/:id"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Approve Payout",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "earnings",
+                        "payouts",
+                        ":id",
+                        "approve"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/earnings/payouts/:id/approve"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Reject Payout",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "earnings",
+                        "payouts",
+                        ":id",
+                        "reject"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/earnings/payouts/:id/reject"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Earnings Stats",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "earnings",
+                        "stats"
+                      ],
+                      "query": [
+                        {
+                          "key": "from",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "to",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/earnings/stats"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Top Drivers",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "earnings",
+                        "top-drivers"
+                      ],
+                      "query": [
+                        {
+                          "key": "from",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "to",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "limit",
+                          "value": "10",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/earnings/top-drivers"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Driver Earnings",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "earnings",
+                        "drivers",
+                        ":id"
+                      ],
+                      "query": [
+                        {
+                          "key": "from",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "to",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/earnings/drivers/:id"
+                    }
+                  },
+                  "response": []
+                }
+              ],
+              "name": "Earnings & Payouts"
+            },
+            {
+              "item": [
+                {
+                  "name": "List Payments",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "payments"
+                      ],
+                      "query": [
+                        {
+                          "key": "status",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "payment_method",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "rider_id",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "driver_id",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "limit",
+                          "value": "20",
+                          "disabled": true
+                        },
+                        {
+                          "key": "offset",
+                          "value": "0",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/payments"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Payment Stats",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "payments",
+                        "stats"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/payments/stats"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Payment",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "payments",
+                        ":id"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/payments/:id"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Refund Payment",
+                  "request": {
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"reason\": \"Customer requested refund\"\n}"
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "payments",
+                        ":id",
+                        "refund"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/payments/:id/refund"
+                    }
+                  },
+                  "response": []
+                }
+              ],
+              "name": "Payments"
+            },
+            {
+              "item": [
+                {
+                  "name": "List Pending Documents",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "documents",
+                        "pending"
+                      ],
+                      "query": [
+                        {
+                          "key": "limit",
+                          "value": "20",
+                          "disabled": true
+                        },
+                        {
+                          "key": "offset",
+                          "value": "0",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/documents/pending"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "List Expiring Documents",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "documents",
+                        "expiring"
+                      ],
+                      "query": [
+                        {
+                          "key": "days",
+                          "value": "30",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/documents/expiring"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Start Document Review",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "documents",
+                        ":id",
+                        "start-review"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/documents/:id/start-review"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Review Document",
+                  "request": {
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"approved\": true,\n  \"notes\": \"Document verified successfully\",\n  \"rejection_reason\": \"\"\n}"
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "documents",
+                        ":id",
+                        "review"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/documents/:id/review"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Driver Documents",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "documents",
+                        "drivers",
+                        ":driver_id"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/documents/drivers/:driver_id"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Driver Verification Status",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "documents",
+                        "drivers",
+                        ":driver_id",
+                        "verification-status"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/documents/drivers/:driver_id/verification-status"
+                    }
+                  },
+                  "response": []
+                }
+              ],
+              "name": "Documents"
+            },
+            {
+              "item": [
+                {
+                  "name": "List Disputes",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "disputes"
+                      ],
+                      "query": [
+                        {
+                          "key": "status",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "type",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "limit",
+                          "value": "20",
+                          "disabled": true
+                        },
+                        {
+                          "key": "offset",
+                          "value": "0",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/disputes"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Dispute Stats",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "disputes",
+                        "stats"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/disputes/stats"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Dispute",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "disputes",
+                        ":id"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/disputes/:id"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Resolve Dispute",
+                  "request": {
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"resolution\": \"Issue resolved in favor of customer\",\n  \"compensate_rider\": true,\n  \"compensation_amount\": 10.00\n}"
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "disputes",
+                        ":id",
+                        "resolve"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/disputes/:id/resolve"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Dispute Comments",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "disputes",
+                        ":id",
+                        "comments"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/disputes/:id/comments"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Add Dispute Comment",
+                  "request": {
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"comment\": \"Following up on this issue\"\n}"
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "disputes",
+                        ":id",
+                        "comments"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/disputes/:id/comments"
+                    }
+                  },
+                  "response": []
+                }
+              ],
+              "name": "Disputes"
+            },
+            {
+              "item": [
+                {
+                  "name": "List Support Tickets",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "support",
+                        "tickets"
+                      ],
+                      "query": [
+                        {
+                          "key": "status",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "priority",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "assigned_to",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "limit",
+                          "value": "20",
+                          "disabled": true
+                        },
+                        {
+                          "key": "offset",
+                          "value": "0",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/support/tickets"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Support Stats",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "support",
+                        "stats"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/support/stats"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Support Ticket",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "support",
+                        "tickets",
+                        ":id"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/support/tickets/:id"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Ticket Messages",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "support",
+                        "tickets",
+                        ":id",
+                        "messages"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/support/tickets/:id/messages"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Reply to Ticket",
+                  "request": {
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"message\": \"Thank you for contacting support. We are looking into your issue.\",\n  \"internal_note\": false\n}"
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "support",
+                        "tickets",
+                        ":id",
+                        "reply"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/support/tickets/:id/reply"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Update Ticket",
+                  "request": {
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"status\": \"in_progress\",\n  \"priority\": \"high\",\n  \"assigned_to\": \"admin-uuid-here\"\n}"
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "PUT",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "support",
+                        "tickets",
+                        ":id"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/support/tickets/:id"
+                    }
+                  },
+                  "response": []
+                }
+              ],
+              "name": "Support Tickets"
+            },
+            {
+              "item": [
+                {
+                  "name": "List Promos",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "promos"
+                      ],
+                      "query": [
+                        {
+                          "key": "status",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "type",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "limit",
+                          "value": "20",
+                          "disabled": true
+                        },
+                        {
+                          "key": "offset",
+                          "value": "0",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/promos"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Create Promo",
+                  "request": {
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"code\": \"SUMMER2026\",\n  \"type\": \"percentage\",\n  \"value\": 20,\n  \"start_date\": \"2026-06-01T00:00:00Z\",\n  \"end_date\": \"2026-08-31T23:59:59Z\",\n  \"max_uses\": 1000\n}"
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "promos"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/promos"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Promo",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "promos",
+                        ":id"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/promos/:id"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Update Promo",
+                  "request": {
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"code\": \"SUMMER2026\",\n  \"type\": \"percentage\",\n  \"value\": 25,\n  \"max_uses\": 2000\n}"
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "PUT",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "promos",
+                        ":id"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/promos/:id"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Delete Promo",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "DELETE",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "promos",
+                        ":id"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/promos/:id"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Activate Promo",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "promos",
+                        ":id",
+                        "activate"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/promos/:id/activate"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Deactivate Promo",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "promos",
+                        ":id",
+                        "deactivate"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/promos/:id/deactivate"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Promo Usage",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "promos",
+                        ":id",
+                        "usage"
+                      ],
+                      "query": [
+                        {
+                          "key": "limit",
+                          "value": "20",
+                          "disabled": true
+                        },
+                        {
+                          "key": "offset",
+                          "value": "0",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/promos/:id/usage"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "List Referrals",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "referrals"
+                      ],
+                      "query": [
+                        {
+                          "key": "limit",
+                          "value": "20",
+                          "disabled": true
+                        },
+                        {
+                          "key": "offset",
+                          "value": "0",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/referrals"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Referral Stats",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "referrals",
+                        "stats"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/referrals/stats"
+                    }
+                  },
+                  "response": []
+                }
+              ],
+              "name": "Promos"
+            },
+            {
+              "item": [
+                {
+                  "name": "Get Cancellation Stats",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "cancellations",
+                        "stats"
+                      ],
+                      "query": [
+                        {
+                          "key": "start_date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "end_date",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/cancellations/stats"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Waive Cancellation Fee",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "cancellations",
+                        ":id",
+                        "waive-fee"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/cancellations/:id/waive-fee"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get User Cancellation Stats",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "cancellations",
+                        "user",
+                        ":user_id",
+                        "stats"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/cancellations/user/:user_id/stats"
+                    }
+                  },
+                  "response": []
+                }
+              ],
+              "name": "Cancellation"
+            },
+            {
+              "item": [
+                {
+                  "name": "List Fraud Alerts",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "fraud",
+                        "alerts"
+                      ],
+                      "query": [
+                        {
+                          "key": "status",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "severity",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "type",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "limit",
+                          "value": "20",
+                          "disabled": true
+                        },
+                        {
+                          "key": "offset",
+                          "value": "0",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/fraud/alerts"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Fraud Alert",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "fraud",
+                        "alerts",
+                        ":id"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/fraud/alerts/:id"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Create Fraud Alert",
+                  "request": {
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"user_id\": \"user-uuid-here\",\n  \"type\": \"suspicious_activity\",\n  \"severity\": \"high\",\n  \"description\": \"Multiple failed payment attempts detected\"\n}"
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "fraud",
+                        "alerts"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/fraud/alerts"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Investigate Fraud Alert",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "PUT",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "fraud",
+                        "alerts",
+                        ":id",
+                        "investigate"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/fraud/alerts/:id/investigate"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Resolve Fraud Alert",
+                  "request": {
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"resolution\": \"False positive - no fraud detected\",\n  \"action_taken\": \"None\"\n}"
+                    },
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "PUT",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "fraud",
+                        "alerts",
+                        ":id",
+                        "resolve"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/fraud/alerts/:id/resolve"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get User Fraud Alerts",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "fraud",
+                        "users",
+                        ":id",
+                        "alerts"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/fraud/users/:id/alerts"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get User Risk Profile",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "fraud",
+                        "users",
+                        ":id",
+                        "risk-profile"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/fraud/users/:id/risk-profile"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Analyze User",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "fraud",
+                        "users",
+                        ":id",
+                        "analyze"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/fraud/users/:id/analyze"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Suspend User",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "fraud",
+                        "users",
+                        ":id",
+                        "suspend"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/fraud/users/:id/suspend"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Reinstate User",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "fraud",
+                        "users",
+                        ":id",
+                        "reinstate"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/fraud/users/:id/reinstate"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Detect Payment Fraud",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "fraud",
+                        "detect",
+                        "payment",
+                        ":user_id"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/fraud/detect/payment/:user_id"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Detect Ride Fraud",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "fraud",
+                        "detect",
+                        "ride",
+                        ":user_id"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/fraud/detect/ride/:user_id"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Detect Account Fraud",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "fraud",
+                        "detect",
+                        "account",
+                        ":user_id"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/fraud/detect/account/:user_id"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Fraud Statistics",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "fraud",
+                        "statistics"
+                      ],
+                      "query": [
+                        {
+                          "key": "from",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "to",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/fraud/statistics"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Fraud Patterns",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "fraud",
+                        "patterns"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/fraud/patterns"
+                    }
+                  },
+                  "response": []
+                }
+              ],
+              "name": "Fraud"
+            },
+            {
+              "item": [
+                {
+                  "name": "Get Dashboard Analytics",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "analytics",
+                        "dashboard"
+                      ],
+                      "query": [
+                        {
+                          "key": "start_date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "end_date",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/analytics/dashboard"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Revenue Analytics",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "analytics",
+                        "revenue"
+                      ],
+                      "query": [
+                        {
+                          "key": "start_date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "end_date",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/analytics/revenue"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Revenue Time Series",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "analytics",
+                        "revenue",
+                        "time-series"
+                      ],
+                      "query": [
+                        {
+                          "key": "start_date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "end_date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "interval",
+                          "value": "hour",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/analytics/revenue/time-series"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Hourly Revenue",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "analytics",
+                        "revenue",
+                        "hourly"
+                      ],
+                      "query": [
+                        {
+                          "key": "date",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/analytics/revenue/hourly"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Ride Analytics",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "analytics",
+                        "rides"
+                      ],
+                      "query": [
+                        {
+                          "key": "start_date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "end_date",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/analytics/rides"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Ride Type Analytics",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "analytics",
+                        "ride-types"
+                      ],
+                      "query": [
+                        {
+                          "key": "start_date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "end_date",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/analytics/ride-types"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Driver Analytics",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "analytics",
+                        "drivers"
+                      ],
+                      "query": [
+                        {
+                          "key": "start_date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "end_date",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/analytics/drivers"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Top Drivers",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "analytics",
+                        "drivers",
+                        "top"
+                      ],
+                      "query": [
+                        {
+                          "key": "start_date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "end_date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "limit",
+                          "value": "10",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/analytics/drivers/top"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Top Drivers Detailed",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "analytics",
+                        "drivers",
+                        "top",
+                        "detailed"
+                      ],
+                      "query": [
+                        {
+                          "key": "start_date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "end_date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "limit",
+                          "value": "10",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/analytics/drivers/top/detailed"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Rider Growth Analytics",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "analytics",
+                        "riders",
+                        "growth"
+                      ],
+                      "query": [
+                        {
+                          "key": "start_date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "end_date",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/analytics/riders/growth"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Promo Analytics",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "analytics",
+                        "promos"
+                      ],
+                      "query": [
+                        {
+                          "key": "start_date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "end_date",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/analytics/promos"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Referral Analytics",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "analytics",
+                        "referrals"
+                      ],
+                      "query": [
+                        {
+                          "key": "start_date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "end_date",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/analytics/referrals"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Demand Heatmap",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "analytics",
+                        "demand",
+                        "heatmap"
+                      ],
+                      "query": [
+                        {
+                          "key": "date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "hour",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/analytics/demand/heatmap"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Demand Zones",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "analytics",
+                        "demand",
+                        "zones"
+                      ],
+                      "query": [
+                        {
+                          "key": "date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "hour",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/analytics/demand/zones"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Financial Report",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "analytics",
+                        "financial-report"
+                      ],
+                      "query": [
+                        {
+                          "key": "start_date",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "end_date",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/analytics/financial-report"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Get Period Comparison",
+                  "request": {
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{admin_token}}"
+                      }
+                    ],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "analytics",
+                        "period-comparison"
+                      ],
+                      "query": [
+                        {
+                          "key": "period",
+                          "value": "",
+                          "disabled": true
+                        },
+                        {
+                          "key": "compare_period",
+                          "value": "",
+                          "disabled": true
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/analytics/period-comparison"
+                    }
+                  },
+                  "response": []
+                }
+              ],
+              "name": "Analytics"
             }
           ],
           "name": "Admin CRUD"
