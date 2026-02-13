@@ -153,7 +153,7 @@
                   "script": {
                     "exec": [
                       "var jsonData = pm.response.json();",
-                      "if (jsonData.success \u0026\u0026 jsonData.data \u0026\u0026 jsonData.data.token) {",
+                      "if (jsonData.success && jsonData.data && jsonData.data.token) {",
                       "    pm.environment.set(\"auth_token\", jsonData.data.token);",
                       "    if (jsonData.data.user) {",
                       "        pm.environment.set(\"user_id\", jsonData.data.user.id);",
@@ -623,7 +623,7 @@
           "name": "2FA"
         }
       ],
-      "name": "Auth \u0026 Security"
+      "name": "Auth & Security"
     },
     {
       "item": [
@@ -3827,7 +3827,7 @@
           "name": "Geo"
         }
       ],
-      "name": "Geo \u0026 Maps"
+      "name": "Geo & Maps"
     },
     {
       "item": [
@@ -5041,6 +5041,46 @@
                   ],
                   "raw": "{{base_url}}/api/v1/pricing/cancellation-fee"
                 }
+              },
+              "response": []
+            },
+            {
+              "name": "Get Bulk Estimate (All Ride Types)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{user_token}}",
+                    "type": "text"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"pickup_latitude\": 40.7128,\n    \"pickup_longitude\": -74.0060,\n    \"dropoff_latitude\": 40.7580,\n    \"dropoff_longitude\": -73.9855\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{base_url}}/api/v1/pricing/bulk-estimate",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "api",
+                    "v1",
+                    "pricing",
+                    "bulk-estimate"
+                  ]
+                },
+                "description": "Get fare estimates for all available ride types in a single API call. Returns distance, estimated time, and pricing for each ride type. This endpoint solves the N+1 query problem - instead of calling /estimate multiple times (once per ride type), the mobile app can call this once to get all ride types with their fares."
               },
               "response": []
             }
@@ -8894,7 +8934,7 @@
           "name": "Safety"
         }
       ],
-      "name": "Support \u0026 Safety"
+      "name": "Support & Safety"
     },
     {
       "item": [
@@ -11279,7 +11319,7 @@
                           "value": ""
                         }
                       ],
-                      "raw": "{{admin_base_url}}/api/v1/admin/geography/countries?limit=20\u0026offset=0\u0026search="
+                      "raw": "{{admin_base_url}}/api/v1/admin/geography/countries?limit=20&offset=0&search="
                     }
                   },
                   "response": []
@@ -11294,7 +11334,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\n  \"code\": \"TM\",\n  \"code3\": \"TKM\",\n  \"currency_code\": \"TMT\",\n  \"default_language\": \"tk\",\n  \"is_active\": true,\n  \"name\": \"Turkmenistan\",\n  \"native_name\": \"Türkmenistan\",\n  \"phone_prefix\": \"+993\",\n  \"timezone\": \"Asia/Ashgabat\"\n}"
+                      "raw": "{\n  \"code\": \"TM\",\n  \"code3\": \"TKM\",\n  \"currency_code\": \"TMT\",\n  \"default_language\": \"tk\",\n  \"is_active\": true,\n  \"name\": \"Turkmenistan\",\n  \"native_name\": \"T\u00fcrkmenistan\",\n  \"phone_prefix\": \"+993\",\n  \"timezone\": \"Asia/Ashgabat\"\n}"
                     },
                     "header": [
                       {
@@ -11454,7 +11494,7 @@
                           "value": ""
                         }
                       ],
-                      "raw": "{{admin_base_url}}/api/v1/admin/geography/countries/{{countryId}}/regions?limit=20\u0026offset=0\u0026search="
+                      "raw": "{{admin_base_url}}/api/v1/admin/geography/countries/{{countryId}}/regions?limit=20&offset=0&search="
                     }
                   },
                   "response": []
@@ -11469,7 +11509,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\n  \"code\": \"ASH\",\n  \"is_active\": true,\n  \"name\": \"Ashgabat\",\n  \"native_name\": \"Aşgabat\",\n  \"timezone\": \"Asia/Ashgabat\"\n}"
+                      "raw": "{\n  \"code\": \"ASH\",\n  \"is_active\": true,\n  \"name\": \"Ashgabat\",\n  \"native_name\": \"A\u015fgabat\",\n  \"timezone\": \"Asia/Ashgabat\"\n}"
                     },
                     "header": [
                       {
@@ -11631,7 +11671,7 @@
                           "value": ""
                         }
                       ],
-                      "raw": "{{admin_base_url}}/api/v1/admin/geography/regions/{{regionId}}/cities?limit=20\u0026offset=0\u0026search="
+                      "raw": "{{admin_base_url}}/api/v1/admin/geography/regions/{{regionId}}/cities?limit=20&offset=0&search="
                     }
                   },
                   "response": []
@@ -11646,7 +11686,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\n  \"center_latitude\": 37.9601,\n  \"center_longitude\": 58.3261,\n  \"is_active\": true,\n  \"name\": \"Ashgabat\",\n  \"native_name\": \"Aşgabat\",\n  \"population\": 1000000,\n  \"timezone\": \"Asia/Ashgabat\"\n}"
+                      "raw": "{\n  \"center_latitude\": 37.9601,\n  \"center_longitude\": 58.3261,\n  \"is_active\": true,\n  \"name\": \"Ashgabat\",\n  \"native_name\": \"A\u015fgabat\",\n  \"population\": 1000000,\n  \"timezone\": \"Asia/Ashgabat\"\n}"
                     },
                     "header": [
                       {
@@ -11808,7 +11848,7 @@
                           "value": ""
                         }
                       ],
-                      "raw": "{{admin_base_url}}/api/v1/admin/geography/cities/{{cityId}}/zones?limit=20\u0026offset=0\u0026search="
+                      "raw": "{{admin_base_url}}/api/v1/admin/geography/cities/{{cityId}}/zones?limit=20&offset=0&search="
                     }
                   },
                   "response": []
@@ -11988,7 +12028,7 @@
                           "value": ""
                         }
                       ],
-                      "raw": "{{admin_base_url}}/api/v1/admin/pricing/versions?limit=20\u0026offset=0\u0026status="
+                      "raw": "{{admin_base_url}}/api/v1/admin/pricing/versions?limit=20&offset=0&status="
                     }
                   },
                   "response": []
@@ -12242,7 +12282,7 @@
                           "value": "0"
                         }
                       ],
-                      "raw": "{{admin_base_url}}/api/v1/admin/pricing/versions/{{pricingVersionId}}/configs?limit=20\u0026offset=0"
+                      "raw": "{{admin_base_url}}/api/v1/admin/pricing/versions/{{pricingVersionId}}/configs?limit=20&offset=0"
                     }
                   },
                   "response": []
@@ -12420,7 +12460,7 @@
                           "value": "0"
                         }
                       ],
-                      "raw": "{{admin_base_url}}/api/v1/admin/pricing/versions/{{pricingVersionId}}/time-multipliers?limit=20\u0026offset=0"
+                      "raw": "{{admin_base_url}}/api/v1/admin/pricing/versions/{{pricingVersionId}}/time-multipliers?limit=20&offset=0"
                     }
                   },
                   "response": []
@@ -12598,7 +12638,7 @@
                           "value": "0"
                         }
                       ],
-                      "raw": "{{admin_base_url}}/api/v1/admin/pricing/versions/{{pricingVersionId}}/weather-multipliers?limit=20\u0026offset=0"
+                      "raw": "{{admin_base_url}}/api/v1/admin/pricing/versions/{{pricingVersionId}}/weather-multipliers?limit=20&offset=0"
                     }
                   },
                   "response": []
@@ -12776,7 +12816,7 @@
                           "value": "0"
                         }
                       ],
-                      "raw": "{{admin_base_url}}/api/v1/admin/pricing/versions/{{pricingVersionId}}/event-multipliers?limit=20\u0026offset=0"
+                      "raw": "{{admin_base_url}}/api/v1/admin/pricing/versions/{{pricingVersionId}}/event-multipliers?limit=20&offset=0"
                     }
                   },
                   "response": []
@@ -12958,7 +12998,7 @@
                           "value": ""
                         }
                       ],
-                      "raw": "{{admin_base_url}}/api/v1/admin/pricing/versions/{{pricingVersionId}}/zone-fees?limit=20\u0026offset=0\u0026zone_id="
+                      "raw": "{{admin_base_url}}/api/v1/admin/pricing/versions/{{pricingVersionId}}/zone-fees?limit=20&offset=0&zone_id="
                     }
                   },
                   "response": []
@@ -13136,7 +13176,7 @@
                           "value": "0"
                         }
                       ],
-                      "raw": "{{admin_base_url}}/api/v1/admin/pricing/versions/{{pricingVersionId}}/surge-thresholds?limit=20\u0026offset=0"
+                      "raw": "{{admin_base_url}}/api/v1/admin/pricing/versions/{{pricingVersionId}}/surge-thresholds?limit=20&offset=0"
                     }
                   },
                   "response": []
@@ -13320,7 +13360,7 @@
                           "value": ""
                         }
                       ],
-                      "raw": "{{admin_base_url}}/api/v1/admin/pricing/audit-logs?limit=20\u0026offset=0\u0026entity_type=\u0026entity_id="
+                      "raw": "{{admin_base_url}}/api/v1/admin/pricing/audit-logs?limit=20&offset=0&entity_type=&entity_id="
                     }
                   },
                   "response": []
@@ -13364,7 +13404,7 @@
                           "value": "true"
                         }
                       ],
-                      "raw": "{{admin_base_url}}/api/v1/admin/ride-types?limit=20\u0026offset=0\u0026include_inactive=true"
+                      "raw": "{{admin_base_url}}/api/v1/admin/ride-types?limit=20&offset=0&include_inactive=true"
                     }
                   },
                   "response": []
@@ -17467,7 +17507,7 @@
           "name": "Promos"
         }
       ],
-      "name": "Promos \u0026 Marketing"
+      "name": "Promos & Marketing"
     },
     {
       "item": [
@@ -18656,7 +18696,7 @@
           "name": "ML-ETA"
         }
       ],
-      "name": "Analytics \u0026 ML"
+      "name": "Analytics & ML"
     },
     {
       "item": [
