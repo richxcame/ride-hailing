@@ -311,7 +311,7 @@ func main() {
 	paymentsplitHandler := paymentsplit.NewHandler(paymentsplitService)
 	geographyHandler := geography.NewHandler(geographyService)
 	currencyHandler := currency.NewHandler(currencyService)
-	pricingHandler := pricing.NewHandler(pricingService)
+	pricingHandler := pricing.NewHandlerWithRideTypes(pricingService, &rideTypesServiceAdapter{service: rideTypesService})
 	negotiationHandler := negotiation.NewHandler(negotiationService)
 	rideTypesHandler := ridetypes.NewHandler(rideTypesService)
 	safetyHandler := safety.NewHandler(safetyService)

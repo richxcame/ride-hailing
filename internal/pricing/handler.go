@@ -9,14 +9,28 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/common"
 )
 
+// RideTypesProvider defines the interface for fetching ride types
+type RideTypesProvider interface {
+	GetAvailableRideTypes(ctx interface{}, lat, lng float64) ([]interface{}, error)
+}
+
 // Handler handles HTTP requests for pricing
 type Handler struct {
-	service *Service
+	service           *Service
+	rideTypesProvider RideTypesProvider
 }
 
 // NewHandler creates a new pricing handler
 func NewHandler(service *Service) *Handler {
 	return &Handler{service: service}
+}
+
+// NewHandlerWithRideTypes creates a new pricing handler with ride types provider
+func NewHandlerWithRideTypes(service *Service, rideTypesProvider RideTypesProvider) *Handler {
+	return &Handler{
+		service:           service,
+		rideTypesProvider: rideTypesProvider,
+	}
 }
 
 // GetEstimate returns a fare estimate
@@ -34,6 +48,78 @@ func (h *Handler) GetEstimate(c *gin.Context) {
 	}
 
 	common.SuccessResponse(c, estimate)
+}
+
+// GetBulkEstimate returns fare estimates for all available ride types
+func (h *Handler) GetBulkEstimate(c *gin.Context) {
+	var req BulkEstimateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	// Get available ride types for the pickup location
+	var rideTypes []RideTypeInfo
+	if h.rideTypesProvider != nil {
+		rawRideTypes, err := h.rideTypesProvider.GetAvailableRideTypes(c.Request.Context(), req.PickupLatitude, req.PickupLongitude)
+		if err != nil {
+			common.ErrorResponse(c, http.StatusInternalServerError, "failed to get available ride types")
+			return
+		}
+
+		// Convert to RideTypeInfo
+		for _, rt := range rawRideTypes {
+			if rtMap, ok := rt.(map[string]interface{}); ok {
+				rideTypeInfo := RideTypeInfo{
+					Name:        getString(rtMap, "name"),
+					Description: getString(rtMap, "description"),
+					Capacity:    getInt(rtMap, "capacity"),
+				}
+				if idStr, ok := rtMap["id"].(string); ok {
+					if id, err := uuid.Parse(idStr); err == nil {
+						rideTypeInfo.ID = id
+					}
+				}
+				if iconURL, ok := rtMap["icon_url"].(string); ok && iconURL != "" {
+					rideTypeInfo.IconURL = &iconURL
+				}
+				rideTypes = append(rideTypes, rideTypeInfo)
+			}
+		}
+	}
+
+	// If no ride types available, return empty result
+	if len(rideTypes) == 0 {
+		common.ErrorResponse(c, http.StatusNotFound, "no ride types available for this location")
+		return
+	}
+
+	// Get bulk estimate
+	bulkEstimate, err := h.service.GetBulkEstimate(c.Request.Context(), req, rideTypes)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to calculate estimates")
+		return
+	}
+
+	common.SuccessResponse(c, bulkEstimate)
+}
+
+// Helper functions for type conversion
+func getString(m map[string]interface{}, key string) string {
+	if v, ok := m[key].(string); ok {
+		return v
+	}
+	return ""
+}
+
+func getInt(m map[string]interface{}, key string) int {
+	if v, ok := m[key].(float64); ok {
+		return int(v)
+	}
+	if v, ok := m[key].(int); ok {
+		return v
+	}
+	return 0
 }
 
 // GetSurge returns current surge information
@@ -174,6 +260,7 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 	pricing := rg.Group("/pricing")
 	{
 		pricing.POST("/estimate", h.GetEstimate)
+		pricing.POST("/bulk-estimate", h.GetBulkEstimate)
 		pricing.GET("/surge", h.GetSurge)
 		pricing.POST("/validate", h.ValidatePrice)
 		pricing.GET("/config", h.GetPricing)

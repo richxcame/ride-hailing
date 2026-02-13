@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/internal/onboarding"
 	"github.com/richxcame/ride-hailing/internal/pool"
+	"github.com/richxcame/ride-hailing/internal/ridetypes"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/storage"
 	"go.uber.org/zap"
@@ -143,3 +144,44 @@ func (s *stubSMSSender) SendOTP(to, otp string) (string, error) {
 // ---- DemandForecast stubs (already nil-safe, but let's be explicit) ----
 // demandforecast service nil-guards both weatherSvc and driverSvc, so nil is safe.
 // No stubs needed.
+
+// ---- RideTypes Service Adapter (for pricing bulk estimates) ----
+
+type rideTypesServiceAdapter struct {
+	service interface {
+		GetAvailableRideTypes(ctx context.Context, lat, lng float64) ([]*ridetypes.RideType, error)
+	}
+}
+
+func (a *rideTypesServiceAdapter) GetAvailableRideTypes(ctx interface{}, lat, lng float64) ([]interface{}, error) {
+	ctxTyped, ok := ctx.(context.Context)
+	if !ok {
+		return nil, fmt.Errorf("invalid context type")
+	}
+
+	rideTypes, err := a.service.GetAvailableRideTypes(ctxTyped, lat, lng)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert []*ridetypes.RideType to []interface{}
+	result := make([]interface{}, len(rideTypes))
+	for i, rt := range rideTypes {
+		rtMap := map[string]interface{}{
+			"id":       rt.ID.String(),
+			"name":     rt.Name,
+			"capacity": rt.Capacity,
+		}
+		if rt.Description != nil {
+			rtMap["description"] = *rt.Description
+		} else {
+			rtMap["description"] = ""
+		}
+		if rt.Icon != nil {
+			rtMap["icon_url"] = *rt.Icon
+		}
+		result[i] = rtMap
+	}
+
+	return result, nil
+}

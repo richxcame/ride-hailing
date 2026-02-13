@@ -235,6 +235,49 @@ type EstimateResponse struct {
 	FormattedFare    string  `json:"formatted_fare"`
 }
 
+// BulkEstimateRequest represents a request for estimates across all available ride types
+type BulkEstimateRequest struct {
+	PickupLatitude   float64 `json:"pickup_latitude" binding:"required"`
+	PickupLongitude  float64 `json:"pickup_longitude" binding:"required"`
+	DropoffLatitude  float64 `json:"dropoff_latitude" binding:"required"`
+	DropoffLongitude float64 `json:"dropoff_longitude" binding:"required"`
+}
+
+// RideTypeInfo contains basic ride type information for bulk estimates
+type RideTypeInfo struct {
+	ID          uuid.UUID `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Capacity    int       `json:"capacity"`
+	IconURL     *string   `json:"icon_url,omitempty"`
+}
+
+// RideTypeEstimate represents a ride type with its fare estimate
+type RideTypeEstimate struct {
+	RideTypeID       uuid.UUID        `json:"ride_type_id"`
+	RideTypeName     string           `json:"ride_type_name"`
+	Description      string           `json:"description"`
+	Capacity         int              `json:"capacity"`
+	IconURL          *string          `json:"icon_url,omitempty"`
+	Currency         string           `json:"currency"`
+	EstimatedFare    float64          `json:"estimated_fare"`
+	MinimumFare      float64          `json:"minimum_fare"`
+	SurgeMultiplier  float64          `json:"surge_multiplier"`
+	FareBreakdown    *FareCalculation `json:"fare_breakdown,omitempty"`
+	FormattedFare    string           `json:"formatted_fare"`
+	ETAMinutes       *int             `json:"eta_minutes,omitempty"`
+	AvailableVehicles *int            `json:"available_vehicles,omitempty"`
+}
+
+// BulkEstimateResponse represents the response with all ride type estimates
+type BulkEstimateResponse struct {
+	PickupAddress    string              `json:"pickup_address,omitempty"`
+	DropoffAddress   string              `json:"dropoff_address,omitempty"`
+	DistanceKm       float64             `json:"distance_km"`
+	EstimatedMinutes int                 `json:"estimated_minutes"`
+	RideOptions      []RideTypeEstimate  `json:"ride_options"`
+}
+
 // WeatherCondition constants
 const (
 	WeatherClear     = "clear"

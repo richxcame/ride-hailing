@@ -110,6 +110,88 @@ func (s *Service) GetPricing(ctx context.Context, lat, lng float64, rideTypeID *
 	return s.calculator.GetPricingForLocation(ctx, lat, lng, rideTypeID)
 }
 
+// GetBulkEstimate returns fare estimates for all available ride types at a location
+func (s *Service) GetBulkEstimate(ctx context.Context, req BulkEstimateRequest, rideTypes []RideTypeInfo) (*BulkEstimateResponse, error) {
+	// Calculate distance once (same for all ride types)
+	distanceKm := haversineDistance(
+		req.PickupLatitude, req.PickupLongitude,
+		req.DropoffLatitude, req.DropoffLongitude,
+	)
+
+	// Estimate duration once (same for all ride types)
+	durationMin := int(math.Ceil((distanceKm / 40.0) * 60))
+	if durationMin < 1 {
+		durationMin = 1
+	}
+
+	// Get currency from pickup location
+	currencyCode := "USD"
+	if s.geoSvc != nil {
+		if curr, err := s.geoSvc.GetCurrencyForLocation(ctx, req.PickupLatitude, req.PickupLongitude); err == nil {
+			currencyCode = curr
+		}
+	}
+
+	// Build estimates for each ride type
+	estimates := make([]RideTypeEstimate, 0, len(rideTypes))
+	for _, rideType := range rideTypes {
+		// Calculate fare for this ride type
+		rideTypeID := rideType.ID
+		calculation, err := s.calculator.Calculate(ctx, CalculateInput{
+			PickupLatitude:   req.PickupLatitude,
+			PickupLongitude:  req.PickupLongitude,
+			DropoffLatitude:  req.DropoffLatitude,
+			DropoffLongitude: req.DropoffLongitude,
+			DistanceKm:       distanceKm,
+			DurationMin:      durationMin,
+			RideTypeID:       &rideTypeID,
+			Currency:         currencyCode,
+		})
+		if err != nil {
+			// Skip ride types that fail calculation
+			continue
+		}
+
+		// Get pricing for minimum fare
+		pricing, _ := s.calculator.GetPricingForLocation(ctx, req.PickupLatitude, req.PickupLongitude, &rideTypeID)
+		minFare := DefaultPricing.MinimumFare
+		if pricing != nil {
+			minFare = pricing.MinimumFare
+		}
+
+		// Format the fare
+		formattedFare := fmt.Sprintf("%.2f %s", calculation.TotalFare, currencyCode)
+		if s.currencySvc != nil {
+			if formatted, err := s.currencySvc.FormatMoney(ctx, currency.Money{
+				Amount:   calculation.TotalFare,
+				Currency: currencyCode,
+			}); err == nil {
+				formattedFare = formatted
+			}
+		}
+
+		estimates = append(estimates, RideTypeEstimate{
+			RideTypeID:      rideType.ID,
+			RideTypeName:    rideType.Name,
+			Description:     rideType.Description,
+			Capacity:        rideType.Capacity,
+			IconURL:         rideType.IconURL,
+			Currency:        currencyCode,
+			EstimatedFare:   calculation.TotalFare,
+			MinimumFare:     minFare,
+			SurgeMultiplier: calculation.TotalMultiplier,
+			FareBreakdown:   calculation,
+			FormattedFare:   formattedFare,
+		})
+	}
+
+	return &BulkEstimateResponse{
+		DistanceKm:       distanceKm,
+		EstimatedMinutes: durationMin,
+		RideOptions:      estimates,
+	}, nil
+}
+
 // ValidateNegotiatedPrice checks if a negotiated price is within acceptable range
 func (s *Service) ValidateNegotiatedPrice(ctx context.Context, req EstimateRequest, negotiatedPrice float64) error {
 	estimate, err := s.GetEstimate(ctx, req)
