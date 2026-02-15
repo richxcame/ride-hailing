@@ -13,12 +13,16 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/richxcame/ride-hailing/internal/geo"
+	"github.com/richxcame/ride-hailing/internal/matching"
 	"github.com/richxcame/ride-hailing/internal/realtime"
 	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/errors"
+	"github.com/richxcame/ride-hailing/pkg/eventbus"
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
@@ -28,6 +32,55 @@ import (
 	ws "github.com/richxcame/ride-hailing/pkg/websocket"
 	"go.uber.org/zap"
 )
+
+// stubRidesRepository provides minimal implementation for matching service
+type stubRidesRepository struct {
+	db *sql.DB
+}
+
+func (r *stubRidesRepository) UpdateRideDriver(ctx context.Context, rideID, driverID uuid.UUID) error {
+	query := `UPDATE rides SET driver_id = $1, status = 'accepted', updated_at = NOW() WHERE id = $2`
+	_, err := r.db.ExecContext(ctx, query, driverID, rideID)
+	return err
+}
+
+func (r *stubRidesRepository) GetRideByID(ctx context.Context, rideID uuid.UUID) (interface{}, error) {
+	var status string
+	query := `SELECT status FROM rides WHERE id = $1`
+	err := r.db.QueryRowContext(ctx, query, rideID).Scan(&status)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{"status": status}, nil
+}
+
+// geoServiceAdapter adapts geo.Service to matching.GeoService interface
+type geoServiceAdapter struct {
+	*geo.Service
+}
+
+func (a *geoServiceAdapter) FindAvailableDrivers(ctx context.Context, lat, lng float64, maxDrivers int) ([]*matching.GeoDriverLocation, error) {
+	drivers, err := a.Service.FindAvailableDrivers(ctx, lat, lng, maxDrivers)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert geo.DriverLocation to matching.GeoDriverLocation
+	result := make([]*matching.GeoDriverLocation, len(drivers))
+	for i, d := range drivers {
+		result[i] = &matching.GeoDriverLocation{
+			DriverID:  d.DriverID,
+			Latitude:  d.Latitude,
+			Longitude: d.Longitude,
+			Status:    d.Status,
+		}
+	}
+	return result, nil
+}
+
+func (a *geoServiceAdapter) CalculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
+	return a.Service.CalculateDistance(lat1, lon1, lat2, lon2)
+}
 
 func main() {
 	// Set default port for realtime service if not set
@@ -125,6 +178,49 @@ func main() {
 	hub := ws.NewHub()
 	go hub.Run()
 	logger.Info("WebSocket hub started")
+
+	// Connect to NATS event bus
+	var eventBus *eventbus.Bus
+	if cfg.NATS.Enabled {
+		eventBusCfg := eventbus.Config{
+			URL:        cfg.NATS.URL,
+			Name:       "realtime-service",
+			StreamName: cfg.NATS.StreamName,
+		}
+		eventBus, err = eventbus.New(eventBusCfg)
+		if err != nil {
+			logger.Fatal("Failed to connect to NATS", zap.Error(err))
+		}
+		logger.Info("Connected to NATS event bus")
+	}
+
+	// Initialize services for matching
+	geoService := geo.NewService(redisClient)
+	geoAdapter := &geoServiceAdapter{Service: geoService}
+
+	// Create stub rides repository (matching service doesn't use it heavily)
+	stubRidesRepo := &stubRidesRepository{db: db}
+
+	// Create matching service and start it
+	if eventBus != nil {
+		matchingConfig := matching.DefaultMatchingConfig()
+		matchingSvc := matching.NewService(
+			geoAdapter,
+			stubRidesRepo,
+			hub,
+			eventBus.Conn(),
+			redisClient,
+			matchingConfig,
+		)
+
+		ctx := context.Background()
+		if err := matchingSvc.Start(ctx); err != nil {
+			logger.Fatal("Failed to start matching service", zap.Error(err))
+		}
+		logger.Info("Matching service started")
+	} else {
+		logger.Warn("NATS not enabled, matching service will not start")
+	}
 
 	// Create service and handler
 	log := logger.Get()

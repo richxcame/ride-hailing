@@ -233,3 +233,9 @@ func (b *Bus) Close() {
 func (b *Bus) Connected() bool {
 	return b.conn != nil && b.conn.IsConnected()
 }
+
+// Conn returns the underlying NATS connection.
+// This is useful for services that need direct access to NATS subscriptions.
+func (b *Bus) Conn() *nats.Conn {
+	return b.conn
+}
