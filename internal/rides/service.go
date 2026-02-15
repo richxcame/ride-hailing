@@ -264,15 +264,54 @@ func (s *Service) RequestRide(ctx context.Context, riderID uuid.UUID, req *model
 		attribute.Float64("surge_multiplier", surgeMultiplier),
 	)
 
+	// Fetch rider info for event enrichment (non-blocking, with graceful fallbacks)
+	riderName := "Rider" // Default fallback
+	riderRating := 5.0   // Default fallback (new riders start at 5.0)
+	if rider, err := s.repo.GetUserProfile(ctx, riderID); err == nil && rider != nil {
+		if rider.FirstName != "" {
+			riderName = rider.FirstName
+			if rider.LastName != "" {
+				riderName = rider.FirstName + " " + rider.LastName
+			}
+		}
+		// Note: User model doesn't have rating field
+		// Rating is tracked separately in ratings service
+		// For MVP, use default 5.0 for all riders
+		// TODO: Add rating fetch from ratings service for enriched data
+	} else {
+		logger.WarnContext(ctx, "failed to fetch rider profile for event, using defaults",
+			zap.String("rider_id", riderID.String()),
+			zap.Error(err))
+	}
+
+	// Get ride type name (non-blocking fallback)
+	rideTypeName := "Standard" // Default
+	resolvedRideTypeID := uuid.Nil
+	if rideTypeID != nil {
+		resolvedRideTypeID = *rideTypeID
+		// TODO: Add GetRideType to repository to fetch name
+		// For now, use a simple mapping or leave as default
+	}
+
+	// Publish comprehensive event for matching service
 	s.publishEvent(eventbus.SubjectRideRequested, "ride.requested", "rides-service", eventbus.RideRequestedData{
-		RideID:      ride.ID,
-		RiderID:     riderID,
-		PickupLat:   req.PickupLatitude,
-		PickupLng:   req.PickupLongitude,
-		DropoffLat:  req.DropoffLatitude,
-		DropoffLng:  req.DropoffLongitude,
-		RideType:    func() string { if rideTypeID != nil { return rideTypeID.String() }; return "" }(),
-		RequestedAt: ride.RequestedAt,
+		RideID:            ride.ID,
+		RiderID:           riderID,
+		RiderName:         riderName,
+		RiderRating:       riderRating,
+		PickupLat:         req.PickupLatitude,
+		PickupLng:         req.PickupLongitude,
+		PickupAddress:     req.PickupAddress,
+		DropoffLat:        req.DropoffLatitude,
+		DropoffLng:        req.DropoffLongitude,
+		DropoffAddress:    req.DropoffAddress,
+		RideTypeID:        resolvedRideTypeID,
+		RideTypeName:      rideTypeName,
+		EstimatedFare:     fare,
+		EstimatedDistance: distance,
+		EstimatedDuration: duration,
+		Currency:          currencyCode,
+		RequestedAt:       ride.RequestedAt,
 	})
 
 	return ride, nil

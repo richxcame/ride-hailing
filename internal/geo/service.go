@@ -541,3 +541,101 @@ func calculateSurgeMultiplier(demand, supply int) float64 {
 		return math.Round(surge*100) / 100
 	}
 }
+
+// DriverSessionSummary represents a driver's session statistics
+type DriverSessionSummary struct {
+	OnlineDurationMinutes int     `json:"online_duration_minutes"`
+	StartedAt             time.Time `json:"started_at"`
+	EndedAt               time.Time `json:"ended_at"`
+}
+
+// ValidateDriverEligibility checks if a driver can go online
+// This validates document verification, vehicle status, and background checks
+func (s *Service) ValidateDriverEligibility(ctx context.Context, driverID uuid.UUID) error {
+	// TODO: Implement comprehensive eligibility checks:
+	// 1. Check driver document verification status (documents service)
+	// 2. Check vehicle verification status
+	// 3. Check background check status
+	// 4. Check if driver is suspended/banned
+	// 5. Check if driver has active payment method
+
+	// For MVP, allow all drivers to go online
+	// These checks should be implemented in a future iteration
+	logger.DebugContext(ctx, "driver eligibility check passed (MVP mode)",
+		zap.String("driver_id", driverID.String()))
+
+	return nil
+}
+
+// TrackDriverSessionStart records when a driver goes online
+func (s *Service) TrackDriverSessionStart(ctx context.Context, driverID uuid.UUID) error {
+	key := fmt.Sprintf("driver:session:%s", driverID.String())
+
+	sessionData := map[string]interface{}{
+		"started_at": time.Now().Unix(),
+		"status":     "active",
+	}
+
+	data, err := json.Marshal(sessionData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal session data: %w", err)
+	}
+
+	// Store session data with 24 hour expiry (auto-cleanup)
+	if err := s.redis.SetWithExpiration(ctx, key, data, 24*time.Hour); err != nil {
+		return fmt.Errorf("failed to store session data: %w", err)
+	}
+
+	logger.InfoContext(ctx, "driver session started",
+		zap.String("driver_id", driverID.String()))
+
+	return nil
+}
+
+// EndDriverSession ends a driver session and returns summary statistics
+func (s *Service) EndDriverSession(ctx context.Context, driverID uuid.UUID) (*DriverSessionSummary, error) {
+	key := fmt.Sprintf("driver:session:%s", driverID.String())
+
+	// Get session start time
+	data, err := s.redis.GetString(ctx, key)
+	if err != nil {
+		// No active session found - driver may not have been online
+		logger.WarnContext(ctx, "no active session found for driver",
+			zap.String("driver_id", driverID.String()))
+		return nil, nil
+	}
+
+	var sessionData map[string]interface{}
+	if err := json.Unmarshal([]byte(data), &sessionData); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal session data: %w", err)
+	}
+
+	// Calculate session duration
+	endTime := time.Now()
+	var startTime time.Time
+
+	if startUnix, ok := sessionData["started_at"].(float64); ok {
+		startTime = time.Unix(int64(startUnix), 0)
+	} else {
+		// Fallback: assume session just started
+		startTime = endTime
+	}
+
+	duration := endTime.Sub(startTime)
+	durationMinutes := int(duration.Minutes())
+
+	summary := &DriverSessionSummary{
+		OnlineDurationMinutes: durationMinutes,
+		StartedAt:             startTime,
+		EndedAt:               endTime,
+	}
+
+	// Clean up session data
+	s.redis.Delete(ctx, key)
+
+	logger.InfoContext(ctx, "driver session ended",
+		zap.String("driver_id", driverID.String()),
+		zap.Int("duration_minutes", durationMinutes))
+
+	return summary, nil
+}

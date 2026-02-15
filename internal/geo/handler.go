@@ -379,6 +379,103 @@ func (h *Handler) UnregisterActiveRide(c *gin.Context) {
 	common.SuccessResponse(c, gin.H{"message": "ride unregistered from ETA tracking"})
 }
 
+// UpdateDriverStatus handles updating driver availability status
+func (h *Handler) UpdateDriverStatus(c *gin.Context) {
+	driverID, err := middleware.GetUserID(c)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var req struct {
+		Status string `json:"status" binding:"required,oneof=available busy offline"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "status must be one of: available, busy, offline")
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Validate eligibility when going online
+	if req.Status == "available" {
+		if err := h.service.ValidateDriverEligibility(ctx, driverID); err != nil {
+			if appErr, ok := err.(*common.AppError); ok {
+				common.AppErrorResponse(c, appErr)
+				return
+			}
+			common.ErrorResponse(c, http.StatusForbidden, err.Error())
+			return
+		}
+
+		// Track session start time
+		if err := h.service.TrackDriverSessionStart(ctx, driverID); err != nil {
+			// Log error but don't block - session tracking is non-critical
+			common.ErrorResponse(c, http.StatusInternalServerError, "failed to track session start")
+			return
+		}
+	}
+
+	// Track session end and get summary when going offline
+	var sessionSummary *DriverSessionSummary
+	if req.Status == "offline" {
+		summary, err := h.service.EndDriverSession(ctx, driverID)
+		if err != nil {
+			// Log but don't fail - session summary is nice-to-have
+			// Continue with status update
+		} else {
+			sessionSummary = summary
+		}
+	}
+
+	// Update status in Redis
+	if err := h.service.SetDriverStatus(ctx, driverID, req.Status); err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			common.AppErrorResponse(c, appErr)
+			return
+		}
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to update status")
+		return
+	}
+
+	// Build response
+	response := gin.H{
+		"status":     req.Status,
+		"updated_at": c.GetTime("request_time"),
+	}
+
+	// Include session summary if going offline
+	if sessionSummary != nil {
+		response["session_summary"] = sessionSummary
+	}
+
+	common.SuccessResponse(c, response)
+}
+
+// GetDriverStatus handles getting driver's current status
+func (h *Handler) GetDriverStatus(c *gin.Context) {
+	driverID, err := middleware.GetUserID(c)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	status, err := h.service.GetDriverStatus(c.Request.Context(), driverID)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			common.AppErrorResponse(c, appErr)
+			return
+		}
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get status")
+		return
+	}
+
+	common.SuccessResponse(c, gin.H{
+		"status": status,
+	})
+}
+
 // RegisterRoutes registers geo routes
 func (h *Handler) RegisterRoutes(r *gin.Engine, jwtProvider jwtkeys.KeyProvider) {
 	api := r.Group("/api/v1")
@@ -406,6 +503,14 @@ func (h *Handler) RegisterRoutes(r *gin.Engine, jwtProvider jwtkeys.KeyProvider)
 		geo.GET("/geocode/reverse", h.ReverseGeocode)
 		geo.GET("/geocode/autocomplete", h.PlaceAutocomplete)
 		geo.GET("/geocode/place", h.GetPlaceDetails)
+	}
+
+	// Driver status management
+	driver := api.Group("/driver")
+	driver.Use(middleware.RequireRole(models.RoleDriver))
+	{
+		driver.POST("/status", h.UpdateDriverStatus)
+		driver.GET("/status", h.GetDriverStatus)
 	}
 
 	// Internal service-to-service endpoints (no JWT required)

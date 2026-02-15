@@ -45,15 +45,25 @@ func TestNewEvent_NilData(t *testing.T) {
 }
 
 func TestNewEvent_ComplexData(t *testing.T) {
+	rideTypeID := uuid.New()
 	data := RideRequestedData{
-		RideID:      uuid.New(),
-		RiderID:     uuid.New(),
-		PickupLat:   40.7128,
-		PickupLng:   -74.0060,
-		DropoffLat:  40.7580,
-		DropoffLng:  -73.9855,
-		RideType:    "economy",
-		RequestedAt: time.Now(),
+		RideID:            uuid.New(),
+		RiderID:           uuid.New(),
+		RiderName:         "John Doe",
+		RiderRating:       4.8,
+		PickupLat:         40.7128,
+		PickupLng:         -74.0060,
+		PickupAddress:     "123 Main St, New York, NY",
+		DropoffLat:        40.7580,
+		DropoffLng:        -73.9855,
+		DropoffAddress:    "456 Park Ave, New York, NY",
+		RideTypeID:        rideTypeID,
+		RideTypeName:      "Economy",
+		EstimatedFare:     25.50,
+		EstimatedDistance: 5.2,
+		EstimatedDuration: 15,
+		Currency:          "USD",
+		RequestedAt:       time.Now(),
 	}
 
 	event, err := NewEvent(SubjectRideRequested, "ride-service", data)
@@ -64,8 +74,14 @@ func TestNewEvent_ComplexData(t *testing.T) {
 	err = json.Unmarshal(event.Data, &decoded)
 	require.NoError(t, err)
 	assert.Equal(t, data.RideID, decoded.RideID)
+	assert.Equal(t, data.RiderName, decoded.RiderName)
+	assert.Equal(t, data.RiderRating, decoded.RiderRating)
 	assert.Equal(t, data.PickupLat, decoded.PickupLat)
-	assert.Equal(t, data.RideType, decoded.RideType)
+	assert.Equal(t, data.PickupAddress, decoded.PickupAddress)
+	assert.Equal(t, data.RideTypeID, decoded.RideTypeID)
+	assert.Equal(t, data.RideTypeName, decoded.RideTypeName)
+	assert.Equal(t, data.EstimatedFare, decoded.EstimatedFare)
+	assert.Equal(t, data.Currency, decoded.Currency)
 }
 
 func TestNewEvent_UnmarshalableData(t *testing.T) {
@@ -208,15 +224,25 @@ func TestHandlerFunc_ReturnsError(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRideRequestedData_Serialization(t *testing.T) {
+	rideTypeID := uuid.New()
 	data := RideRequestedData{
-		RideID:      uuid.New(),
-		RiderID:     uuid.New(),
-		PickupLat:   37.7749,
-		PickupLng:   -122.4194,
-		DropoffLat:  37.3382,
-		DropoffLng:  -121.8863,
-		RideType:    "premium",
-		RequestedAt: time.Now().UTC().Truncate(time.Millisecond),
+		RideID:            uuid.New(),
+		RiderID:           uuid.New(),
+		RiderName:         "Alice Smith",
+		RiderRating:       4.9,
+		PickupLat:         37.7749,
+		PickupLng:         -122.4194,
+		PickupAddress:     "789 Market St, San Francisco, CA",
+		DropoffLat:        37.3382,
+		DropoffLng:        -121.8863,
+		DropoffAddress:    "1 Apple Park Way, Cupertino, CA",
+		RideTypeID:        rideTypeID,
+		RideTypeName:      "Premium",
+		EstimatedFare:     85.00,
+		EstimatedDistance: 45.2,
+		EstimatedDuration: 50,
+		Currency:          "USD",
+		RequestedAt:       time.Now().UTC().Truncate(time.Millisecond),
 	}
 
 	b, err := json.Marshal(data)
@@ -228,11 +254,20 @@ func TestRideRequestedData_Serialization(t *testing.T) {
 
 	assert.Equal(t, data.RideID, decoded.RideID)
 	assert.Equal(t, data.RiderID, decoded.RiderID)
+	assert.Equal(t, data.RiderName, decoded.RiderName)
+	assert.Equal(t, data.RiderRating, decoded.RiderRating)
 	assert.Equal(t, data.PickupLat, decoded.PickupLat)
 	assert.Equal(t, data.PickupLng, decoded.PickupLng)
+	assert.Equal(t, data.PickupAddress, decoded.PickupAddress)
 	assert.Equal(t, data.DropoffLat, decoded.DropoffLat)
 	assert.Equal(t, data.DropoffLng, decoded.DropoffLng)
-	assert.Equal(t, data.RideType, decoded.RideType)
+	assert.Equal(t, data.DropoffAddress, decoded.DropoffAddress)
+	assert.Equal(t, data.RideTypeID, decoded.RideTypeID)
+	assert.Equal(t, data.RideTypeName, decoded.RideTypeName)
+	assert.Equal(t, data.EstimatedFare, decoded.EstimatedFare)
+	assert.Equal(t, data.EstimatedDistance, decoded.EstimatedDistance)
+	assert.Equal(t, data.EstimatedDuration, decoded.EstimatedDuration)
+	assert.Equal(t, data.Currency, decoded.Currency)
 	assert.Equal(t, data.RequestedAt, decoded.RequestedAt)
 }
 

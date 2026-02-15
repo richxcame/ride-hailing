@@ -7,15 +7,25 @@ import (
 )
 
 // RideRequestedData is emitted when a rider requests a ride.
+// This contains all data needed by matching service to send ride offers to drivers.
 type RideRequestedData struct {
-	RideID      uuid.UUID `json:"ride_id"`
-	RiderID     uuid.UUID `json:"rider_id"`
-	PickupLat   float64   `json:"pickup_lat"`
-	PickupLng   float64   `json:"pickup_lng"`
-	DropoffLat  float64   `json:"dropoff_lat"`
-	DropoffLng  float64   `json:"dropoff_lng"`
-	RideType    string    `json:"ride_type"`
-	RequestedAt time.Time `json:"requested_at"`
+	RideID            uuid.UUID `json:"ride_id"`
+	RiderID           uuid.UUID `json:"rider_id"`
+	RiderName         string    `json:"rider_name"`
+	RiderRating       float64   `json:"rider_rating"`
+	PickupLat         float64   `json:"pickup_lat"`
+	PickupLng         float64   `json:"pickup_lng"`
+	PickupAddress     string    `json:"pickup_address"`
+	DropoffLat        float64   `json:"dropoff_lat"`
+	DropoffLng        float64   `json:"dropoff_lng"`
+	DropoffAddress    string    `json:"dropoff_address"`
+	RideTypeID        uuid.UUID `json:"ride_type_id"`
+	RideTypeName      string    `json:"ride_type_name"`
+	EstimatedFare     float64   `json:"estimated_fare"`
+	EstimatedDistance float64   `json:"estimated_distance_km"`
+	EstimatedDuration int       `json:"estimated_duration_minutes"`
+	Currency          string    `json:"currency"`
+	RequestedAt       time.Time `json:"requested_at"`
 }
 
 // RideAcceptedData is emitted when a driver accepts a ride.
