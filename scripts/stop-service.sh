@@ -31,16 +31,29 @@ if [ -f "$PID_FILE" ]; then
 
     if ps -p "$pid" > /dev/null 2>&1; then
         echo -e "${YELLOW}  Killing PID $pid...${NC}"
-        kill "$pid" 2>/dev/null || kill -9 "$pid" 2>/dev/null
+        kill "$pid" 2>/dev/null
 
-        # Wait for process to stop
-        sleep 1
+        # Wait up to 3 seconds for graceful shutdown
+        for i in {1..3}; do
+            if ! ps -p "$pid" > /dev/null 2>&1; then
+                echo -e "${GREEN}✓ $SERVICE stopped${NC}"
+                break
+            fi
+            sleep 1
+        done
 
-        if ! ps -p "$pid" > /dev/null 2>&1; then
-            echo -e "${GREEN}✓ $SERVICE stopped${NC}"
-        else
-            echo -e "${RED}✗ Failed to stop $SERVICE${NC}"
-            exit 1
+        # Force kill if still running
+        if ps -p "$pid" > /dev/null 2>&1; then
+            echo -e "${YELLOW}  Force killing PID $pid...${NC}"
+            kill -9 "$pid" 2>/dev/null
+            sleep 1
+
+            if ! ps -p "$pid" > /dev/null 2>&1; then
+                echo -e "${GREEN}✓ $SERVICE force stopped${NC}"
+            else
+                echo -e "${RED}✗ Failed to stop $SERVICE${NC}"
+                exit 1
+            fi
         fi
     else
         echo -e "${YELLOW}⊘ $SERVICE was not running (stale PID file)${NC}"

@@ -40,12 +40,12 @@ echo -e "${YELLOW}=== Restarting $SERVICE service ===${NC}"
 echo ""
 
 # Step 1: Stop the service
-echo -e "${YELLOW}[1/3] Stopping $SERVICE...${NC}"
+echo -e "${YELLOW}[1/4] Stopping $SERVICE...${NC}"
 ./scripts/stop-service.sh "$SERVICE" 2>/dev/null || true
 
 # Step 2: Rebuild if requested (optional, check for --build flag)
 if [[ "$2" == "--build" ]]; then
-    echo -e "${YELLOW}[2/3] Building $SERVICE...${NC}"
+    echo -e "${YELLOW}[2/4] Building $SERVICE...${NC}"
     go build -o bin/$SERVICE ./cmd/$SERVICE
     if [ $? -eq 0 ]; then
         echo -e "${GREEN}✓ Build successful${NC}"
@@ -54,11 +54,40 @@ if [[ "$2" == "--build" ]]; then
         exit 1
     fi
 else
-    echo -e "${YELLOW}[2/3] Skipping build (use --build flag to rebuild)${NC}"
+    echo -e "${YELLOW}[2/4] Skipping build (use --build flag to rebuild)${NC}"
 fi
 
-# Step 3: Start the service
-echo -e "${YELLOW}[3/3] Starting $SERVICE...${NC}"
+echo -e "${YELLOW}[3/4] Checking port availability...${NC}"
+
+# Step 3: Ensure port is free
+# Map service names to ports
+PORT=""
+case "$SERVICE" in
+    auth) PORT="8081" ;;
+    rides) PORT="8082" ;;
+    geo) PORT="8083" ;;
+    payments) PORT="8084" ;;
+    notifications) PORT="8085" ;;
+    realtime) PORT="8086" ;;
+    mobile) PORT="8087" ;;
+    admin) PORT="8088" ;;
+    promos) PORT="8089" ;;
+    scheduler) PORT="8090" ;;
+    analytics) PORT="8091" ;;
+    fraud) PORT="8092" ;;
+    ml-eta) PORT="8093" ;;
+esac
+
+if [ -n "$PORT" ]; then
+    if lsof -ti:$PORT > /dev/null 2>&1; then
+        echo -e "${YELLOW}Port $PORT is in use, killing process...${NC}"
+        lsof -ti:$PORT | xargs kill -9 2>/dev/null || true
+        sleep 1
+    fi
+fi
+
+# Step 4: Start the service
+echo -e "${YELLOW}[4/4] Starting $SERVICE...${NC}"
 nohup go run ./cmd/$SERVICE > "$LOG_FILE" 2>&1 &
 pid=$!
 echo $pid > "$PID_FILE"
