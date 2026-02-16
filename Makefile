@@ -1,5 +1,8 @@
 .PHONY: help setup dev dev-infra dev-infra-full dev-stop dev-check build build-all test test-unit test-integration test-coverage lint fmt vet \
-	run-auth run-rides run-geo run-payments run-notifications run-realtime run-fraud run-analytics \
+	run-auth run-rides run-geo run-payments run-notifications run-realtime run-fraud run-analytics run-admin run-promos run-scheduler run-ml-eta run-mobile \
+	stop-auth stop-rides stop-geo stop-payments stop-notifications stop-realtime stop-fraud stop-analytics stop-admin stop-promos stop-scheduler stop-ml-eta stop-mobile \
+	restart-auth restart-rides restart-geo restart-payments restart-notifications restart-realtime restart-fraud restart-analytics restart-admin restart-promos restart-scheduler restart-ml-eta restart-mobile \
+	logs status run-all stop-all run-all-tmux \
 	docker-up docker-down docker-build docker-logs docker-restart \
 	migrate-up migrate-down migrate-create migrate-force migrate-version \
 	db-seed db-reset db-backup db-restore \
@@ -216,6 +219,112 @@ stop: stop-all ## Alias for stop-all
 
 stop-all: ## Stop all running services
 	@./scripts/stop-all-services.sh
+
+#==========================================
+# Individual Service Control
+#==========================================
+
+stop-auth: ## Stop auth service
+	@./scripts/stop-service.sh auth
+
+stop-rides: ## Stop rides service
+	@./scripts/stop-service.sh rides
+
+stop-geo: ## Stop geo service
+	@./scripts/stop-service.sh geo
+
+stop-payments: ## Stop payments service
+	@./scripts/stop-service.sh payments
+
+stop-notifications: ## Stop notifications service
+	@./scripts/stop-service.sh notifications
+
+stop-realtime: ## Stop realtime service
+	@./scripts/stop-service.sh realtime
+
+stop-fraud: ## Stop fraud service
+	@./scripts/stop-service.sh fraud
+
+stop-analytics: ## Stop analytics service
+	@./scripts/stop-service.sh analytics
+
+stop-admin: ## Stop admin service
+	@./scripts/stop-service.sh admin
+
+stop-promos: ## Stop promos service
+	@./scripts/stop-service.sh promos
+
+stop-scheduler: ## Stop scheduler service
+	@./scripts/stop-service.sh scheduler
+
+stop-ml-eta: ## Stop ML ETA service
+	@./scripts/stop-service.sh ml-eta
+
+stop-mobile: ## Stop mobile service
+	@./scripts/stop-service.sh mobile
+
+restart-auth: ## Restart auth service
+	@./scripts/restart-service.sh auth
+
+restart-rides: ## Restart rides service
+	@./scripts/restart-service.sh rides
+
+restart-geo: ## Restart geo service
+	@./scripts/restart-service.sh geo
+
+restart-payments: ## Restart payments service
+	@./scripts/restart-service.sh payments
+
+restart-notifications: ## Restart notifications service
+	@./scripts/restart-service.sh notifications
+
+restart-realtime: ## Restart realtime service
+	@./scripts/restart-service.sh realtime
+
+restart-fraud: ## Restart fraud service
+	@./scripts/restart-service.sh fraud
+
+restart-analytics: ## Restart analytics service
+	@./scripts/restart-service.sh analytics
+
+restart-admin: ## Restart admin service
+	@./scripts/restart-service.sh admin
+
+restart-promos: ## Restart promos service
+	@./scripts/restart-service.sh promos
+
+restart-scheduler: ## Restart scheduler service
+	@./scripts/restart-service.sh scheduler
+
+restart-ml-eta: ## Restart ML ETA service
+	@./scripts/restart-service.sh ml-eta
+
+restart-mobile: ## Restart mobile service
+	@./scripts/restart-service.sh mobile
+
+logs: ## View logs for a service (use: make logs SERVICE=admin)
+ifndef SERVICE
+	@echo "$(RED)Error: SERVICE not specified$(NC)"
+	@echo "Usage: make logs SERVICE=admin"
+	@exit 1
+endif
+	@tail -f ./logs/$(SERVICE).log
+
+status: ## Check status of all services
+	@echo "$(YELLOW)=== Service Status ===$(NC)"
+	@echo ""
+	@for service in $(SERVICES); do \
+		if [ -f ".pids/$$service.pid" ]; then \
+			pid=$$(cat .pids/$$service.pid); \
+			if ps -p $$pid > /dev/null 2>&1; then \
+				echo "$(GREEN)✓ $$service$(NC) (PID: $$pid)"; \
+			else \
+				echo "$(RED)✗ $$service$(NC) (stale PID file)"; \
+			fi; \
+		else \
+			echo "$(YELLOW)⊘ $$service$(NC) (not running)"; \
+		fi; \
+	done
 
 run-all-tmux: ## Run all services in tmux (better for development)
 	@echo "$(YELLOW)Starting all services in tmux...$(NC)"
