@@ -366,7 +366,10 @@ func (r *Repository) GetAllDriversWithTotal(ctx context.Context, limit, offset i
 	query := fmt.Sprintf(`
 		SELECT d.id, d.user_id, d.license_number, d.vehicle_model, d.vehicle_plate,
 		       d.vehicle_color, d.vehicle_year, d.is_available, d.is_online,
-		       d.rating, d.total_rides, d.created_at, d.updated_at
+		       d.approval_status, d.approved_by, d.approved_at, d.rejection_reason, d.rejected_at,
+		       d.rating, d.total_rides,
+		       d.current_latitude, d.current_longitude, d.last_location_update,
+		       d.created_at, d.updated_at
 		FROM drivers d
 		JOIN users u ON d.user_id = u.id
 		%s
@@ -403,6 +406,9 @@ func (r *Repository) GetAllDriversWithTotal(ctx context.Context, limit, offset i
 			&driver.RejectedAt,
 			&driver.Rating,
 			&driver.TotalRides,
+			&driver.CurrentLatitude,
+			&driver.CurrentLongitude,
+			&driver.LastLocationUpdate,
 			&driver.CreatedAt,
 			&driver.UpdatedAt,
 		)
@@ -484,7 +490,9 @@ func (r *Repository) GetPendingDriversWithTotal(ctx context.Context, limit, offs
 		SELECT d.id, d.user_id, d.license_number, d.vehicle_model, d.vehicle_plate,
 		       d.vehicle_color, d.vehicle_year, d.is_available, d.is_online,
 		       d.approval_status, d.approved_by, d.approved_at, d.rejection_reason, d.rejected_at,
-		       d.rating, d.total_rides, d.created_at, d.updated_at
+		       d.rating, d.total_rides,
+		       d.current_latitude, d.current_longitude, d.last_location_update,
+		       d.created_at, d.updated_at
 		FROM drivers d
 		WHERE d.approval_status = 'pending'
 		ORDER BY d.created_at DESC
@@ -518,6 +526,9 @@ func (r *Repository) GetPendingDriversWithTotal(ctx context.Context, limit, offs
 			&driver.RejectedAt,
 			&driver.Rating,
 			&driver.TotalRides,
+			&driver.CurrentLatitude,
+			&driver.CurrentLongitude,
+			&driver.LastLocationUpdate,
 			&driver.CreatedAt,
 			&driver.UpdatedAt,
 		)
@@ -536,7 +547,10 @@ func (r *Repository) GetDriverByID(ctx context.Context, driverID uuid.UUID) (*mo
 	query := `
 		SELECT d.id, d.user_id, d.license_number, d.vehicle_model, d.vehicle_plate,
 		       d.vehicle_color, d.vehicle_year, d.is_available, d.is_online,
-		       d.rating, d.total_rides, d.created_at, d.updated_at
+		       d.approval_status, d.approved_by, d.approved_at, d.rejection_reason, d.rejected_at,
+		       d.rating, d.total_rides,
+		       d.current_latitude, d.current_longitude, d.last_location_update,
+		       d.created_at, d.updated_at
 		FROM drivers d
 		WHERE d.id = $1
 	`
@@ -552,8 +566,16 @@ func (r *Repository) GetDriverByID(ctx context.Context, driverID uuid.UUID) (*mo
 		&driver.VehicleYear,
 		&driver.IsAvailable,
 		&driver.IsOnline,
+		&driver.ApprovalStatus,
+		&driver.ApprovedBy,
+		&driver.ApprovedAt,
+		&driver.RejectionReason,
+		&driver.RejectedAt,
 		&driver.Rating,
 		&driver.TotalRides,
+		&driver.CurrentLatitude,
+		&driver.CurrentLongitude,
+		&driver.LastLocationUpdate,
 		&driver.CreatedAt,
 		&driver.UpdatedAt,
 	)
