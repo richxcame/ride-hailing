@@ -33,6 +33,7 @@ import (
 	"github.com/richxcame/ride-hailing/pkg/jwtkeys"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/middleware"
+	redisclient "github.com/richxcame/ride-hailing/pkg/redis"
 	"github.com/richxcame/ride-hailing/pkg/swagger"
 	"github.com/richxcame/ride-hailing/pkg/tracing"
 	"go.uber.org/zap"
@@ -145,9 +146,18 @@ func main() {
 		}
 	}
 
+	// Initialize Redis for real-time driver status
+	redisClient, redisErr := redisclient.NewRedisClient(&cfg.Redis)
+	if redisErr != nil {
+		logger.Warn("Failed to initialize Redis - driver online status will use DB only", zap.Error(redisErr))
+	} else {
+		defer redisClient.Close()
+		logger.Info("Connected to Redis")
+	}
+
 	// Initialize repository, service, and handler
 	repo := admin.NewRepository(db)
-	service := admin.NewService(repo)
+	service := admin.NewService(repo, redisClient)
 	handler := admin.NewHandler(service)
 
 	// Initialize geography admin

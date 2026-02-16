@@ -2,20 +2,25 @@ package admin
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/pkg/models"
+	redisclient "github.com/richxcame/ride-hailing/pkg/redis"
 )
 
 // Service handles business logic for admin operations
 type Service struct {
-	repo RepositoryInterface
+	repo  RepositoryInterface
+	redis *redisclient.Client
 }
 
-// NewService creates a new admin service
-func NewService(repo RepositoryInterface) *Service {
-	return &Service{repo: repo}
+// NewService creates a new admin service.
+// redis may be nil — driver status enrichment will be skipped.
+func NewService(repo RepositoryInterface, redis *redisclient.Client) *Service {
+	return &Service{repo: repo, redis: redis}
 }
 
 // GetAllUsers retrieves all users with pagination and filters
@@ -83,12 +88,84 @@ func (s *Service) GetAllDrivers(ctx context.Context, limit, offset int, filter *
 		}
 	}
 
-	return s.repo.GetAllDriversWithTotal(ctx, limit, offset, filter)
+	drivers, total, err := s.repo.GetAllDriversWithTotal(ctx, limit, offset, filter)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	s.enrichDriversWithRedisStatus(ctx, drivers)
+	return drivers, total, nil
 }
 
-// GetDriverStats retrieves driver statistics for stats cards
+// GetDriverStats retrieves driver statistics for stats cards.
+// When Redis is available, online/available/offline counts come from real-time status.
 func (s *Service) GetDriverStats(ctx context.Context) (*DriverStats, error) {
-	return s.repo.GetDriverStats(ctx)
+	stats, err := s.repo.GetDriverStats(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if s.redis == nil {
+		return stats, nil
+	}
+
+	// Fetch all approved driver user_ids to check their Redis status
+	drivers, _, err := s.repo.GetAllDriversWithTotal(ctx, 10000, 0, nil)
+	if err != nil {
+		return stats, nil // Fall back to DB stats
+	}
+
+	// Only check approved drivers
+	var approvedDrivers []*models.Driver
+	for _, d := range drivers {
+		if d.ApprovalStatus == "approved" {
+			approvedDrivers = append(approvedDrivers, d)
+		}
+	}
+
+	if len(approvedDrivers) == 0 {
+		return stats, nil
+	}
+
+	keys := make([]string, len(approvedDrivers))
+	for i, d := range approvedDrivers {
+		keys[i] = fmt.Sprintf("driver:status:%s", d.UserID.String())
+	}
+
+	statuses, err := s.redis.MGetStrings(ctx, keys...)
+	if err != nil {
+		return stats, nil // Fall back to DB stats
+	}
+
+	online, available, offline := 0, 0, 0
+	for _, raw := range statuses {
+		if raw == "" {
+			offline++
+			continue
+		}
+		var statusData struct {
+			Status string `json:"status"`
+		}
+		if json.Unmarshal([]byte(raw), &statusData) != nil {
+			offline++
+			continue
+		}
+		switch statusData.Status {
+		case "available":
+			online++
+			available++
+		case "busy":
+			online++
+		default:
+			offline++
+		}
+	}
+
+	stats.OnlineDrivers = online
+	stats.AvailableDrivers = available
+	stats.OfflineDrivers = len(approvedDrivers) - online
+
+	return stats, nil
 }
 
 // GetPendingDrivers retrieves drivers awaiting approval
@@ -105,7 +182,59 @@ func (s *Service) GetPendingDrivers(ctx context.Context, limit, offset int) ([]*
 
 // GetDriver retrieves a specific driver by ID
 func (s *Service) GetDriver(ctx context.Context, driverID uuid.UUID) (*models.Driver, error) {
-	return s.repo.GetDriverByID(ctx, driverID)
+	driver, err := s.repo.GetDriverByID(ctx, driverID)
+	if err != nil {
+		return nil, err
+	}
+
+	s.enrichDriversWithRedisStatus(ctx, []*models.Driver{driver})
+	return driver, nil
+}
+
+// enrichDriversWithRedisStatus overrides is_online/is_available on each driver
+// using real-time data from Redis driver:status:{user_id} keys.
+func (s *Service) enrichDriversWithRedisStatus(ctx context.Context, drivers []*models.Driver) {
+	if s.redis == nil || len(drivers) == 0 {
+		return
+	}
+
+	keys := make([]string, len(drivers))
+	for i, d := range drivers {
+		keys[i] = fmt.Sprintf("driver:status:%s", d.UserID.String())
+	}
+
+	statuses, err := s.redis.MGetStrings(ctx, keys...)
+	if err != nil {
+		return // Silently fall back to DB values
+	}
+
+	for i, raw := range statuses {
+		if raw == "" {
+			// No Redis key → driver is offline
+			drivers[i].IsOnline = false
+			drivers[i].IsAvailable = false
+			continue
+		}
+
+		var statusData struct {
+			Status string `json:"status"`
+		}
+		if json.Unmarshal([]byte(raw), &statusData) != nil {
+			continue // Keep DB values on parse error
+		}
+
+		switch statusData.Status {
+		case "available":
+			drivers[i].IsOnline = true
+			drivers[i].IsAvailable = true
+		case "busy":
+			drivers[i].IsOnline = true
+			drivers[i].IsAvailable = false
+		default: // "offline" or unknown
+			drivers[i].IsOnline = false
+			drivers[i].IsAvailable = false
+		}
+	}
 }
 
 // ApproveDriver approves a driver application
@@ -175,12 +304,41 @@ func (s *Service) GetRecentRides(ctx context.Context, limit, offset int) ([]*Adm
 
 // GetRealtimeMetrics retrieves real-time dashboard metrics
 func (s *Service) GetRealtimeMetrics(ctx context.Context) (*RealtimeMetrics, error) {
-	return s.repo.GetRealtimeMetrics(ctx)
+	metrics, err := s.repo.GetRealtimeMetrics(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Enrich with Redis driver counts
+	if s.redis != nil {
+		stats, statsErr := s.GetDriverStats(ctx)
+		if statsErr == nil {
+			metrics.OnlineDrivers = stats.OnlineDrivers
+			metrics.AvailableDrivers = stats.AvailableDrivers
+		}
+	}
+
+	return metrics, nil
 }
 
 // GetDashboardSummary retrieves comprehensive dashboard summary
 func (s *Service) GetDashboardSummary(ctx context.Context, period string) (*DashboardSummary, error) {
-	return s.repo.GetDashboardSummary(ctx, period)
+	summary, err := s.repo.GetDashboardSummary(ctx, period)
+	if err != nil {
+		return nil, err
+	}
+
+	// Enrich driver section with Redis real-time counts
+	if s.redis != nil && summary.Drivers != nil {
+		stats, statsErr := s.GetDriverStats(ctx)
+		if statsErr == nil {
+			summary.Drivers.OnlineNow = stats.OnlineDrivers
+			summary.Drivers.AvailableNow = stats.AvailableDrivers
+			summary.Drivers.BusyNow = stats.OnlineDrivers - stats.AvailableDrivers
+		}
+	}
+
+	return summary, nil
 }
 
 // GetRevenueTrend retrieves revenue trend data

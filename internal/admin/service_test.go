@@ -189,7 +189,7 @@ func (m *mockRepo) GetAuditLogs(ctx context.Context, limit, offset int, filter *
 // ========================================
 
 func newTestService(repo RepositoryInterface) *Service {
-	return NewService(repo)
+	return NewService(repo, nil)
 }
 
 // ========================================
