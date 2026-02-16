@@ -224,7 +224,7 @@ func main() {
 
 	// Create service and handler
 	log := logger.Get()
-	service := realtime.NewService(hub, db, redisClient, log)
+	service := realtime.NewService(hub, db, redisClient, geoService, log)
 	handler := realtime.NewHandler(service, log)
 
 	// Set up Gin router with proper middleware stack

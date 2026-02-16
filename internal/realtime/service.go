@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/richxcame/ride-hailing/internal/geo"
 	"github.com/richxcame/ride-hailing/pkg/redis"
 	ws "github.com/richxcame/ride-hailing/pkg/websocket"
 	"go.uber.org/zap"
@@ -13,19 +15,21 @@ import (
 
 // Service handles real-time communication
 type Service struct {
-	hub    *ws.Hub
-	db     *sql.DB
-	redis  *redis.Client
-	logger *zap.Logger
+	hub        *ws.Hub
+	db         *sql.DB
+	redis      *redis.Client
+	geoService *geo.Service
+	logger     *zap.Logger
 }
 
 // NewService creates a new real-time service
-func NewService(hub *ws.Hub, db *sql.DB, redisClient *redis.Client, logger *zap.Logger) *Service {
+func NewService(hub *ws.Hub, db *sql.DB, redisClient *redis.Client, geoService *geo.Service, logger *zap.Logger) *Service {
 	s := &Service{
-		hub:    hub,
-		db:     db,
-		redis:  redisClient,
-		logger: logger,
+		hub:        hub,
+		db:         db,
+		redis:      redisClient,
+		geoService: geoService,
+		logger:     logger,
 	}
 
 	// Register message handlers
@@ -60,17 +64,18 @@ func (s *Service) handleLocationUpdate(client *ws.Client, msg *ws.Message) {
 		return
 	}
 
-	// Cache latest location for real-time broadcasting (separate from geo index).
-	// Uses "driver:ws_location:" prefix to avoid overwriting the geo service's
-	// "driver:location:" key which uses a different JSON format (DriverLocation struct).
+	heading, _ := msg.Data["heading"].(float64)
+	speed, _ := msg.Data["speed"].(float64)
+
+	// Cache latest location for real-time broadcasting
 	ctx := context.Background()
 	key := "driver:ws_location:" + client.ID
 	locationData := map[string]interface{}{
 		"latitude":  latitude,
 		"longitude": longitude,
 		"timestamp": time.Now().Unix(),
-		"heading":   msg.Data["heading"],
-		"speed":     msg.Data["speed"],
+		"heading":   heading,
+		"speed":     speed,
 	}
 
 	data, _ := json.Marshal(locationData)
@@ -78,10 +83,33 @@ func (s *Service) handleLocationUpdate(client *ws.Client, msg *ws.Message) {
 		s.logger.Error("failed to cache location", zap.Error(err))
 	}
 
+	// Sync location to geo service (geo index + driver:location: key)
+	// so the matching system can find this driver
+	if s.geoService != nil {
+		driverID, err := uuid.Parse(client.ID)
+		if err == nil {
+			if err := s.geoService.UpdateDriverLocationFull(ctx, driverID, latitude, longitude, heading, speed); err != nil {
+				s.logger.Error("failed to sync location to geo service", zap.Error(err))
+			}
+
+			// Auto-set driver status to "available" if not already set.
+			// This ensures drivers become matchable as soon as they start
+			// sending location updates, without requiring a separate API call.
+			status, _ := s.geoService.GetDriverStatus(ctx, driverID)
+			if status == "offline" {
+				if err := s.geoService.SetDriverStatus(ctx, driverID, "available"); err != nil {
+					s.logger.Error("failed to auto-set driver status", zap.Error(err))
+				} else {
+					s.logger.Info("auto-set driver status to available",
+						zap.String("driver_id", client.ID))
+				}
+			}
+		}
+	}
+
 	// If driver is in a ride, broadcast to rider
 	rideID := client.GetRide()
 	if rideID != "" {
-		// Get rider in this ride
 		clients := s.hub.GetClientsInRide(rideID)
 		for _, c := range clients {
 			if c.Role == "rider" {
@@ -93,8 +121,8 @@ func (s *Service) handleLocationUpdate(client *ws.Client, msg *ws.Message) {
 					Data: map[string]interface{}{
 						"latitude":  latitude,
 						"longitude": longitude,
-						"heading":   msg.Data["heading"],
-						"speed":     msg.Data["speed"],
+						"heading":   heading,
+						"speed":     speed,
 					},
 				})
 			}

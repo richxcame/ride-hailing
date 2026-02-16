@@ -64,7 +64,7 @@ func TestNewService(t *testing.T) {
 	hub := ws.NewHub()
 
 	// Create service
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 	// Assertions
 	assert.NotNil(t, service)
@@ -144,7 +144,7 @@ func TestHandleLocationUpdate(t *testing.T) {
 			redisClient := &redis.Client{Client: redisDB}
 
 			hub := ws.NewHub()
-			service := NewService(hub, db, redisClient, zap.NewNop())
+			service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 			// Set expectations - skip checking since actual implementation adds timestamp
 			if tt.expectRedis {
@@ -173,7 +173,7 @@ func TestHandleLocationUpdateWithRide(t *testing.T) {
 	hub := ws.NewHub()
 	go hub.Run()
 
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 	// Create driver and rider clients
 	driverConn := createTestWebSocketConn(t)
@@ -265,7 +265,7 @@ func TestHandleRideStatus(t *testing.T) {
 			hub := ws.NewHub()
 			go hub.Run()
 
-			service := NewService(hub, db, redisClient, zap.NewNop())
+			service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 			conn := createTestWebSocketConn(t)
 			client := ws.NewClient("user-123", conn, hub, "driver", zap.NewNop())
@@ -335,7 +335,7 @@ func TestHandleChatMessage(t *testing.T) {
 			hub := ws.NewHub()
 			go hub.Run()
 
-			service := NewService(hub, db, redisClient, zap.NewNop())
+			service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 			conn := createTestWebSocketConn(t)
 			client := ws.NewClient("user-123", conn, hub, "rider", zap.NewNop())
@@ -376,7 +376,7 @@ func TestHandleTyping(t *testing.T) {
 	hub := ws.NewHub()
 	go hub.Run()
 
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 	// Create two clients in same ride
 	conn1 := createTestWebSocketConn(t)
@@ -422,10 +422,8 @@ func TestHandleJoinRide(t *testing.T) {
 		{
 			name: "Authorized join",
 			message: &ws.Message{
-				Type: "join_ride",
-				Data: map[string]interface{}{
-					"ride_id": "ride-123",
-				},
+				Type:   "join_ride",
+				RideID: "ride-123",
 			},
 			setupMock: func(mock sqlmock.Sqlmock) {
 				rows := sqlmock.NewRows([]string{"count"}).AddRow(1)
@@ -438,10 +436,8 @@ func TestHandleJoinRide(t *testing.T) {
 		{
 			name: "Unauthorized join",
 			message: &ws.Message{
-				Type: "join_ride",
-				Data: map[string]interface{}{
-					"ride_id": "ride-123",
-				},
+				Type:   "join_ride",
+				RideID: "ride-123",
 			},
 			setupMock: func(mock sqlmock.Sqlmock) {
 				rows := sqlmock.NewRows([]string{"count"}).AddRow(0)
@@ -455,7 +451,6 @@ func TestHandleJoinRide(t *testing.T) {
 			name: "Missing ride_id",
 			message: &ws.Message{
 				Type: "join_ride",
-				Data: map[string]interface{}{},
 			},
 			setupMock:   func(mock sqlmock.Sqlmock) {},
 			expectError: true,
@@ -475,7 +470,7 @@ func TestHandleJoinRide(t *testing.T) {
 			hub := ws.NewHub()
 			go hub.Run()
 
-			service := NewService(hub, db, redisClient, zap.NewNop())
+			service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 			conn := createTestWebSocketConn(t)
 			client := ws.NewClient("user-123", conn, hub, "rider", zap.NewNop())
@@ -510,7 +505,7 @@ func TestHandleLeaveRide(t *testing.T) {
 	hub := ws.NewHub()
 	go hub.Run()
 
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 	// Create client
 	conn := createTestWebSocketConn(t)
@@ -551,7 +546,7 @@ func TestBroadcastRideUpdate(t *testing.T) {
 	hub := ws.NewHub()
 	go hub.Run()
 
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 	// Create client
 	conn := createTestWebSocketConn(t)
@@ -586,7 +581,7 @@ func TestBroadcastToUser(t *testing.T) {
 	hub := ws.NewHub()
 	go hub.Run()
 
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 	// Create client
 	conn := createTestWebSocketConn(t)
@@ -617,7 +612,7 @@ func TestGetChatHistory(t *testing.T) {
 	redisClient := &redis.Client{Client: redisDB}
 
 	hub := ws.NewHub()
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 	rideID := "ride-123"
 
@@ -664,7 +659,7 @@ func TestGetChatHistoryEmpty(t *testing.T) {
 	redisClient := &redis.Client{Client: redisDB}
 
 	hub := ws.NewHub()
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 	rideID := "ride-123"
 
@@ -693,7 +688,7 @@ func TestGetStats(t *testing.T) {
 	hub := ws.NewHub()
 	go hub.Run()
 
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 	// Create clients
 	conn1 := createTestWebSocketConn(t)
@@ -730,7 +725,7 @@ func TestGetHub(t *testing.T) {
 	redisClient := &redis.Client{Client: redisDB}
 
 	hub := ws.NewHub()
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 	// Get hub
 	retrievedHub := service.GetHub()
@@ -750,7 +745,7 @@ func TestRegisterHandlers(t *testing.T) {
 	redisClient := &redis.Client{Client: redisDB}
 
 	hub := ws.NewHub()
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 	// Verify handlers are registered
 	assert.NotNil(t, service.hub)
@@ -781,7 +776,7 @@ func TestConcurrentClientOperations(t *testing.T) {
 	hub := ws.NewHub()
 	go hub.Run()
 
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 	// Expect multiple Redis operations (use regex to match any value)
 	redisMock.MatchExpectationsInOrder(false)
@@ -839,7 +834,7 @@ func TestDatabaseError(t *testing.T) {
 	hub := ws.NewHub()
 	go hub.Run()
 
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 	conn := createTestWebSocketConn(t)
 	client := ws.NewClient("user-123", conn, hub, "rider", zap.NewNop())
@@ -854,10 +849,8 @@ func TestDatabaseError(t *testing.T) {
 
 	// Send join request
 	msg := &ws.Message{
-		Type: "join_ride",
-		Data: map[string]interface{}{
-			"ride_id": "ride-123",
-		},
+		Type:   "join_ride",
+		RideID: "ride-123",
 	}
 
 	// This should handle the error gracefully
@@ -880,7 +873,7 @@ func TestRedisError(t *testing.T) {
 	redisClient := &redis.Client{Client: redisDB}
 
 	hub := ws.NewHub()
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 	rideID := "ride-123"
 

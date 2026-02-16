@@ -40,7 +40,7 @@ func setupTestHandler(t *testing.T) (*Handler, *Service, sqlmock.Sqlmock, redism
 	hub := ws.NewHub()
 	go hub.Run()
 
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 	handler := NewHandler(service, zap.NewNop())
 
 	t.Cleanup(func() {
@@ -136,7 +136,7 @@ func TestNewHandler(t *testing.T) {
 	redisClient := &redis.Client{Client: redisDB}
 
 	hub := ws.NewHub()
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 	logger := zap.NewNop()
 
 	handler := NewHandler(service, logger)
@@ -1156,7 +1156,7 @@ func TestWebSocket_FullConnection(t *testing.T) {
 	hub := ws.NewHub()
 	go hub.Run()
 
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 	// Create a test HTTP server with WebSocket endpoint
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1215,7 +1215,7 @@ func TestWebSocket_MultipleClients(t *testing.T) {
 	hub := ws.NewHub()
 	go hub.Run()
 
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userID := r.URL.Query().Get("user_id")
@@ -1279,7 +1279,7 @@ func TestWebSocket_DisconnectCleanup(t *testing.T) {
 	hub := ws.NewHub()
 	go hub.Run()
 
-	service := NewService(hub, db, redisClient, zap.NewNop())
+	service := NewService(hub, db, redisClient, nil, zap.NewNop())
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		userID := r.URL.Query().Get("user_id")
