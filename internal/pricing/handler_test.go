@@ -473,7 +473,7 @@ func TestHandler_GetCancellationFee_ValidationErrors(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
-			name: "missing latitudeitude",
+			name: "missing latitude",
 			request: map[string]interface{}{
 				"longitude":             -122.4194,
 				"minutes_since_request": 5.0,

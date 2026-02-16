@@ -33,7 +33,7 @@ func (h *Handler) UpdateLocation(c *gin.Context) {
 	}
 
 	var req struct {
-		Latitude  float64 `json:"latitudeitude" binding:"required"`
+		Latitude  float64 `json:"latitude" binding:"required"`
 		Longitude float64 `json:"longitude" binding:"required"`
 		Heading   float64 `json:"heading"`
 		Speed     float64 `json:"speed"`
@@ -84,9 +84,9 @@ func (h *Handler) GetDriverLocation(c *gin.Context) {
 
 // FindNearbyDrivers handles finding nearby available drivers
 func (h *Handler) FindNearbyDrivers(c *gin.Context) {
-	latitudeitude, err := strconv.ParseFloat(c.Query("latitudeitude"), 64)
+	latitude, err := strconv.ParseFloat(c.Query("latitude"), 64)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitudeitude")
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitude")
 		return
 	}
 	longitude, err := strconv.ParseFloat(c.Query("longitude"), 64)
@@ -102,7 +102,7 @@ func (h *Handler) FindNearbyDrivers(c *gin.Context) {
 		}
 	}
 
-	drivers, err := h.service.FindAvailableDrivers(c.Request.Context(), latitudeitude, longitude, limit)
+	drivers, err := h.service.FindAvailableDrivers(c.Request.Context(), latitude, longitude, limit)
 	if err != nil {
 		if appErr, ok := err.(*common.AppError); ok {
 			common.AppErrorResponse(c, appErr)
@@ -114,17 +114,17 @@ func (h *Handler) FindNearbyDrivers(c *gin.Context) {
 
 	common.SuccessResponse(c, gin.H{
 		"drivers":  drivers,
-		"h3_cell":  GetMatchingCell(latitudeitude, longitude),
-		"surge":    GetSurgeZone(latitudeitude, longitude),
+		"h3_cell":  GetMatchingCell(latitude, longitude),
+		"surge":    GetSurgeZone(latitude, longitude),
 	})
 }
 
-// CalculateDistance handles distance calculatitudeion
+// CalculateDistance handles distance calculation
 func (h *Handler) CalculateDistance(c *gin.Context) {
 	var req struct {
-		FromLatitude  float64 `json:"from_latitudeitude" binding:"required"`
+		FromLatitude  float64 `json:"from_latitude" binding:"required"`
 		FromLongitude float64 `json:"from_longitude" binding:"required"`
-		ToLatitude    float64 `json:"to_latitudeitude" binding:"required"`
+		ToLatitude    float64 `json:"to_latitude" binding:"required"`
 		ToLongitude   float64 `json:"to_longitude" binding:"required"`
 	}
 
@@ -148,9 +148,9 @@ func (h *Handler) CalculateDistance(c *gin.Context) {
 
 // GetSurgeInfo handles getting surge pricing info for a location
 func (h *Handler) GetSurgeInfo(c *gin.Context) {
-	latitude, err := strconv.ParseFloat(c.Query("latitudeitude"), 64)
+	latitude, err := strconv.ParseFloat(c.Query("latitude"), 64)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitudeitude")
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitude")
 		return
 	}
 	longitude, err := strconv.ParseFloat(c.Query("longitude"), 64)
@@ -174,9 +174,9 @@ func (h *Handler) GetSurgeInfo(c *gin.Context) {
 
 // GetDemandHeatmap handles getting demand heatmap data
 func (h *Handler) GetDemandHeatmap(c *gin.Context) {
-	latitude, err := strconv.ParseFloat(c.Query("latitudeitude"), 64)
+	latitude, err := strconv.ParseFloat(c.Query("latitude"), 64)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitudeitude")
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitude")
 		return
 	}
 	longitude, err := strconv.ParseFloat(c.Query("longitude"), 64)
@@ -203,9 +203,9 @@ func (h *Handler) GetDemandHeatmap(c *gin.Context) {
 
 // GetH3Cell handles resolving a location to H3 cell indexes at various resolutions
 func (h *Handler) GetH3Cell(c *gin.Context) {
-	latitude, err := strconv.ParseFloat(c.Query("latitudeitude"), 64)
+	latitude, err := strconv.ParseFloat(c.Query("latitude"), 64)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitudeitude")
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitude")
 		return
 	}
 	longitude, err := strconv.ParseFloat(c.Query("longitude"), 64)
@@ -215,7 +215,7 @@ func (h *Handler) GetH3Cell(c *gin.Context) {
 	}
 
 	common.SuccessResponse(c, gin.H{
-		"latitudeitude":      latitude,
+		"latitude":      latitude,
 		"longitude":     longitude,
 		"matching_cell": GetMatchingCell(latitude, longitude),
 		"surge_zone":    GetSurgeZone(latitude, longitude),
@@ -252,9 +252,9 @@ func (h *Handler) ForwardGeocode(c *gin.Context) {
 
 // ReverseGeocode handles converting coordinates to an address.
 func (h *Handler) ReverseGeocode(c *gin.Context) {
-	latitude, err := strconv.ParseFloat(c.Query("latitudeitude"), 64)
+	latitude, err := strconv.ParseFloat(c.Query("latitude"), 64)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitudeitude")
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitude")
 		return
 	}
 	longitude, err := strconv.ParseFloat(c.Query("longitude"), 64)
@@ -285,11 +285,11 @@ func (h *Handler) PlaceAutocomplete(c *gin.Context) {
 	}
 
 	var latitude, longitude float64
-	if latitudeStr := c.Query("latitudeitude"); latitudeStr != "" {
+	if latitudeStr := c.Query("latitude"); latitudeStr != "" {
 		var err error
 		latitude, err = strconv.ParseFloat(latitudeStr, 64)
 		if err != nil {
-			common.ErrorResponse(c, http.StatusBadRequest, "invalid latitudeitude value")
+			common.ErrorResponse(c, http.StatusBadRequest, "invalid latitude value")
 			return
 		}
 	}
