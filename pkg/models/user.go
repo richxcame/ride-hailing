@@ -41,8 +41,13 @@ type Driver struct {
 	VehiclePlate       string     `json:"vehicle_plate" db:"vehicle_plate"`
 	VehicleColor       string     `json:"vehicle_color" db:"vehicle_color"`
 	VehicleYear        int        `json:"vehicle_year" db:"vehicle_year"`
-	IsAvailable        bool       `json:"is_available" db:"is_available"`
-	IsOnline           bool       `json:"is_online" db:"is_online"`
+	IsAvailable        bool       `json:"is_available" db:"is_available"`       // Available for accepting rides (online/offline)
+	IsOnline           bool       `json:"is_online" db:"is_online"`             // Currently online
+	ApprovalStatus     string     `json:"approval_status" db:"approval_status"` // pending, approved, rejected
+	ApprovedBy         *uuid.UUID `json:"approved_by,omitempty" db:"approved_by"`
+	ApprovedAt         *time.Time `json:"approved_at,omitempty" db:"approved_at"`
+	RejectionReason    *string    `json:"rejection_reason,omitempty" db:"rejection_reason"`
+	RejectedAt         *time.Time `json:"rejected_at,omitempty" db:"rejected_at"`
 	Rating             float64    `json:"rating" db:"rating"`
 	TotalRides         int        `json:"total_rides" db:"total_rides"`
 	CurrentLatitude    *float64   `json:"current_latitude,omitempty" db:"current_latitude"`

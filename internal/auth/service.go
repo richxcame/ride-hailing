@@ -75,6 +75,39 @@ func (s *Service) Register(ctx context.Context, req *models.RegisterRequest) (*m
 		return nil, common.NewInternalServerError("failed to create user")
 	}
 
+	// Auto-create driver record for driver role users
+	// This ensures drivers are immediately visible in admin panel
+	if user.Role == models.RoleDriver {
+		driver := &models.Driver{
+			ID:             uuid.New(),
+			UserID:         user.ID,
+			LicenseNumber:  fmt.Sprintf("PENDING-%s", user.ID.String()[:8]),
+			VehicleModel:   "Not Specified",
+			VehiclePlate:   fmt.Sprintf("PENDING-%s", user.ID.String()[:6]),
+			VehicleColor:   "Not Specified",
+			VehicleYear:    2020,
+			IsAvailable:    false,
+			IsOnline:       false,
+			ApprovalStatus: "pending", // Requires admin approval before going online
+			Rating:         5.0,        // Default new driver rating
+			TotalRides:     0,
+		}
+
+		if err := s.repo.CreateDriver(ctx, driver); err != nil {
+			// Log error but don't fail registration - driver can update profile later
+			tracing.RecordError(ctx, err)
+			tracing.AddSpanEvent(ctx, "driver_profile_creation_failed",
+				attribute.String("user_id", user.ID.String()),
+				attribute.String("error", err.Error()),
+			)
+		} else {
+			tracing.AddSpanEvent(ctx, "driver_profile_created",
+				attribute.String("user_id", user.ID.String()),
+				attribute.String("driver_id", driver.ID.String()),
+			)
+		}
+	}
+
 	// Clear password hash from response
 	user.PasswordHash = ""
 

@@ -289,10 +289,10 @@ func (r *Repository) GetDriverStats(ctx context.Context) (*DriverStats, error) {
 	query := `
 		SELECT
 			COUNT(*) as total_drivers,
-			COUNT(CASE WHEN is_online = true THEN 1 END) as online_drivers,
-			COUNT(CASE WHEN is_online = false THEN 1 END) as offline_drivers,
-			COUNT(CASE WHEN is_available = true AND is_online = true THEN 1 END) as available_drivers,
-			COUNT(CASE WHEN is_available = false THEN 1 END) as pending_approvals
+			COUNT(CASE WHEN is_online = true AND approval_status = 'approved' THEN 1 END) as online_drivers,
+			COUNT(CASE WHEN is_online = false AND approval_status = 'approved' THEN 1 END) as offline_drivers,
+			COUNT(CASE WHEN is_available = true AND is_online = true AND approval_status = 'approved' THEN 1 END) as available_drivers,
+			COUNT(CASE WHEN approval_status = 'pending' THEN 1 END) as pending_approvals
 		FROM drivers
 	`
 
@@ -323,13 +323,13 @@ func (r *Repository) GetAllDriversWithTotal(ctx context.Context, limit, offset i
 		// Status filter
 		switch filter.Status {
 		case "online":
-			whereClause += " AND d.is_online = true"
+			whereClause += " AND d.is_online = true AND d.approval_status = 'approved'"
 		case "offline":
-			whereClause += " AND d.is_online = false"
+			whereClause += " AND d.is_online = false AND d.approval_status = 'approved'"
 		case "available":
-			whereClause += " AND d.is_available = true AND d.is_online = true"
+			whereClause += " AND d.is_available = true AND d.is_online = true AND d.approval_status = 'approved'"
 		case "pending":
-			whereClause += " AND d.is_available = false"
+			whereClause += " AND d.approval_status = 'pending'"
 		}
 
 		// Search filter
@@ -396,6 +396,11 @@ func (r *Repository) GetAllDriversWithTotal(ctx context.Context, limit, offset i
 			&driver.VehicleYear,
 			&driver.IsAvailable,
 			&driver.IsOnline,
+			&driver.ApprovalStatus,
+			&driver.ApprovedBy,
+			&driver.ApprovedAt,
+			&driver.RejectionReason,
+			&driver.RejectedAt,
 			&driver.Rating,
 			&driver.TotalRides,
 			&driver.CreatedAt,
@@ -416,9 +421,10 @@ func (r *Repository) GetPendingDrivers(ctx context.Context) ([]*models.Driver, e
 	query := `
 		SELECT d.id, d.user_id, d.license_number, d.vehicle_model, d.vehicle_plate,
 		       d.vehicle_color, d.vehicle_year, d.is_available, d.is_online,
+		       d.approval_status, d.approved_by, d.approved_at, d.rejection_reason, d.rejected_at,
 		       d.rating, d.total_rides, d.created_at, d.updated_at
 		FROM drivers d
-		WHERE d.is_available = false
+		WHERE d.approval_status = 'pending'
 		ORDER BY d.created_at DESC
 		LIMIT 100
 	`
@@ -443,6 +449,11 @@ func (r *Repository) GetPendingDrivers(ctx context.Context) ([]*models.Driver, e
 			&driver.VehicleYear,
 			&driver.IsAvailable,
 			&driver.IsOnline,
+			&driver.ApprovalStatus,
+			&driver.ApprovedBy,
+			&driver.ApprovedAt,
+			&driver.RejectionReason,
+			&driver.RejectedAt,
 			&driver.Rating,
 			&driver.TotalRides,
 			&driver.CreatedAt,
@@ -460,9 +471,9 @@ func (r *Repository) GetPendingDrivers(ctx context.Context) ([]*models.Driver, e
 
 // GetPendingDriversWithTotal retrieves pending (not yet approved) drivers with pagination and total count
 func (r *Repository) GetPendingDriversWithTotal(ctx context.Context, limit, offset int) ([]*models.Driver, int64, error) {
-	// Get total count of pending drivers (is_available = false means pending approval)
+	// Get total count of pending drivers
 	var total int64
-	countQuery := `SELECT COUNT(*) FROM drivers WHERE is_available = false`
+	countQuery := `SELECT COUNT(*) FROM drivers WHERE approval_status = 'pending'`
 	err := r.db.QueryRow(ctx, countQuery).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to count pending drivers: %w", err)
@@ -472,9 +483,10 @@ func (r *Repository) GetPendingDriversWithTotal(ctx context.Context, limit, offs
 	query := `
 		SELECT d.id, d.user_id, d.license_number, d.vehicle_model, d.vehicle_plate,
 		       d.vehicle_color, d.vehicle_year, d.is_available, d.is_online,
+		       d.approval_status, d.approved_by, d.approved_at, d.rejection_reason, d.rejected_at,
 		       d.rating, d.total_rides, d.created_at, d.updated_at
 		FROM drivers d
-		WHERE d.is_available = false
+		WHERE d.approval_status = 'pending'
 		ORDER BY d.created_at DESC
 		LIMIT $1 OFFSET $2
 	`
@@ -499,6 +511,11 @@ func (r *Repository) GetPendingDriversWithTotal(ctx context.Context, limit, offs
 			&driver.VehicleYear,
 			&driver.IsAvailable,
 			&driver.IsOnline,
+			&driver.ApprovalStatus,
+			&driver.ApprovedBy,
+			&driver.ApprovedAt,
+			&driver.RejectionReason,
+			&driver.RejectedAt,
 			&driver.Rating,
 			&driver.TotalRides,
 			&driver.CreatedAt,
@@ -550,7 +567,13 @@ func (r *Repository) GetDriverByID(ctx context.Context, driverID uuid.UUID) (*mo
 
 // ApproveDriver sets a driver as available (simplified approval)
 func (r *Repository) ApproveDriver(ctx context.Context, driverID uuid.UUID) error {
-	query := `UPDATE drivers SET is_available = true, updated_at = $1 WHERE id = $2`
+	query := `
+		UPDATE drivers
+		SET approval_status = 'approved',
+		    approved_at = $1,
+		    updated_at = $1
+		WHERE id = $2
+	`
 
 	result, err := r.db.Exec(ctx, query, time.Now(), driverID)
 	if err != nil {
@@ -564,9 +587,15 @@ func (r *Repository) ApproveDriver(ctx context.Context, driverID uuid.UUID) erro
 	return nil
 }
 
-// RejectDriver sets a driver as unavailable
+// RejectDriver sets a driver as rejected with optional reason
 func (r *Repository) RejectDriver(ctx context.Context, driverID uuid.UUID) error {
-	query := `UPDATE drivers SET is_available = false, updated_at = $1 WHERE id = $2`
+	query := `
+		UPDATE drivers
+		SET approval_status = 'rejected',
+		    rejected_at = $1,
+		    updated_at = $1
+		WHERE id = $2
+	`
 
 	result, err := r.db.Exec(ctx, query, time.Now(), driverID)
 	if err != nil {
@@ -996,7 +1025,7 @@ func (r *Repository) GetRealtimeMetrics(ctx context.Context) (*RealtimeMetrics, 
 	}
 
 	// Get available drivers count
-	err = r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_available = true AND is_online = true`).Scan(&metrics.AvailableDrivers)
+	err = r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_available = true AND is_online = true AND approval_status = 'approved'`).Scan(&metrics.AvailableDrivers)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get available drivers: %w", err)
 	}
@@ -1144,13 +1173,13 @@ func (r *Repository) GetDashboardSummary(ctx context.Context, period string) (*D
 	}
 
 	// Get driver statistics
-	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_available = true`).Scan(&summary.Drivers.TotalActive)
-	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_online = true`).Scan(&summary.Drivers.OnlineNow)
-	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_online = true AND is_available = true`).Scan(&summary.Drivers.AvailableNow)
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE approval_status = 'approved'`).Scan(&summary.Drivers.TotalActive)
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_online = true AND approval_status = 'approved'`).Scan(&summary.Drivers.OnlineNow)
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_online = true AND is_available = true AND approval_status = 'approved'`).Scan(&summary.Drivers.AvailableNow)
 
 	summary.Drivers.BusyNow = summary.Drivers.OnlineNow - summary.Drivers.AvailableNow
 
-	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_available = false`).Scan(&summary.Drivers.PendingApprovals)
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE approval_status = 'pending'`).Scan(&summary.Drivers.PendingApprovals)
 	r.db.QueryRow(ctx, `SELECT COALESCE(AVG(rating), 0) FROM drivers WHERE rating > 0`).Scan(&summary.Drivers.AvgRating)
 
 	// New driver signups in period
@@ -1413,8 +1442,8 @@ func (r *Repository) GetActionItems(ctx context.Context) (*ActionItems, error) {
 	}
 
 	// Get pending driver approvals
-	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_available = false`).Scan(&items.PendingDriverApprovals.Count)
-	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE is_available = false AND created_at < NOW() - INTERVAL '24 hours'`).Scan(&items.PendingDriverApprovals.UrgentCount)
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE approval_status = 'pending'`).Scan(&items.PendingDriverApprovals.Count)
+	r.db.QueryRow(ctx, `SELECT COUNT(*) FROM drivers WHERE approval_status = 'pending' AND created_at < NOW() - INTERVAL '24 hours'`).Scan(&items.PendingDriverApprovals.UrgentCount)
 
 	// Get first 5 pending drivers
 	rows, err := r.db.Query(ctx, `
@@ -1422,7 +1451,7 @@ func (r *Repository) GetActionItems(ctx context.Context) (*ActionItems, error) {
 		       EXTRACT(DAY FROM (NOW() - d.created_at)) as days_waiting
 		FROM drivers d
 		JOIN users u ON d.user_id = u.id
-		WHERE d.is_available = false
+		WHERE d.approval_status = 'pending'
 		ORDER BY d.created_at ASC
 		LIMIT 5
 	`)
