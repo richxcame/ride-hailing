@@ -496,8 +496,8 @@ func TestCancellationRecord_Fields(t *testing.T) {
 		FeeWaived:           false,
 		MinutesSinceRequest: 3.5,
 		RideStatus:          string(models.RideStatusAccepted),
-		PickupLat:           40.7128,
-		PickupLng:           -74.0060,
+		PickupLatitude:           40.7128,
+		PickupLongitude:           -74.0060,
 		CancelledAt:         now,
 		CreatedAt:           now,
 	}

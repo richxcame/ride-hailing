@@ -31,7 +31,7 @@ type ServiceInterface interface {
 	RateDelivery(ctx interface{}, deliveryID, userID uuid.UUID, req *RateDeliveryRequest) error
 	GetStats(ctx interface{}, userID uuid.UUID) (*DeliveryStats, error)
 	TrackDelivery(ctx interface{}, code string) (*DeliveryResponse, error)
-	GetAvailableDeliveries(ctx interface{}, lat, lng float64) ([]*Delivery, error)
+	GetAvailableDeliveries(ctx interface{}, latitude, longitude float64) ([]*Delivery, error)
 	AcceptDelivery(ctx interface{}, deliveryID, driverID uuid.UUID) (*DeliveryResponse, error)
 	ConfirmPickup(ctx interface{}, deliveryID, driverID uuid.UUID, req *ConfirmPickupRequest) error
 	UpdateStatus(ctx interface{}, deliveryID, driverID uuid.UUID, status DeliveryStatus) error
@@ -105,8 +105,8 @@ func (m *MockService) TrackDelivery(ctx interface{}, code string) (*DeliveryResp
 	return args.Get(0).(*DeliveryResponse), args.Error(1)
 }
 
-func (m *MockService) GetAvailableDeliveries(ctx interface{}, lat, lng float64) ([]*Delivery, error) {
-	args := m.Called(ctx, lat, lng)
+func (m *MockService) GetAvailableDeliveries(ctx interface{}, latitude, longitude float64) ([]*Delivery, error) {
+	args := m.Called(ctx, latitude, longitude)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -385,17 +385,17 @@ func (h *MockableHandler) GetAvailableDeliveries(c *gin.Context) {
 		return
 	}
 
-	var lat, lng float64
-	if _, err := parseFloat(latStr, &lat); err != nil {
+	var latitude, longitude float64
+	if _, err := parseFloat(latStr, &latitude); err != nil {
 		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitude")
 		return
 	}
-	if _, err := parseFloat(lngStr, &lng); err != nil {
+	if _, err := parseFloat(lngStr, &longitude); err != nil {
 		common.ErrorResponse(c, http.StatusBadRequest, "invalid longitude")
 		return
 	}
 
-	deliveries, err := h.service.GetAvailableDeliveries(c.Request.Context(), lat, lng)
+	deliveries, err := h.service.GetAvailableDeliveries(c.Request.Context(), latitude, longitude)
 	if err != nil {
 		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get available deliveries")
 		return

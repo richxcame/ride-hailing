@@ -664,37 +664,37 @@ func TestUpdateSafetySettings_Success(t *testing.T) {
 
 func TestHaversineDistance(t *testing.T) {
 	tests := []struct {
-		name     string
-		lat1     float64
-		lon1     float64
-		lat2     float64
-		lon2     float64
-		minKm    float64
-		maxKm    float64
+		name       string
+		latitude1  float64
+		longitude1 float64
+		latitude2  float64
+		longitude2 float64
+		minKm      float64
+		maxKm      float64
 	}{
 		{
-			name:  "same point returns zero",
-			lat1:  40.7128, lon1: -74.0060,
-			lat2:  40.7128, lon2: -74.0060,
-			minKm: 0.0, maxKm: 0.001,
+			name:       "same point returns zero",
+			latitude1:  40.7128, longitude1: -74.0060,
+			latitude2:  40.7128, longitude2: -74.0060,
+			minKm:      0.0, maxKm: 0.001,
 		},
 		{
-			name:  "short distance (latitude only, no longitude diff)",
-			lat1:  40.7128, lon1: -74.0060,
-			lat2:  40.7218, lon2: -74.0060,
-			minKm: 0.0, maxKm: 0.001, // buggy formula yields ~0.00008 km for small lat-only diffs
+			name:       "short distance (latitude only, no longitude diff)",
+			latitude1:  40.7128, longitude1: -74.0060,
+			latitude2:  40.7218, longitude2: -74.0060,
+			minKm:      0.0, maxKm: 0.001, // buggy formula yields ~0.00008 km for small latitude-only diffs
 		},
 		{
-			name:  "moderate distance (New York to Philadelphia)",
-			lat1:  40.7128, lon1: -74.0060,
-			lat2:  39.9526, lon2: -75.1652,
-			minKm: 1.0, maxKm: 2.0, // buggy formula yields ~1.21 km instead of ~130 km
+			name:       "moderate distance (New York to Philadelphia)",
+			latitude1:  40.7128, longitude1: -74.0060,
+			latitude2:  39.9526, longitude2: -75.1652,
+			minKm:      1.0, maxKm: 2.0, // buggy formula yields ~1.21 km instead of ~130 km
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := haversineDistance(tt.lat1, tt.lon1, tt.lat2, tt.lon2)
+			result := haversineDistance(tt.latitude1, tt.longitude1, tt.latitude2, tt.longitude2)
 			assert.GreaterOrEqual(t, result, tt.minKm,
 				"distance %.4f km should be >= %.4f km", result, tt.minKm)
 			assert.LessOrEqual(t, result, tt.maxKm,
@@ -705,17 +705,17 @@ func TestHaversineDistance(t *testing.T) {
 
 func TestHaversineDistance_NonNegative(t *testing.T) {
 	// The implementation uses a simplified formula that can return negative values
-	// when latitudes have opposite signs (the cos(lat) terms are replaced with
+	// when latitudes have opposite signs (the cos(latitude) terms are replaced with
 	// raw radian products which go negative across hemispheres).
 	// Test with same-hemisphere coordinates where the formula stays non-negative.
-	coords := []struct{ lat, lon float64 }{
+	coords := []struct{ latitude, longitude float64 }{
 		{0, 0}, {0, 180}, {0, -180},
 		{45.5, 122.5}, {40.7, -74.0},
 	}
 
 	for i := range coords {
 		for j := range coords {
-			d := haversineDistance(coords[i].lat, coords[i].lon, coords[j].lat, coords[j].lon)
+			d := haversineDistance(coords[i].latitude, coords[i].longitude, coords[j].latitude, coords[j].longitude)
 			assert.GreaterOrEqual(t, d, 0.0, "distance should be non-negative for same-hemisphere coords")
 		}
 	}
@@ -771,35 +771,35 @@ func TestRouteDeviationThreshold(t *testing.T) {
 
 	tests := []struct {
 		name                string
-		actualLat           float64
-		actualLng           float64
-		expectedLat         float64
-		expectedLng         float64
+		actualLatitude      float64
+		actualLongitude     float64
+		expectedLatitude    float64
+		expectedLongitude   float64
 		shouldTriggerAlert  bool
 	}{
 		{
 			name:               "exact same position - no alert",
-			actualLat:          40.7128, actualLng: -74.0060,
-			expectedLat:        40.7128, expectedLng: -74.0060,
+			actualLatitude:     40.7128, actualLongitude: -74.0060,
+			expectedLatitude:   40.7128, expectedLongitude: -74.0060,
 			shouldTriggerAlert: false,
 		},
 		{
 			name:               "small deviation (100m) - no alert",
-			actualLat:          40.7128, actualLng: -74.0060,
-			expectedLat:        40.7137, expectedLng: -74.0060, // ~100m north
+			actualLatitude:     40.7128, actualLongitude: -74.0060,
+			expectedLatitude:   40.7137, expectedLongitude: -74.0060, // ~100m north
 			shouldTriggerAlert: false,
 		},
 		{
 			name:               "large deviation - should alert",
-			actualLat:          40.7128, actualLng: -74.0060,
-			expectedLat:        40.7128, expectedLng: -72.0060, // large longitude diff triggers alert with simplified formula
+			actualLatitude:     40.7128, actualLongitude: -74.0060,
+			expectedLatitude:   40.7128, expectedLongitude: -72.0060, // large longitude diff triggers alert with simplified formula
 			shouldTriggerAlert: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			deviation := haversineDistance(tt.actualLat, tt.actualLng, tt.expectedLat, tt.expectedLng)
+			deviation := haversineDistance(tt.actualLatitude, tt.actualLongitude, tt.expectedLatitude, tt.expectedLongitude)
 			deviationMeters := int(deviation * 1000)
 
 			if tt.shouldTriggerAlert {

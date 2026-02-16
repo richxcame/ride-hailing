@@ -148,14 +148,14 @@ type mockSurgeCalculator struct {
 	err        error
 }
 
-func (m *mockSurgeCalculator) CalculateSurgeMultiplier(ctx context.Context, lat, lon float64) (float64, error) {
+func (m *mockSurgeCalculator) CalculateSurgeMultiplier(ctx context.Context, latitude, longitude float64) (float64, error) {
 	if m.err != nil {
 		return 0, m.err
 	}
 	return m.multiplier, nil
 }
 
-func (m *mockSurgeCalculator) GetCurrentSurgeInfo(ctx context.Context, lat, lon float64) (map[string]interface{}, error) {
+func (m *mockSurgeCalculator) GetCurrentSurgeInfo(ctx context.Context, latitude, longitude float64) (map[string]interface{}, error) {
 	return map[string]interface{}{"multiplier": m.multiplier}, nil
 }
 

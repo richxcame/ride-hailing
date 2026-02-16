@@ -82,17 +82,17 @@ func TestValidatePhoneNumber(t *testing.T) {
 func TestValidateCoordinates(t *testing.T) {
 	tests := []struct {
 		name      string
-		lat       float64
-		lon       float64
+		latitude       float64
+		longitude       float64
 		expectErr bool
 		errSubstr string
 	}{
 		{"valid origin", 0, 0, false, ""},
 		{"valid NYC", 40.7128, -74.0060, false, ""},
-		{"valid max lat", 90, 0, false, ""},
-		{"valid min lat", -90, 0, false, ""},
-		{"valid max lon", 0, 180, false, ""},
-		{"valid min lon", 0, -180, false, ""},
+		{"valid max latitude", 90, 0, false, ""},
+		{"valid min latitude", -90, 0, false, ""},
+		{"valid max longitude", 0, 180, false, ""},
+		{"valid min longitude", 0, -180, false, ""},
 		{"valid boundary corners", 90, 180, false, ""},
 		{"lat too high", 90.1, 0, true, "latitude"},
 		{"lat too low", -90.1, 0, true, "latitude"},
@@ -103,7 +103,7 @@ func TestValidateCoordinates(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateCoordinates(tt.lat, tt.lon)
+			err := ValidateCoordinates(tt.latitude, tt.longitude)
 			if tt.expectErr {
 				assert.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errSubstr)
@@ -657,11 +657,11 @@ func TestValidateStruct_WalletTopUpRequest_AmountTooHigh(t *testing.T) {
 
 func TestValidateRideRequest_Valid(t *testing.T) {
 	req := &CreateRideRequest{
-		PickupLat:   40.7128,
-		PickupLon:   -74.0060,
+		PickupLatitude:   40.7128,
+		PickupLongitude:   -74.0060,
 		PickupAddr:  "123 Main Street, New York",
-		DropoffLat:  40.7580,
-		DropoffLon:  -73.9855,
+		DropoffLatitude:  40.7580,
+		DropoffLongitude:  -73.9855,
 		DropoffAddr: "456 Broadway, New York",
 		RideType:    "economy",
 	}
@@ -670,11 +670,11 @@ func TestValidateRideRequest_Valid(t *testing.T) {
 
 func TestValidateRideRequest_SamePickupDropoff(t *testing.T) {
 	req := &CreateRideRequest{
-		PickupLat:   40.7128,
-		PickupLon:   -74.0060,
+		PickupLatitude:   40.7128,
+		PickupLongitude:   -74.0060,
 		PickupAddr:  "123 Main Street, New York",
-		DropoffLat:  40.7128,
-		DropoffLon:  -74.0060,
+		DropoffLatitude:  40.7128,
+		DropoffLongitude:  -74.0060,
 		DropoffAddr: "123 Main Street, New York",
 		RideType:    "economy",
 	}
@@ -690,11 +690,11 @@ func TestValidateRideRequest_SamePickupDropoff(t *testing.T) {
 func TestValidateRideRequest_ScheduledInPast(t *testing.T) {
 	pastTime := time.Now().Add(-time.Hour)
 	req := &CreateRideRequest{
-		PickupLat:    40.7128,
-		PickupLon:    -74.0060,
+		PickupLatitude:    40.7128,
+		PickupLongitude:    -74.0060,
 		PickupAddr:   "123 Main Street, New York",
-		DropoffLat:   40.7580,
-		DropoffLon:   -73.9855,
+		DropoffLatitude:   40.7580,
+		DropoffLongitude:   -73.9855,
 		DropoffAddr:  "456 Broadway, New York",
 		RideType:     "economy",
 		ScheduledFor: &pastTime,
@@ -711,11 +711,11 @@ func TestValidateRideRequest_ScheduledInPast(t *testing.T) {
 func TestValidateRideRequest_ScheduledInFuture(t *testing.T) {
 	futureTime := time.Now().Add(2 * time.Hour)
 	req := &CreateRideRequest{
-		PickupLat:    40.7128,
-		PickupLon:    -74.0060,
+		PickupLatitude:    40.7128,
+		PickupLongitude:    -74.0060,
 		PickupAddr:   "123 Main Street, New York",
-		DropoffLat:   40.7580,
-		DropoffLon:   -73.9855,
+		DropoffLatitude:   40.7580,
+		DropoffLongitude:   -73.9855,
 		DropoffAddr:  "456 Broadway, New York",
 		RideType:     "economy",
 		ScheduledFor: &futureTime,
@@ -725,11 +725,11 @@ func TestValidateRideRequest_ScheduledInFuture(t *testing.T) {
 
 func TestValidateRideRequest_InvalidRideType(t *testing.T) {
 	req := &CreateRideRequest{
-		PickupLat:   40.7128,
-		PickupLon:   -74.0060,
+		PickupLatitude:   40.7128,
+		PickupLongitude:   -74.0060,
 		PickupAddr:  "123 Main Street, New York",
-		DropoffLat:  40.7580,
-		DropoffLon:  -73.9855,
+		DropoffLatitude:  40.7580,
+		DropoffLongitude:  -73.9855,
 		DropoffAddr: "456 Broadway, New York",
 		RideType:    "helicopter",
 	}
@@ -779,11 +779,11 @@ func TestValidateStruct_CreateRideRequest_RideTypes(t *testing.T) {
 	for _, rt := range validTypes {
 		t.Run("valid_"+rt, func(t *testing.T) {
 			req := CreateRideRequest{
-				PickupLat:   40.7128,
-				PickupLon:   -74.0060,
+				PickupLatitude:   40.7128,
+				PickupLongitude:   -74.0060,
 				PickupAddr:  "123 Main Street, New York",
-				DropoffLat:  40.7580,
-				DropoffLon:  -73.9855,
+				DropoffLatitude:  40.7580,
+				DropoffLongitude:  -73.9855,
 				DropoffAddr: "456 Broadway, New York",
 				RideType:    rt,
 			}

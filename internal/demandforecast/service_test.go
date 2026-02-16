@@ -92,8 +92,8 @@ func (m *mockRepository) GetUpcomingEvents(ctx context.Context, startTime, endTi
 	return events, args.Error(1)
 }
 
-func (m *mockRepository) GetEventsNearLocation(ctx context.Context, lat, lng float64, radiusKm float64, timeWindow time.Duration) ([]*SpecialEvent, error) {
-	args := m.Called(ctx, lat, lng, radiusKm, timeWindow)
+func (m *mockRepository) GetEventsNearLocation(ctx context.Context, latitude, longitude float64, radiusKm float64, timeWindow time.Duration) ([]*SpecialEvent, error) {
+	args := m.Called(ctx, latitude, longitude, radiusKm, timeWindow)
 	events, _ := args.Get(0).([]*SpecialEvent)
 	return events, args.Error(1)
 }
@@ -118,14 +118,14 @@ type mockWeatherService struct {
 	mock.Mock
 }
 
-func (m *mockWeatherService) GetCurrentWeather(ctx context.Context, lat, lng float64) (*WeatherData, error) {
-	args := m.Called(ctx, lat, lng)
+func (m *mockWeatherService) GetCurrentWeather(ctx context.Context, latitude, longitude float64) (*WeatherData, error) {
+	args := m.Called(ctx, latitude, longitude)
 	weather, _ := args.Get(0).(*WeatherData)
 	return weather, args.Error(1)
 }
 
-func (m *mockWeatherService) GetForecast(ctx context.Context, lat, lng float64, hours int) ([]WeatherData, error) {
-	args := m.Called(ctx, lat, lng, hours)
+func (m *mockWeatherService) GetForecast(ctx context.Context, latitude, longitude float64, hours int) ([]WeatherData, error) {
+	args := m.Called(ctx, latitude, longitude, hours)
 	forecast, _ := args.Get(0).([]WeatherData)
 	return forecast, args.Error(1)
 }
@@ -139,8 +139,8 @@ func (m *mockDriverLocationService) GetDriverCountInCell(ctx context.Context, h3
 	return args.Int(0), args.Error(1)
 }
 
-func (m *mockDriverLocationService) GetNearbyDriverCount(ctx context.Context, lat, lng float64, radiusKm float64) (int, error) {
-	args := m.Called(ctx, lat, lng, radiusKm)
+func (m *mockDriverLocationService) GetNearbyDriverCount(ctx context.Context, latitude, longitude float64, radiusKm float64) (int, error) {
+	args := m.Called(ctx, latitude, longitude, radiusKm)
 	return args.Int(0), args.Error(1)
 }
 
@@ -1021,7 +1021,7 @@ func TestGeneratePredictionSuccess(t *testing.T) {
 
 	service := newTestService(repo, weatherSvc, driverSvc, nil)
 
-	lat, lng := 40.7128, -74.0060 // NYC coordinates
+	latitude, longitude := 40.7128, -74.0060 // NYC coordinates
 
 	// Setup mocks
 	repo.On("GetHistoricalAverage", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("int"), mock.AnythingOfType("int"), 8).
@@ -1038,7 +1038,7 @@ func TestGeneratePredictionSuccess(t *testing.T) {
 	repo.On("GetRecentDemand", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(10, nil).Maybe()
 	repo.On("SavePrediction", ctx, mock.AnythingOfType("*demandforecast.DemandPrediction")).Return(nil)
 
-	result, err := service.GeneratePrediction(ctx, lat, lng, Timeframe30Min)
+	result, err := service.GeneratePrediction(ctx, latitude, longitude, Timeframe30Min)
 
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1068,7 +1068,7 @@ func TestGeneratePredictionWithoutOptionalServices(t *testing.T) {
 		EventsEnabled:     false,
 	})
 
-	lat, lng := 40.7128, -74.0060
+	latitude, longitude := 40.7128, -74.0060
 
 	repo.On("GetHistoricalAverage", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("int"), mock.AnythingOfType("int"), 8).
 		Return(20.0, 5.0, nil)
@@ -1079,7 +1079,7 @@ func TestGeneratePredictionWithoutOptionalServices(t *testing.T) {
 	repo.On("GetRecentDemand", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(10, nil).Maybe()
 	repo.On("SavePrediction", ctx, mock.AnythingOfType("*demandforecast.DemandPrediction")).Return(nil)
 
-	result, err := service.GeneratePrediction(ctx, lat, lng, Timeframe30Min)
+	result, err := service.GeneratePrediction(ctx, latitude, longitude, Timeframe30Min)
 
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1097,7 +1097,7 @@ func TestGeneratePredictionSavesEvenOnSaveError(t *testing.T) {
 		EventsEnabled:     false,
 	})
 
-	lat, lng := 40.7128, -74.0060
+	latitude, longitude := 40.7128, -74.0060
 
 	repo.On("GetHistoricalAverage", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("int"), mock.AnythingOfType("int"), 8).
 		Return(20.0, 5.0, nil)
@@ -1110,7 +1110,7 @@ func TestGeneratePredictionSavesEvenOnSaveError(t *testing.T) {
 		Return(errors.New("database error"))
 
 	// Should still return prediction even if save fails
-	result, err := service.GeneratePrediction(ctx, lat, lng, Timeframe30Min)
+	result, err := service.GeneratePrediction(ctx, latitude, longitude, Timeframe30Min)
 
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -1882,40 +1882,40 @@ func TestCalculatePriority(t *testing.T) {
 
 func TestHaversineDistance(t *testing.T) {
 	tests := []struct {
-		name     string
-		lat1     float64
-		lon1     float64
-		lat2     float64
-		lon2     float64
-		expected float64
-		delta    float64
+		name       string
+		latitude1  float64
+		longitude1 float64
+		latitude2  float64
+		longitude2 float64
+		expected   float64
+		delta      float64
 	}{
 		{
-			name:     "same point returns zero",
-			lat1:     40.7128, lon1: -74.0060,
-			lat2:     40.7128, lon2: -74.0060,
-			expected: 0.0,
-			delta:    0.001,
+			name:       "same point returns zero",
+			latitude1:  40.7128, longitude1: -74.0060,
+			latitude2:  40.7128, longitude2: -74.0060,
+			expected:   0.0,
+			delta:      0.001,
 		},
 		{
-			name:     "NYC to LA approximately 3944 km",
-			lat1:     40.7128, lon1: -74.0060,
-			lat2:     34.0522, lon2: -118.2437,
-			expected: 3944.0,
-			delta:    50.0,
+			name:       "NYC to LA approximately 3944 km",
+			latitude1:  40.7128, longitude1: -74.0060,
+			latitude2:  34.0522, longitude2: -118.2437,
+			expected:   3944.0,
+			delta:      50.0,
 		},
 		{
-			name:     "short distance within city about 1 km",
-			lat1:     40.7128, lon1: -74.0060,
-			lat2:     40.7218, lon2: -74.0060,
-			expected: 1.0,
-			delta:    0.1,
+			name:       "short distance within city about 1 km",
+			latitude1:  40.7128, longitude1: -74.0060,
+			latitude2:  40.7218, longitude2: -74.0060,
+			expected:   1.0,
+			delta:      0.1,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := haversineDistance(tt.lat1, tt.lon1, tt.lat2, tt.lon2)
+			result := haversineDistance(tt.latitude1, tt.longitude1, tt.latitude2, tt.longitude2)
 			assert.InDelta(t, tt.expected, result, tt.delta)
 		})
 	}
@@ -2091,8 +2091,8 @@ func TestGeneratePredictionsForAreaSuccess(t *testing.T) {
 	service := newTestService(repo, weatherSvc, driverSvc, nil)
 
 	// Small bounding box to generate few cells
-	minLat, minLng := 40.712, -74.006
-	maxLat, maxLng := 40.714, -74.004
+	minLatitude, minLongitude := 40.712, -74.006
+	maxLatitude, maxLongitude := 40.714, -74.004
 
 	// Setup mocks for each prediction (allow any calls)
 	repo.On("GetHistoricalAverage", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("int"), mock.AnythingOfType("int"), 8).
@@ -2109,7 +2109,7 @@ func TestGeneratePredictionsForAreaSuccess(t *testing.T) {
 	repo.On("GetRecentDemand", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(10, nil).Maybe()
 	repo.On("SavePrediction", ctx, mock.AnythingOfType("*demandforecast.DemandPrediction")).Return(nil)
 
-	result, err := service.GeneratePredictionsForArea(ctx, minLat, minLng, maxLat, maxLng, Timeframe30Min)
+	result, err := service.GeneratePredictionsForArea(ctx, minLatitude, minLongitude, maxLatitude, maxLongitude, Timeframe30Min)
 
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2456,7 +2456,7 @@ func TestBuildFeaturesWithAllServices(t *testing.T) {
 
 	service := newTestService(repo, weatherSvc, driverSvc, nil)
 
-	lat, lng := 40.7128, -74.0060
+	latitude, longitude := 40.7128, -74.0060
 
 	// Setup all mocks
 	repo.On("GetHistoricalAverage", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("int"), mock.AnythingOfType("int"), 8).
@@ -2487,7 +2487,7 @@ func TestBuildFeaturesWithAllServices(t *testing.T) {
 	repo.On("GetRecentDemand", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(15, nil).Maybe()
 	repo.On("SavePrediction", ctx, mock.AnythingOfType("*demandforecast.DemandPrediction")).Return(nil)
 
-	result, err := service.GeneratePrediction(ctx, lat, lng, Timeframe30Min)
+	result, err := service.GeneratePrediction(ctx, latitude, longitude, Timeframe30Min)
 
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2504,7 +2504,7 @@ func TestBuildFeaturesWeatherServiceError(t *testing.T) {
 
 	service := newTestService(repo, weatherSvc, driverSvc, nil)
 
-	lat, lng := 40.7128, -74.0060
+	latitude, longitude := 40.7128, -74.0060
 
 	repo.On("GetHistoricalAverage", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("int"), mock.AnythingOfType("int"), 8).
 		Return(20.0, 5.0, nil)
@@ -2524,7 +2524,7 @@ func TestBuildFeaturesWeatherServiceError(t *testing.T) {
 	repo.On("SavePrediction", ctx, mock.AnythingOfType("*demandforecast.DemandPrediction")).Return(nil)
 
 	// Should still work despite weather error
-	result, err := service.GeneratePrediction(ctx, lat, lng, Timeframe30Min)
+	result, err := service.GeneratePrediction(ctx, latitude, longitude, Timeframe30Min)
 
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2542,7 +2542,7 @@ func TestBuildFeaturesDriverServiceError(t *testing.T) {
 		EventsEnabled:     false,
 	})
 
-	lat, lng := 40.7128, -74.0060
+	latitude, longitude := 40.7128, -74.0060
 
 	repo.On("GetHistoricalAverage", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("int"), mock.AnythingOfType("int"), 8).
 		Return(20.0, 5.0, nil)
@@ -2558,7 +2558,7 @@ func TestBuildFeaturesDriverServiceError(t *testing.T) {
 	repo.On("SavePrediction", ctx, mock.AnythingOfType("*demandforecast.DemandPrediction")).Return(nil)
 
 	// Should still work despite driver service error
-	result, err := service.GeneratePrediction(ctx, lat, lng, Timeframe30Min)
+	result, err := service.GeneratePrediction(ctx, latitude, longitude, Timeframe30Min)
 
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2571,7 +2571,7 @@ func TestBuildFeaturesEventServiceError(t *testing.T) {
 
 	service := newTestService(repo, weatherSvc, nil, nil)
 
-	lat, lng := 40.7128, -74.0060
+	latitude, longitude := 40.7128, -74.0060
 
 	repo.On("GetHistoricalAverage", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("int"), mock.AnythingOfType("int"), 8).
 		Return(20.0, 5.0, nil)
@@ -2590,7 +2590,7 @@ func TestBuildFeaturesEventServiceError(t *testing.T) {
 	repo.On("SavePrediction", ctx, mock.AnythingOfType("*demandforecast.DemandPrediction")).Return(nil)
 
 	// Should still work despite events error
-	result, err := service.GeneratePrediction(ctx, lat, lng, Timeframe30Min)
+	result, err := service.GeneratePrediction(ctx, latitude, longitude, Timeframe30Min)
 
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2607,7 +2607,7 @@ func TestBuildFeaturesMultipleEventsUsesLargest(t *testing.T) {
 		EventsEnabled:     true,
 	})
 
-	lat, lng := 40.7128, -74.0060
+	latitude, longitude := 40.7128, -74.0060
 
 	repo.On("GetHistoricalAverage", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("int"), mock.AnythingOfType("int"), 8).
 		Return(20.0, 5.0, nil)
@@ -2627,7 +2627,7 @@ func TestBuildFeaturesMultipleEventsUsesLargest(t *testing.T) {
 	repo.On("GetRecentDemand", ctx, mock.AnythingOfType("string"), mock.AnythingOfType("int")).Return(10, nil).Maybe()
 	repo.On("SavePrediction", ctx, mock.AnythingOfType("*demandforecast.DemandPrediction")).Return(nil)
 
-	result, err := service.GeneratePrediction(ctx, lat, lng, Timeframe30Min)
+	result, err := service.GeneratePrediction(ctx, latitude, longitude, Timeframe30Min)
 
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -2804,12 +2804,12 @@ func TestGetDemandHeatmapFiltersOutOfBounds(t *testing.T) {
 	assert.NotNil(t, result)
 	// LA prediction should be filtered out
 	for _, zone := range result.Zones {
-		lat := zone.CenterLatitude
-		lng := zone.CenterLongitude
-		assert.GreaterOrEqual(t, lat, req.MinLatitude, "zone lat should be >= min")
-		assert.LessOrEqual(t, lat, req.MaxLatitude, "zone lat should be <= max")
-		assert.GreaterOrEqual(t, lng, req.MinLongitude, "zone lng should be >= min")
-		assert.LessOrEqual(t, lng, req.MaxLongitude, "zone lng should be <= max")
+		latitude := zone.CenterLatitude
+		longitude := zone.CenterLongitude
+		assert.GreaterOrEqual(t, latitude, req.MinLatitude, "zone latitude should be >= min")
+		assert.LessOrEqual(t, latitude, req.MaxLatitude, "zone latitude should be <= max")
+		assert.GreaterOrEqual(t, longitude, req.MinLongitude, "zone longitude should be >= min")
+		assert.LessOrEqual(t, longitude, req.MaxLongitude, "zone longitude should be <= max")
 	}
 }
 
@@ -3012,9 +3012,9 @@ func TestGeneratePredictionConcurrentSafety(t *testing.T) {
 
 	for i := 0; i < numGoroutines; i++ {
 		go func(i int) {
-			lat := 40.7128 + float64(i)*0.001
-			lng := -74.0060 + float64(i)*0.001
-			result, err := service.GeneratePrediction(ctx, lat, lng, Timeframe30Min)
+			latitude := 40.7128 + float64(i)*0.001
+			longitude := -74.0060 + float64(i)*0.001
+			result, err := service.GeneratePrediction(ctx, latitude, longitude, Timeframe30Min)
 			if err != nil {
 				errors <- err
 			} else {

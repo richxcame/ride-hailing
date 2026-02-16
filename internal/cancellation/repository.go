@@ -25,12 +25,12 @@ func (r *Repository) CreateCancellationRecord(ctx context.Context, rec *Cancella
 			id, ride_id, rider_id, driver_id, cancelled_by,
 			reason_code, reason_text, fee_amount, fee_waived, waiver_reason,
 			minutes_since_request, minutes_since_accept, ride_status_at_cancel,
-			pickup_lat, pickup_lng, cancelled_at, created_at
+			pickup_latitude, pickup_longitude, cancelled_at, created_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
 		rec.ID, rec.RideID, rec.RiderID, rec.DriverID, rec.CancelledBy,
 		rec.ReasonCode, rec.ReasonText, rec.FeeAmount, rec.FeeWaived, rec.WaiverReason,
 		rec.MinutesSinceRequest, rec.MinutesSinceAccept, rec.RideStatus,
-		rec.PickupLat, rec.PickupLng, rec.CancelledAt, rec.CreatedAt,
+		rec.PickupLatitude, rec.PickupLongitude, rec.CancelledAt, rec.CreatedAt,
 	)
 	return err
 }
@@ -42,13 +42,13 @@ func (r *Repository) GetCancellationByRideID(ctx context.Context, rideID uuid.UU
 		SELECT id, ride_id, rider_id, driver_id, cancelled_by,
 			reason_code, reason_text, fee_amount, fee_waived, waiver_reason,
 			minutes_since_request, minutes_since_accept, ride_status_at_cancel,
-			pickup_lat, pickup_lng, cancelled_at, created_at
+			pickup_latitude, pickup_longitude, cancelled_at, created_at
 		FROM cancellation_records WHERE ride_id = $1`, rideID,
 	).Scan(
 		&rec.ID, &rec.RideID, &rec.RiderID, &rec.DriverID, &rec.CancelledBy,
 		&rec.ReasonCode, &rec.ReasonText, &rec.FeeAmount, &rec.FeeWaived, &rec.WaiverReason,
 		&rec.MinutesSinceRequest, &rec.MinutesSinceAccept, &rec.RideStatus,
-		&rec.PickupLat, &rec.PickupLng, &rec.CancelledAt, &rec.CreatedAt,
+		&rec.PickupLatitude, &rec.PickupLongitude, &rec.CancelledAt, &rec.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -63,13 +63,13 @@ func (r *Repository) GetCancellationByID(ctx context.Context, id uuid.UUID) (*Ca
 		SELECT id, ride_id, rider_id, driver_id, cancelled_by,
 			reason_code, reason_text, fee_amount, fee_waived, waiver_reason,
 			minutes_since_request, minutes_since_accept, ride_status_at_cancel,
-			pickup_lat, pickup_lng, cancelled_at, created_at
+			pickup_latitude, pickup_longitude, cancelled_at, created_at
 		FROM cancellation_records WHERE id = $1`, id,
 	).Scan(
 		&rec.ID, &rec.RideID, &rec.RiderID, &rec.DriverID, &rec.CancelledBy,
 		&rec.ReasonCode, &rec.ReasonText, &rec.FeeAmount, &rec.FeeWaived, &rec.WaiverReason,
 		&rec.MinutesSinceRequest, &rec.MinutesSinceAccept, &rec.RideStatus,
-		&rec.PickupLat, &rec.PickupLng, &rec.CancelledAt, &rec.CreatedAt,
+		&rec.PickupLatitude, &rec.PickupLongitude, &rec.CancelledAt, &rec.CreatedAt,
 	)
 	if err != nil {
 		return nil, err
@@ -198,7 +198,7 @@ func (r *Repository) GetUserCancellationHistory(ctx context.Context, userID uuid
 		SELECT id, ride_id, rider_id, driver_id, cancelled_by,
 			reason_code, reason_text, fee_amount, fee_waived, waiver_reason,
 			minutes_since_request, minutes_since_accept, ride_status_at_cancel,
-			pickup_lat, pickup_lng, cancelled_at, created_at
+			pickup_latitude, pickup_longitude, cancelled_at, created_at
 		FROM cancellation_records
 		WHERE rider_id = $1 OR driver_id = $1
 		ORDER BY cancelled_at DESC
@@ -216,7 +216,7 @@ func (r *Repository) GetUserCancellationHistory(ctx context.Context, userID uuid
 			&rec.ID, &rec.RideID, &rec.RiderID, &rec.DriverID, &rec.CancelledBy,
 			&rec.ReasonCode, &rec.ReasonText, &rec.FeeAmount, &rec.FeeWaived, &rec.WaiverReason,
 			&rec.MinutesSinceRequest, &rec.MinutesSinceAccept, &rec.RideStatus,
-			&rec.PickupLat, &rec.PickupLng, &rec.CancelledAt, &rec.CreatedAt,
+			&rec.PickupLatitude, &rec.PickupLongitude, &rec.CancelledAt, &rec.CreatedAt,
 		); err != nil {
 			return nil, 0, err
 		}

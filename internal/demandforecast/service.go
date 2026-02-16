@@ -16,14 +16,14 @@ import (
 
 // WeatherService interface for fetching weather data
 type WeatherService interface {
-	GetCurrentWeather(ctx context.Context, lat, lng float64) (*WeatherData, error)
-	GetForecast(ctx context.Context, lat, lng float64, hours int) ([]WeatherData, error)
+	GetCurrentWeather(ctx context.Context, latitude, longitude float64) (*WeatherData, error)
+	GetForecast(ctx context.Context, latitude, longitude float64, hours int) ([]WeatherData, error)
 }
 
 // DriverLocationService interface for getting driver counts
 type DriverLocationService interface {
 	GetDriverCountInCell(ctx context.Context, h3Index string) (int, error)
-	GetNearbyDriverCount(ctx context.Context, lat, lng float64, radiusKm float64) (int, error)
+	GetNearbyDriverCount(ctx context.Context, latitude, longitude float64, radiusKm float64) (int, error)
 }
 
 // Config holds service configuration
@@ -102,8 +102,8 @@ func NewService(repo RepositoryInterface, weatherSvc WeatherService, driverSvc D
 // ========================================
 
 // GeneratePrediction generates a demand prediction for a location and timeframe
-func (s *Service) GeneratePrediction(ctx context.Context, lat, lng float64, timeframe PredictionTimeframe) (*DemandPrediction, error) {
-	h3Index := geo.LatLngToCell(lat, lng, s.config.H3Resolution).String()
+func (s *Service) GeneratePrediction(ctx context.Context, latitude, longitude float64, timeframe PredictionTimeframe) (*DemandPrediction, error) {
+	h3Index := geo.LatLngToCell(latitude, longitude, s.config.H3Resolution).String()
 	targetTime := s.getTargetTime(timeframe)
 
 	// Build features
@@ -141,14 +141,14 @@ func (s *Service) GeneratePrediction(ctx context.Context, lat, lng float64, time
 }
 
 // GeneratePredictionsForArea generates predictions for all cells in a bounding box
-func (s *Service) GeneratePredictionsForArea(ctx context.Context, minLat, minLng, maxLat, maxLng float64, timeframe PredictionTimeframe) ([]*DemandPrediction, error) {
+func (s *Service) GeneratePredictionsForArea(ctx context.Context, minLatitude, minLongitude, maxLatitude, maxLongitude float64, timeframe PredictionTimeframe) ([]*DemandPrediction, error) {
 	// Get all H3 cells that cover the area
-	cells := s.getCellsInBoundingBox(minLat, minLng, maxLat, maxLng)
+	cells := s.getCellsInBoundingBox(minLatitude, minLongitude, maxLatitude, maxLongitude)
 
 	var predictions []*DemandPrediction
 	for _, cell := range cells {
-		lat, lng := geo.CellToLatLng(cell)
-		pred, err := s.GeneratePrediction(ctx, lat, lng, timeframe)
+		latitude, longitude := geo.CellToLatLng(cell)
+		pred, err := s.GeneratePrediction(ctx, latitude, longitude, timeframe)
 		if err != nil {
 			continue
 		}
@@ -193,8 +193,8 @@ func (s *Service) buildFeatures(ctx context.Context, h3Index string, targetTime 
 	var weatherCode int
 	var temperature, precipProb float64
 	if s.weatherSvc != nil && s.config.WeatherEnabled {
-		lat, lng := geo.CellToLatLng(cell)
-		weather, err := s.weatherSvc.GetCurrentWeather(ctx, lat, lng)
+		latitude, longitude := geo.CellToLatLng(cell)
+		weather, err := s.weatherSvc.GetCurrentWeather(ctx, latitude, longitude)
 		if err == nil && weather != nil {
 			weatherCode = weather.ConditionCode
 			temperature = weather.Temperature
@@ -206,8 +206,8 @@ func (s *Service) buildFeatures(ctx context.Context, h3Index string, targetTime 
 	var eventNearby bool
 	var eventScale int
 	if s.config.EventsEnabled {
-		lat, lng := geo.CellToLatLng(cell)
-		events, err := s.repo.GetEventsNearLocation(ctx, lat, lng, 5.0, 2*time.Hour)
+		latitude, longitude := geo.CellToLatLng(cell)
+		events, err := s.repo.GetEventsNearLocation(ctx, latitude, longitude, 5.0, 2*time.Hour)
 		if err == nil && len(events) > 0 {
 			eventNearby = true
 			for _, e := range events {
@@ -338,7 +338,7 @@ func (s *Service) GetTopHotspots(ctx context.Context, timeframe PredictionTimefr
 	var hotspots []HotspotZone
 	for _, pred := range predictions {
 		cell := geo.StringToCell(pred.H3Index)
-		lat, lng := geo.CellToLatLng(cell)
+		latitude, longitude := geo.CellToLatLng(cell)
 
 		var currentDrivers int
 		if s.driverSvc != nil {
@@ -347,8 +347,8 @@ func (s *Service) GetTopHotspots(ctx context.Context, timeframe PredictionTimefr
 
 		hotspot := HotspotZone{
 			H3Index:         pred.H3Index,
-			CenterLatitude:  lat,
-			CenterLongitude: lng,
+			CenterLatitude: latitude,
+			CenterLongitude: longitude,
 			DemandLevel:     pred.DemandLevel,
 			PredictedRides:  pred.PredictedRides,
 			CurrentDrivers:  currentDrivers,
@@ -375,10 +375,10 @@ func (s *Service) GetDemandHeatmap(ctx context.Context, req *GetHeatmapRequest) 
 	var zones []HotspotZone
 	for _, pred := range predictions {
 		cell := geo.StringToCell(pred.H3Index)
-		lat, lng := geo.CellToLatLng(cell)
+		latitude, longitude := geo.CellToLatLng(cell)
 
-		if lat < req.MinLatitude || lat > req.MaxLatitude ||
-			lng < req.MinLongitude || lng > req.MaxLongitude {
+		if latitude < req.MinLatitude || latitude > req.MaxLatitude ||
+			longitude < req.MinLongitude || longitude > req.MaxLongitude {
 			continue
 		}
 
@@ -389,8 +389,8 @@ func (s *Service) GetDemandHeatmap(ctx context.Context, req *GetHeatmapRequest) 
 
 		zone := HotspotZone{
 			H3Index:         pred.H3Index,
-			CenterLatitude:  lat,
-			CenterLongitude: lng,
+			CenterLatitude: latitude,
+			CenterLongitude: longitude,
 			DemandLevel:     pred.DemandLevel,
 			PredictedRides:  pred.PredictedRides,
 			CurrentDrivers:  currentDrivers,
@@ -604,8 +604,8 @@ func (s *Service) RecordDemandSnapshot(ctx context.Context, h3Index string, ride
 	// Add weather if available
 	if s.weatherSvc != nil && s.config.WeatherEnabled {
 		cell := geo.StringToCell(h3Index)
-		lat, lng := geo.CellToLatLng(cell)
-		weather, err := s.weatherSvc.GetCurrentWeather(ctx, lat, lng)
+		latitude, longitude := geo.CellToLatLng(cell)
+		weather, err := s.weatherSvc.GetCurrentWeather(ctx, latitude, longitude)
 		if err == nil && weather != nil {
 			record.WeatherCondition = weather.Condition
 			record.Temperature = &weather.Temperature
@@ -922,7 +922,7 @@ func (s *Service) getRepositionReason(hotspot HotspotZone) string {
 	return "Better earnings opportunity"
 }
 
-func (s *Service) getCellsInBoundingBox(minLat, minLng, maxLat, maxLng float64) []h3.Cell {
+func (s *Service) getCellsInBoundingBox(minLatitude, minLongitude, maxLatitude, maxLongitude float64) []h3.Cell {
 	// Sample points across the bounding box and collect unique cells
 	cellMap := make(map[h3.Cell]bool)
 
@@ -930,9 +930,9 @@ func (s *Service) getCellsInBoundingBox(minLat, minLng, maxLat, maxLng float64) 
 	// H3 resolution 7 has ~1.2km edge length
 	step := 0.01 // ~1km in latitude
 
-	for lat := minLat; lat <= maxLat; lat += step {
-		for lng := minLng; lng <= maxLng; lng += step {
-			cell := geo.LatLngToCell(lat, lng, s.config.H3Resolution)
+	for latitude := minLatitude; latitude <= maxLatitude; latitude += step {
+		for longitude := minLongitude; longitude <= maxLongitude; longitude += step {
+			cell := geo.LatLngToCell(latitude, longitude, s.config.H3Resolution)
 			cellMap[cell] = true
 		}
 	}
@@ -950,17 +950,17 @@ func getWeekOfYear(t time.Time) int {
 	return week
 }
 
-func haversineDistance(lat1, lon1, lat2, lon2 float64) float64 {
+func haversineDistance(latitude1, longitude1, latitude2, longitude2 float64) float64 {
 	const R = 6371 // Earth's radius in km
 
-	lat1Rad := lat1 * math.Pi / 180
-	lat2Rad := lat2 * math.Pi / 180
-	deltaLat := (lat2 - lat1) * math.Pi / 180
-	deltaLon := (lon2 - lon1) * math.Pi / 180
+	latitude1Rad := latitude1 * math.Pi / 180
+	latitude2Rad := latitude2 * math.Pi / 180
+	deltaLatitude := (latitude2 - latitude1) * math.Pi / 180
+	deltaLongitude := (longitude2 - longitude1) * math.Pi / 180
 
-	a := math.Sin(deltaLat/2)*math.Sin(deltaLat/2) +
-		math.Cos(lat1Rad)*math.Cos(lat2Rad)*
-			math.Sin(deltaLon/2)*math.Sin(deltaLon/2)
+	a := math.Sin(deltaLatitude/2)*math.Sin(deltaLatitude/2) +
+		math.Cos(latitude1Rad)*math.Cos(latitude2Rad)*
+			math.Sin(deltaLongitude/2)*math.Sin(deltaLongitude/2)
 
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 

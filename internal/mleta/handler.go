@@ -26,7 +26,7 @@ func (h *Handler) PredictETA(c *gin.Context) {
 	}
 
 	// Validate coordinates
-	if req.PickupLat == 0 || req.PickupLng == 0 || req.DropoffLat == 0 || req.DropoffLng == 0 {
+	if req.PickupLatitude == 0 || req.PickupLongitude == 0 || req.DropoffLatitude == 0 || req.DropoffLongitude == 0 {
 		common.ErrorResponse(c, http.StatusBadRequest, "Invalid coordinates")
 		return
 	}

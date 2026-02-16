@@ -280,8 +280,8 @@ func (g *GeocodingService) GetPlaceDetails(ctx context.Context, placeID string) 
 			Types            []string `json:"types"`
 			Geometry         struct {
 				Location struct {
-					Lat float64 `json:"lat"`
-					Lng float64 `json:"lng"`
+					Latitude float64 `json:"lat"`
+					Longitude float64 `json:"lng"`
 				} `json:"location"`
 			} `json:"geometry"`
 		} `json:"result"`
@@ -299,10 +299,10 @@ func (g *GeocodingService) GetPlaceDetails(ctx context.Context, placeID string) 
 	result := &GeocodingResult{
 		PlaceID:          apiResp.Result.PlaceID,
 		FormattedAddress: apiResp.Result.FormattedAddress,
-		Latitude:         apiResp.Result.Geometry.Location.Lat,
-		Longitude:        apiResp.Result.Geometry.Location.Lng,
+		Latitude:         apiResp.Result.Geometry.Location.Latitude,
+		Longitude:        apiResp.Result.Geometry.Location.Longitude,
 		Types:            apiResp.Result.Types,
-		H3Cell:           GetMatchingCell(apiResp.Result.Geometry.Location.Lat, apiResp.Result.Geometry.Location.Lng),
+		H3Cell:           GetMatchingCell(apiResp.Result.Geometry.Location.Latitude, apiResp.Result.Geometry.Location.Longitude),
 	}
 
 	g.cacheResults(ctx, cacheKey, []*GeocodingResult{result}, geocodeCacheTTL)
@@ -324,8 +324,8 @@ func (g *GeocodingService) fetchGeocodingResults(ctx context.Context, reqURL str
 			Types            []string `json:"types"`
 			Geometry         struct {
 				Location struct {
-					Lat float64 `json:"lat"`
-					Lng float64 `json:"lng"`
+					Latitude float64 `json:"lat"`
+					Longitude float64 `json:"lng"`
 				} `json:"location"`
 			} `json:"geometry"`
 		} `json:"results"`
@@ -346,10 +346,10 @@ func (g *GeocodingService) fetchGeocodingResults(ctx context.Context, reqURL str
 		results = append(results, &GeocodingResult{
 			PlaceID:          r.PlaceID,
 			FormattedAddress: r.FormattedAddress,
-			Latitude:         r.Geometry.Location.Lat,
-			Longitude:        r.Geometry.Location.Lng,
+			Latitude:         r.Geometry.Location.Latitude,
+			Longitude:        r.Geometry.Location.Longitude,
 			Types:            r.Types,
-			H3Cell:           GetMatchingCell(r.Geometry.Location.Lat, r.Geometry.Location.Lng),
+			H3Cell:           GetMatchingCell(r.Geometry.Location.Latitude, r.Geometry.Location.Longitude),
 		})
 	}
 

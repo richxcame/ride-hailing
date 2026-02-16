@@ -59,14 +59,14 @@ func newTestService(repo RepositoryInterface) *Service {
 	return NewService(repo)
 }
 
-func createTestFavorite(userID uuid.UUID, name, address string, lat, lon float64) *FavoriteLocation {
+func createTestFavorite(userID uuid.UUID, name, address string, latitude, longitude float64) *FavoriteLocation {
 	return &FavoriteLocation{
 		ID:        uuid.New(),
 		UserID:    userID,
 		Name:      name,
 		Address:   address,
-		Latitude:  lat,
-		Longitude: lon,
+		Latitude:  latitude,
+		Longitude: longitude,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -694,22 +694,22 @@ func TestCoordinateValidation(t *testing.T) {
 		wantErr   bool
 	}{
 		// Valid boundary cases
-		{name: "valid - lat 0, lon 0", latitude: 0, longitude: 0, wantErr: false},
-		{name: "valid - lat 90, lon 180", latitude: 90, longitude: 180, wantErr: false},
-		{name: "valid - lat -90, lon -180", latitude: -90, longitude: -180, wantErr: false},
-		{name: "valid - lat 45.5, lon -122.5", latitude: 45.5, longitude: -122.5, wantErr: false},
+		{name: "valid - latitude 0, longitude 0", latitude: 0, longitude: 0, wantErr: false},
+		{name: "valid - latitude 90, longitude 180", latitude: 90, longitude: 180, wantErr: false},
+		{name: "valid - latitude -90, longitude -180", latitude: -90, longitude: -180, wantErr: false},
+		{name: "valid - latitude 45.5, longitude -122.5", latitude: 45.5, longitude: -122.5, wantErr: false},
 
 		// Invalid latitude cases
-		{name: "invalid - lat 90.0001", latitude: 90.0001, longitude: 0, wantErr: true},
-		{name: "invalid - lat -90.0001", latitude: -90.0001, longitude: 0, wantErr: true},
-		{name: "invalid - lat 100", latitude: 100, longitude: 0, wantErr: true},
-		{name: "invalid - lat -100", latitude: -100, longitude: 0, wantErr: true},
+		{name: "invalid - latitude 90.0001", latitude: 90.0001, longitude: 0, wantErr: true},
+		{name: "invalid - latitude -90.0001", latitude: -90.0001, longitude: 0, wantErr: true},
+		{name: "invalid - latitude 100", latitude: 100, longitude: 0, wantErr: true},
+		{name: "invalid - latitude -100", latitude: -100, longitude: 0, wantErr: true},
 
 		// Invalid longitude cases
-		{name: "invalid - lon 180.0001", latitude: 0, longitude: 180.0001, wantErr: true},
-		{name: "invalid - lon -180.0001", latitude: 0, longitude: -180.0001, wantErr: true},
-		{name: "invalid - lon 200", latitude: 0, longitude: 200, wantErr: true},
-		{name: "invalid - lon -200", latitude: 0, longitude: -200, wantErr: true},
+		{name: "invalid - longitude 180.0001", latitude: 0, longitude: 180.0001, wantErr: true},
+		{name: "invalid - longitude -180.0001", latitude: 0, longitude: -180.0001, wantErr: true},
+		{name: "invalid - longitude 200", latitude: 0, longitude: 200, wantErr: true},
+		{name: "invalid - longitude -200", latitude: 0, longitude: -200, wantErr: true},
 
 		// Both invalid
 		{name: "invalid - both out of range", latitude: 100, longitude: 200, wantErr: true},

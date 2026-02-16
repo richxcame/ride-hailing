@@ -324,7 +324,7 @@ func (r *Repository) GetDeliveriesBySender(ctx context.Context, senderID uuid.UU
 }
 
 // GetAvailableDeliveries lists deliveries awaiting driver acceptance
-func (r *Repository) GetAvailableDeliveries(ctx context.Context, lat, lng float64, radiusKm float64) ([]*Delivery, error) {
+func (r *Repository) GetAvailableDeliveries(ctx context.Context, latitude, longitude float64, radiusKm float64) ([]*Delivery, error) {
 	rows, err := r.db.Query(ctx, `
 		SELECT id, sender_id, status, priority, tracking_code,
 			pickup_latitude, pickup_longitude, pickup_address,
@@ -349,7 +349,7 @@ func (r *Repository) GetAvailableDeliveries(ctx context.Context, lat, lng float6
 			END,
 			requested_at ASC
 		LIMIT 50`,
-		DeliveryStatusRequested, lat, lng, radiusKm,
+		DeliveryStatusRequested, latitude, longitude, radiusKm,
 	)
 	if err != nil {
 		return nil, err

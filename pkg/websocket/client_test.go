@@ -278,8 +278,8 @@ func TestMessageWithComplexData(t *testing.T) {
 				"rating": 4.8,
 			},
 			"location": map[string]interface{}{
-				"lat": 37.7749,
-				"lng": -122.4194,
+				"latitude": 37.7749,
+				"longitude": -122.4194,
 			},
 			"timestamps": []interface{}{
 				"2024-01-01T12:00:00Z",
@@ -306,8 +306,8 @@ func TestMessageWithComplexData(t *testing.T) {
 	assert.Equal(t, 4.8, driver["rating"])
 
 	location := decoded.Data["location"].(map[string]interface{})
-	assert.Equal(t, 37.7749, location["lat"])
-	assert.Equal(t, -122.4194, location["lng"])
+	assert.Equal(t, 37.7749, location["latitude"])
+	assert.Equal(t, -122.4194, location["longitude"])
 
 	timestamps := decoded.Data["timestamps"].([]interface{})
 	assert.Len(t, timestamps, 2)

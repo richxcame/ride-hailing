@@ -8,10 +8,10 @@ import (
 // This can be implemented by the full maps service or a simpler wrapper
 type ETAProvider interface {
 	// GetETA returns the estimated time and distance between two points
-	GetETA(ctx context.Context, originLat, originLng, destLat, destLng float64) (*ETAResult, error)
+	GetETA(ctx context.Context, originLatitude, originLongitude, destLatitude, destLongitude float64) (*ETAResult, error)
 
 	// GetTrafficLevel returns the current traffic level at a location
-	GetTrafficLevel(ctx context.Context, lat, lng float64) (TrafficLevel, error)
+	GetTrafficLevel(ctx context.Context, latitude, longitude float64) (TrafficLevel, error)
 }
 
 // ETAResult represents the result of an ETA calculation
@@ -36,10 +36,10 @@ func NewServiceETAProvider(service *Service) *ServiceETAProvider {
 }
 
 // GetETA implements ETAProvider
-func (p *ServiceETAProvider) GetETA(ctx context.Context, originLat, originLng, destLat, destLng float64) (*ETAResult, error) {
+func (p *ServiceETAProvider) GetETA(ctx context.Context, originLatitude, originLongitude, destLatitude, destLongitude float64) (*ETAResult, error) {
 	req := &ETARequest{
-		Origin:      Coordinate{Latitude: originLat, Longitude: originLng},
-		Destination: Coordinate{Latitude: destLat, Longitude: destLng},
+		Origin:      Coordinate{Latitude: originLatitude, Longitude: originLongitude},
+		Destination: Coordinate{Latitude: destLatitude, Longitude: destLongitude},
 	}
 
 	resp, err := p.service.GetTrafficAwareETA(ctx, req.Origin, req.Destination)
@@ -58,9 +58,9 @@ func (p *ServiceETAProvider) GetETA(ctx context.Context, originLat, originLng, d
 }
 
 // GetTrafficLevel implements ETAProvider
-func (p *ServiceETAProvider) GetTrafficLevel(ctx context.Context, lat, lng float64) (TrafficLevel, error) {
+func (p *ServiceETAProvider) GetTrafficLevel(ctx context.Context, latitude, longitude float64) (TrafficLevel, error) {
 	req := &TrafficFlowRequest{
-		Location:     Coordinate{Latitude: lat, Longitude: lng},
+		Location:     Coordinate{Latitude: latitude, Longitude: longitude},
 		RadiusMeters: 5000,
 	}
 
@@ -86,8 +86,8 @@ func NewHaversineETAProvider(avgSpeedKmh float64) *HaversineETAProvider {
 }
 
 // GetETA implements ETAProvider using Haversine formula
-func (p *HaversineETAProvider) GetETA(ctx context.Context, originLat, originLng, destLat, destLng float64) (*ETAResult, error) {
-	distance := haversineDistance(originLat, originLng, destLat, destLng)
+func (p *HaversineETAProvider) GetETA(ctx context.Context, originLatitude, originLongitude, destLatitude, destLongitude float64) (*ETAResult, error) {
+	distance := haversineDistance(originLatitude, originLongitude, destLatitude, destLongitude)
 	durationMinutes := (distance / p.avgSpeedKmh) * 60
 
 	return &ETAResult{
@@ -101,7 +101,7 @@ func (p *HaversineETAProvider) GetETA(ctx context.Context, originLat, originLng,
 }
 
 // GetTrafficLevel implements ETAProvider - always returns moderate for Haversine
-func (p *HaversineETAProvider) GetTrafficLevel(ctx context.Context, lat, lng float64) (TrafficLevel, error) {
+func (p *HaversineETAProvider) GetTrafficLevel(ctx context.Context, latitude, longitude float64) (TrafficLevel, error) {
 	return TrafficModerate, nil
 }
 

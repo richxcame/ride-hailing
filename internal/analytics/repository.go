@@ -328,8 +328,8 @@ func (r *Repository) GetDemandHeatMap(ctx context.Context, startDate, endDate ti
 
 	query := `
 		SELECT
-			ROUND(pickup_latitude / $3) * $3 as grid_lat,
-			ROUND(pickup_longitude / $3) * $3 as grid_lon,
+			ROUND(pickup_latitude / $3) * $3 as grid_latitude,
+			ROUND(pickup_longitude / $3) * $3 as grid_longitude,
 			COUNT(*) as ride_count,
 			COALESCE(AVG(EXTRACT(EPOCH FROM (accepted_at - requested_at)) / 60), 0)::int as avg_wait_minutes,
 			COALESCE(AVG(final_fare), 0) as avg_fare,
@@ -339,7 +339,7 @@ func (r *Repository) GetDemandHeatMap(ctx context.Context, startDate, endDate ti
 		  AND created_at <= $2
 		  AND pickup_latitude IS NOT NULL
 		  AND pickup_longitude IS NOT NULL
-		GROUP BY grid_lat, grid_lon
+		GROUP BY grid_latitude, grid_longitude
 		HAVING COUNT(*) >= 1
 		ORDER BY ride_count DESC
 		LIMIT 100
@@ -494,8 +494,8 @@ func (r *Repository) GetDemandZones(ctx context.Context, startDate, endDate time
 	query := `
 		WITH zone_data AS (
 			SELECT
-				ROUND(pickup_latitude / 0.05) * 0.05 as zone_lat,
-				ROUND(pickup_longitude / 0.05) * 0.05 as zone_lon,
+				ROUND(pickup_latitude / 0.05) * 0.05 as zone_latitude,
+				ROUND(pickup_longitude / 0.05) * 0.05 as zone_longitude,
 				COUNT(*) as ride_count,
 				COALESCE(AVG(surge_multiplier), 1.0) as avg_surge,
 				ARRAY_AGG(DISTINCT EXTRACT(HOUR FROM requested_at)::int ORDER BY EXTRACT(HOUR FROM requested_at)::int) as hours
@@ -504,12 +504,12 @@ func (r *Repository) GetDemandZones(ctx context.Context, startDate, endDate time
 			  AND created_at <= $2
 			  AND pickup_latitude IS NOT NULL
 			  AND pickup_longitude IS NOT NULL
-			GROUP BY zone_lat, zone_lon
+			GROUP BY zone_latitude, zone_longitude
 			HAVING COUNT(*) >= $3
 		)
 		SELECT
-			zone_lat,
-			zone_lon,
+			zone_latitude,
+			zone_longitude,
 			ride_count,
 			avg_surge,
 			hours
@@ -533,8 +533,8 @@ func (r *Repository) GetDemandZones(ctx context.Context, startDate, endDate time
 
 		var hours []int
 		err := rows.Scan(
-			&zone.CenterLat,
-			&zone.CenterLon,
+			&zone.CenterLatitude,
+			&zone.CenterLongitude,
 			&zone.TotalRides,
 			&zone.AvgSurge,
 			&hours,

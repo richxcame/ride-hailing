@@ -254,15 +254,15 @@ func TestHandler_SendMessage_SuccessWithLocation(t *testing.T) {
 
 	userID := uuid.New()
 	rideID := uuid.New()
-	lat := 37.7749
-	lng := -122.4194
+	latitude := 37.7749
+	longitude := -122.4194
 
 	reqBody := SendMessageRequest{
 		RideID:      rideID,
 		MessageType: MessageTypeLocation,
 		Content:     "I am here",
-		Latitude:    &lat,
-		Longitude:   &lng,
+		Latitude:    &latitude,
+		Longitude:   &longitude,
 	}
 
 	mockRepo.On("SaveMessage", mock.Anything, mock.AnythingOfType("*chat.ChatMessage")).Return(nil)
@@ -1105,8 +1105,8 @@ func TestHandler_GetQuickReplies_ServiceError(t *testing.T) {
 // ========================================
 
 func TestHandler_SendMessage_AllMessageTypes(t *testing.T) {
-	lat := 37.7749
-	lng := -122.4194
+	latitude := 37.7749
+	longitude := -122.4194
 	imageURL := "https://example.com/image.jpg"
 
 	tests := []struct {
@@ -1135,8 +1135,8 @@ func TestHandler_SendMessage_AllMessageTypes(t *testing.T) {
 			name:        "location message with coordinates",
 			messageType: MessageTypeLocation,
 			content:     "I am here",
-			latitude:    &lat,
-			longitude:   &lng,
+			latitude:    &latitude,
+			longitude:   &longitude,
 			expectError: false,
 		},
 		{

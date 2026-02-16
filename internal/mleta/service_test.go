@@ -14,7 +14,7 @@ import (
 )
 
 type fakeETARepository struct {
-	getHistoricalFunc        func(ctx context.Context, pickupLat, pickupLng, dropoffLat, dropoffLng float64) (float64, error)
+	getHistoricalFunc        func(ctx context.Context, pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude float64) (float64, error)
 	storePredictionFunc      func(ctx context.Context, prediction *ETAPrediction) error
 	getTrainingDataFunc      func(ctx context.Context, limit int) ([]*TrainingDataPoint, error)
 	storeModelStatsFunc      func(ctx context.Context, model *ETAModel) error
@@ -22,9 +22,9 @@ type fakeETARepository struct {
 	getAccuracyMetricsFunc   func(ctx context.Context, days int) (map[string]interface{}, error)
 }
 
-func (f *fakeETARepository) GetHistoricalETAForRoute(ctx context.Context, pickupLat, pickupLng, dropoffLat, dropoffLng float64) (float64, error) {
+func (f *fakeETARepository) GetHistoricalETAForRoute(ctx context.Context, pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude float64) (float64, error) {
 	if f.getHistoricalFunc != nil {
-		return f.getHistoricalFunc(ctx, pickupLat, pickupLng, dropoffLat, dropoffLng)
+		return f.getHistoricalFunc(ctx, pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude)
 	}
 	return 0, nil
 }
@@ -70,7 +70,7 @@ func TestPredictETAUsesFeatureWeightsAndHistoricalData(t *testing.T) {
 	ch := make(chan struct{})
 
 	repo := &fakeETARepository{
-		getHistoricalFunc: func(ctx context.Context, pickupLat, pickupLng, dropoffLat, dropoffLng float64) (float64, error) {
+		getHistoricalFunc: func(ctx context.Context, pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude float64) (float64, error) {
 			return historicalETA, nil
 		},
 		storePredictionFunc: func(ctx context.Context, prediction *ETAPrediction) error {
@@ -89,10 +89,10 @@ func TestPredictETAUsesFeatureWeightsAndHistoricalData(t *testing.T) {
 
 	service := NewService(repo, redisMock)
 	req := &ETAPredictionRequest{
-		PickupLat:    37.7749,
-		PickupLng:    -122.4194,
-		DropoffLat:   37.8044,
-		DropoffLng:   -122.2711,
+		PickupLatitude:    37.7749,
+		PickupLongitude:    -122.4194,
+		DropoffLatitude:   37.8044,
+		DropoffLongitude:   -122.2711,
 		TrafficLevel: "high",
 		Weather:      "rain",
 	}
@@ -117,7 +117,7 @@ func TestPredictETAUsesFeatureWeightsAndHistoricalData(t *testing.T) {
 		dayOfWeekFactor = 0.9
 	}
 	weatherImpact := service.model.WeatherImpact["rain"]
-	distance := calculateDistance(req.PickupLat, req.PickupLng, req.DropoffLat, req.DropoffLng)
+	distance := calculateDistance(req.PickupLatitude, req.PickupLongitude, req.DropoffLatitude, req.DropoffLongitude)
 	baseETA := (distance / service.model.BaseSpeed) * 60
 	expectedUnrounded := baseETA
 	expectedUnrounded *= (service.model.DistanceWeight * 1.0)
@@ -165,10 +165,10 @@ func TestPredictETAConfidenceDropsWithoutSignals(t *testing.T) {
 
 	service := NewService(repo, redisMock)
 	req := &ETAPredictionRequest{
-		PickupLat:  40.7128,
-		PickupLng:  -74.0060,
-		DropoffLat: 40.7306,
-		DropoffLng: -73.9352,
+		PickupLatitude:  40.7128,
+		PickupLongitude:  -74.0060,
+		DropoffLatitude: 40.7306,
+		DropoffLongitude: -73.9352,
 	}
 
 	resp, err := service.PredictETA(ctx, req)
@@ -190,7 +190,7 @@ func TestPredictETAConfidenceDropsWithoutSignals(t *testing.T) {
 func TestTrainModelUpdatesAccuracyMetrics(t *testing.T) {
 	ctx := context.Background()
 	repo := &fakeETARepository{
-		getHistoricalFunc: func(ctx context.Context, pickupLat, pickupLng, dropoffLat, dropoffLng float64) (float64, error) {
+		getHistoricalFunc: func(ctx context.Context, pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude float64) (float64, error) {
 			return 0, nil
 		},
 		storePredictionFunc: func(ctx context.Context, prediction *ETAPrediction) error {
@@ -204,9 +204,9 @@ func TestTrainModelUpdatesAccuracyMetrics(t *testing.T) {
 
 	service := NewService(repo, redisMock)
 
-	pickupLat, pickupLng := 34.0522, -118.2437
-	dropoffLat, dropoffLng := 34.1400, -118.1500
-	distance := calculateDistance(pickupLat, pickupLng, dropoffLat, dropoffLng)
+	pickupLatitude, pickupLongitude := 34.0522, -118.2437
+	dropoffLatitude, dropoffLongitude := 34.1400, -118.1500
+	distance := calculateDistance(pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude)
 	trafficMultiplier := service.model.TrafficMultipliers["medium"]
 	hour := time.Now().Hour()
 	timeOfDayFactor := service.model.TimeOfDayFactors[hour]
@@ -231,10 +231,10 @@ func TestTrainModelUpdatesAccuracyMetrics(t *testing.T) {
 	dataPoints := make([]*TrainingDataPoint, 120)
 	for i := range dataPoints {
 		dataPoints[i] = &TrainingDataPoint{
-			PickupLat:     pickupLat,
-			PickupLng:     pickupLng,
-			DropoffLat:    dropoffLat,
-			DropoffLng:    dropoffLng,
+			PickupLatitude:     pickupLatitude,
+			PickupLongitude:     pickupLongitude,
+			DropoffLatitude:    dropoffLatitude,
+			DropoffLongitude:    dropoffLongitude,
 			ActualMinutes: actualMinutes,
 			Distance:      distance,
 			TrafficLevel:  "medium",

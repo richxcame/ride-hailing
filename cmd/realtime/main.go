@@ -59,8 +59,8 @@ type geoServiceAdapter struct {
 	*geo.Service
 }
 
-func (a *geoServiceAdapter) FindAvailableDrivers(ctx context.Context, lat, lng float64, maxDrivers int) ([]*matching.GeoDriverLocation, error) {
-	drivers, err := a.Service.FindAvailableDrivers(ctx, lat, lng, maxDrivers)
+func (a *geoServiceAdapter) FindAvailableDrivers(ctx context.Context, latitude, longitude float64, maxDrivers int) ([]*matching.GeoDriverLocation, error) {
+	drivers, err := a.Service.FindAvailableDrivers(ctx, latitude, longitude, maxDrivers)
 	if err != nil {
 		return nil, err
 	}
@@ -78,8 +78,8 @@ func (a *geoServiceAdapter) FindAvailableDrivers(ctx context.Context, lat, lng f
 	return result, nil
 }
 
-func (a *geoServiceAdapter) CalculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
-	return a.Service.CalculateDistance(lat1, lon1, lat2, lon2)
+func (a *geoServiceAdapter) CalculateDistance(latitude1, longitude1, latitude2, longitude2 float64) float64 {
+	return a.Service.CalculateDistance(latitude1, longitude1, latitude2, longitude2)
 }
 
 func main() {

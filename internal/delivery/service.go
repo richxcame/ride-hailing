@@ -101,13 +101,13 @@ func (s *Service) GetEstimate(ctx context.Context, req *DeliveryEstimateRequest)
 
 	// Add distance for intermediate stops
 	if len(req.Stops) > 0 {
-		prevLat, prevLng := req.PickupLatitude, req.PickupLongitude
+		prevLatitude, prevLongitude := req.PickupLatitude, req.PickupLongitude
 		totalStopDistance := 0.0
 		for _, stop := range req.Stops {
-			totalStopDistance += haversineDistance(prevLat, prevLng, stop.Latitude, stop.Longitude)
-			prevLat, prevLng = stop.Latitude, stop.Longitude
+			totalStopDistance += haversineDistance(prevLatitude, prevLongitude, stop.Latitude, stop.Longitude)
+			prevLatitude, prevLongitude = stop.Latitude, stop.Longitude
 		}
-		totalStopDistance += haversineDistance(prevLat, prevLng, req.DropoffLatitude, req.DropoffLongitude)
+		totalStopDistance += haversineDistance(prevLatitude, prevLongitude, req.DropoffLatitude, req.DropoffLongitude)
 		distance = totalStopDistance
 	}
 
@@ -239,16 +239,16 @@ func (s *Service) CreateDelivery(ctx context.Context, senderID uuid.UUID, req *C
 	}
 
 	s.publishEvent("deliveries.requested", "delivery.requested", "delivery-service", map[string]interface{}{
-		"delivery_id":    deliveryID,
-		"sender_id":     senderID,
-		"pickup_lat":    req.PickupLatitude,
-		"pickup_lng":    req.PickupLongitude,
-		"dropoff_lat":   req.DropoffLatitude,
-		"dropoff_lng":   req.DropoffLongitude,
-		"package_size":  string(req.PackageSize),
-		"priority":      string(req.Priority),
-		"estimated_fare": estimate.TotalEstimate,
-		"requested_at":  now,
+		"delivery_id":       deliveryID,
+		"sender_id":         senderID,
+		"pickup_latitude":   req.PickupLatitude,
+		"pickup_longitude":  req.PickupLongitude,
+		"dropoff_latitude":  req.DropoffLatitude,
+		"dropoff_longitude": req.DropoffLongitude,
+		"package_size":      string(req.PackageSize),
+		"priority":          string(req.Priority),
+		"estimated_fare":    estimate.TotalEstimate,
+		"requested_at":      now,
 	})
 
 	return &DeliveryResponse{
@@ -594,8 +594,8 @@ func (s *Service) GetMyDeliveries(ctx context.Context, senderID uuid.UUID, filte
 }
 
 // GetAvailableDeliveries lists deliveries for drivers to pick up
-func (s *Service) GetAvailableDeliveries(ctx context.Context, lat, lng float64) ([]*Delivery, error) {
-	return s.repo.GetAvailableDeliveries(ctx, lat, lng, 15.0) // 15km radius
+func (s *Service) GetAvailableDeliveries(ctx context.Context, latitude, longitude float64) ([]*Delivery, error) {
+	return s.repo.GetAvailableDeliveries(ctx, latitude, longitude, 15.0) // 15km radius
 }
 
 // GetDriverDeliveries lists completed/active deliveries for a driver
@@ -648,13 +648,13 @@ func (s *Service) UpdateStopStatus(ctx context.Context, deliveryID, stopID, driv
 // ========================================
 
 // haversineDistance calculates distance between two points in kilometers
-func haversineDistance(lat1, lng1, lat2, lng2 float64) float64 {
+func haversineDistance(latitude1, longitude1, latitude2, longitude2 float64) float64 {
 	const earthRadiusKm = 6371.0
-	dLat := (lat2 - lat1) * math.Pi / 180
-	dLng := (lng2 - lng1) * math.Pi / 180
-	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
-		math.Cos(lat1*math.Pi/180)*math.Cos(lat2*math.Pi/180)*
-			math.Sin(dLng/2)*math.Sin(dLng/2)
+	deltaLatitude := (latitude2 - latitude1) * math.Pi / 180
+	deltaLongitude := (longitude2 - longitude1) * math.Pi / 180
+	a := math.Sin(deltaLatitude/2)*math.Sin(deltaLatitude/2) +
+		math.Cos(latitude1*math.Pi/180)*math.Cos(latitude2*math.Pi/180)*
+			math.Sin(deltaLongitude/2)*math.Sin(deltaLongitude/2)
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 	return earthRadiusKm * c
 }

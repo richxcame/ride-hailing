@@ -48,7 +48,7 @@ type DriverCandidate struct {
 type DriverDataProvider interface {
 	// GetNearbyDriverCandidates returns available drivers near the pickup location
 	// with their distance, rating, and stats.
-	GetNearbyDriverCandidates(ctx context.Context, lat, lng float64, maxDistance float64, limit int) ([]*DriverCandidate, error)
+	GetNearbyDriverCandidates(ctx context.Context, latitude, longitude float64, maxDistance float64, limit int) ([]*DriverCandidate, error)
 }
 
 // Matcher scores and ranks driver candidates for a ride request.
@@ -68,8 +68,8 @@ func NewMatcher(cfg MatchingConfig, provider DriverDataProvider) *Matcher {
 //	score = w_dist * distScore + w_rating * ratingScore + w_accept * acceptScore + w_idle * idleScore
 //
 // Where each factor is normalized to [0, 1] with 1 being best.
-func (m *Matcher) FindBestDrivers(ctx context.Context, pickupLat, pickupLng float64) ([]*DriverCandidate, error) {
-	candidates, err := m.provider.GetNearbyDriverCandidates(ctx, pickupLat, pickupLng, m.cfg.MaxDistanceKm, m.cfg.MaxCandidates)
+func (m *Matcher) FindBestDrivers(ctx context.Context, pickupLatitude, pickupLongitude float64) ([]*DriverCandidate, error) {
+	candidates, err := m.provider.GetNearbyDriverCandidates(ctx, pickupLatitude, pickupLongitude, m.cfg.MaxDistanceKm, m.cfg.MaxCandidates)
 	if err != nil {
 		return nil, err
 	}
@@ -107,8 +107,8 @@ func (m *Matcher) FindBestDrivers(ctx context.Context, pickupLat, pickupLng floa
 
 	logger.DebugContext(ctx, "driver matching completed",
 		zap.Int("candidates_evaluated", len(candidates)),
-		zap.Float64("pickup_lat", pickupLat),
-		zap.Float64("pickup_lng", pickupLng),
+		zap.Float64("pickup_latitude", pickupLatitude),
+		zap.Float64("pickup_longitude", pickupLongitude),
 	)
 
 	return candidates, nil

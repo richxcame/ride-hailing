@@ -26,7 +26,7 @@ type RepositoryInterface interface {
 
 	// Listing & filtering
 	GetDeliveriesBySender(ctx context.Context, senderID uuid.UUID, filters *DeliveryListFilters, limit, offset int) ([]*Delivery, int64, error)
-	GetAvailableDeliveries(ctx context.Context, lat, lng float64, radiusKm float64) ([]*Delivery, error)
+	GetAvailableDeliveries(ctx context.Context, latitude, longitude float64, radiusKm float64) ([]*Delivery, error)
 	GetDriverDeliveries(ctx context.Context, driverID uuid.UUID, limit, offset int) ([]*Delivery, int64, error)
 	GetActiveDeliveryForDriver(ctx context.Context, driverID uuid.UUID) (*Delivery, error)
 

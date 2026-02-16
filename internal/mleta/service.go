@@ -14,7 +14,7 @@ import (
 
 // ETARepository defines the persistence operations needed by the service.
 type ETARepository interface {
-	GetHistoricalETAForRoute(ctx context.Context, pickupLat, pickupLng, dropoffLat, dropoffLng float64) (float64, error)
+	GetHistoricalETAForRoute(ctx context.Context, pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude float64) (float64, error)
 	StorePrediction(ctx context.Context, prediction *ETAPrediction) error
 	GetTrainingData(ctx context.Context, limit int) ([]*TrainingDataPoint, error)
 	StoreModelStats(ctx context.Context, model *ETAModel) error
@@ -106,14 +106,14 @@ func NewETAModel() *ETAModel {
 
 // ETAPredictionRequest contains all parameters for ETA prediction
 type ETAPredictionRequest struct {
-	PickupLat    float64 `json:"pickup_lat"`
-	PickupLng    float64 `json:"pickup_lng"`
-	DropoffLat   float64 `json:"dropoff_lat"`
-	DropoffLng   float64 `json:"dropoff_lng"`
-	TrafficLevel string  `json:"traffic_level"` // low, medium, high, severe
-	Weather      string  `json:"weather"`       // clear, cloudy, rain, etc.
-	DriverID     string  `json:"driver_id"`
-	RideTypeID   int     `json:"ride_type_id"`
+	PickupLatitude   float64 `json:"pickup_latitude"`
+	PickupLongitude  float64 `json:"pickup_longitude"`
+	DropoffLatitude  float64 `json:"dropoff_latitude"`
+	DropoffLongitude float64 `json:"dropoff_longitude"`
+	TrafficLevel     string  `json:"traffic_level"` // low, medium, high, severe
+	Weather          string  `json:"weather"`       // clear, cloudy, rain, etc.
+	DriverID         string  `json:"driver_id"`
+	RideTypeID       int     `json:"ride_type_id"`
 }
 
 // ETAPredictionResponse contains the prediction results
@@ -130,10 +130,10 @@ type ETAPredictionResponse struct {
 // PredictETA predicts the estimated time of arrival
 func (s *Service) PredictETA(ctx context.Context, req *ETAPredictionRequest) (*ETAPredictionResponse, error) {
 	// Calculate distance using Haversine formula
-	distance := calculateDistance(req.PickupLat, req.PickupLng, req.DropoffLat, req.DropoffLng)
+	distance := calculateDistance(req.PickupLatitude, req.PickupLongitude, req.DropoffLatitude, req.DropoffLongitude)
 
 	// Get historical data for similar routes (if available)
-	historicalETA, err := s.getHistoricalETA(ctx, req.PickupLat, req.PickupLng, req.DropoffLat, req.DropoffLng)
+	historicalETA, err := s.getHistoricalETA(ctx, req.PickupLatitude, req.PickupLongitude, req.DropoffLatitude, req.DropoffLongitude)
 	if err != nil {
 		logger.Warn("Could not fetch historical ETA", zap.Error(err))
 		historicalETA = 0
@@ -246,13 +246,13 @@ func (s *Service) calculateConfidence(hasHistorical, hasTraffic, hasWeather bool
 }
 
 // getHistoricalETA retrieves historical ETA data for similar routes
-func (s *Service) getHistoricalETA(ctx context.Context, pickupLat, pickupLng, dropoffLat, dropoffLng float64) (float64, error) {
+func (s *Service) getHistoricalETA(ctx context.Context, pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude float64) (float64, error) {
 	// Create a key for the route (rounded to reduce variations)
 	routeKey := fmt.Sprintf("eta:route:%.2f,%.2f:%.2f,%.2f",
-		math.Round(pickupLat*100)/100,
-		math.Round(pickupLng*100)/100,
-		math.Round(dropoffLat*100)/100,
-		math.Round(dropoffLng*100)/100)
+		math.Round(pickupLatitude*100)/100,
+		math.Round(pickupLongitude*100)/100,
+		math.Round(dropoffLatitude*100)/100,
+		math.Round(dropoffLongitude*100)/100)
 
 	// Try to get from Redis cache
 	cachedETA, err := s.redis.GetString(ctx, routeKey)
@@ -264,7 +264,7 @@ func (s *Service) getHistoricalETA(ctx context.Context, pickupLat, pickupLng, dr
 	}
 
 	// Get from database
-	eta, err := s.repo.GetHistoricalETAForRoute(ctx, pickupLat, pickupLng, dropoffLat, dropoffLng)
+	eta, err := s.repo.GetHistoricalETAForRoute(ctx, pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude)
 	if err != nil {
 		return 0, err
 	}
@@ -280,10 +280,10 @@ func (s *Service) getHistoricalETA(ctx context.Context, pickupLat, pickupLng, dr
 // storePrediction stores the prediction for future model training
 func (s *Service) storePrediction(ctx context.Context, req *ETAPredictionRequest, resp *ETAPredictionResponse) error {
 	prediction := &ETAPrediction{
-		PickupLat:        req.PickupLat,
-		PickupLng:        req.PickupLng,
-		DropoffLat:       req.DropoffLat,
-		DropoffLng:       req.DropoffLng,
+		PickupLatitude:   req.PickupLatitude,
+		PickupLongitude:  req.PickupLongitude,
+		DropoffLatitude:  req.DropoffLatitude,
+		DropoffLongitude: req.DropoffLongitude,
 		PredictedMinutes: resp.EstimatedMinutes,
 		Distance:         resp.Distance,
 		TrafficLevel:     req.TrafficLevel,
@@ -345,12 +345,12 @@ func (s *Service) TrainModel(ctx context.Context) error {
 	for _, data := range trainingData {
 		// Make prediction with current model
 		req := &ETAPredictionRequest{
-			PickupLat:    data.PickupLat,
-			PickupLng:    data.PickupLng,
-			DropoffLat:   data.DropoffLat,
-			DropoffLng:   data.DropoffLng,
-			TrafficLevel: "medium", // Default
-			Weather:      "clear",  // Default
+			PickupLatitude:   data.PickupLatitude,
+			PickupLongitude:  data.PickupLongitude,
+			DropoffLatitude:  data.DropoffLatitude,
+			DropoffLongitude: data.DropoffLongitude,
+			TrafficLevel:     "medium", // Default
+			Weather:          "clear",  // Default
 		}
 
 		prediction, err := s.PredictETA(ctx, req)
@@ -383,15 +383,15 @@ func (s *Service) GetModelStats() *ETAModel {
 }
 
 // calculateDistance calculates distance between two points using Haversine formula
-func calculateDistance(lat1, lng1, lat2, lng2 float64) float64 {
+func calculateDistance(latitude1, longitude1, latitude2, longitude2 float64) float64 {
 	const R = 6371 // Earth's radius in kilometers
 
-	dLat := toRadians(lat2 - lat1)
-	dLng := toRadians(lng2 - lng1)
+	deltaLatitude := toRadians(latitude2 - latitude1)
+	deltaLongitude := toRadians(longitude2 - longitude1)
 
-	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
-		math.Cos(toRadians(lat1))*math.Cos(toRadians(lat2))*
-			math.Sin(dLng/2)*math.Sin(dLng/2)
+	a := math.Sin(deltaLatitude/2)*math.Sin(deltaLatitude/2) +
+		math.Cos(toRadians(latitude1))*math.Cos(toRadians(latitude2))*
+			math.Sin(deltaLongitude/2)*math.Sin(deltaLongitude/2)
 
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 

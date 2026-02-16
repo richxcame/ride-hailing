@@ -60,43 +60,43 @@ func TestCalculateBearing(t *testing.T) {
 	svc := &Service{config: DefaultServiceConfig()}
 
 	tests := []struct {
-		name     string
-		lat1     float64
-		lng1     float64
-		lat2     float64
-		lng2     float64
-		minBear  float64 // minimum expected bearing
-		maxBear  float64 // maximum expected bearing
+		name       string
+		latitude1  float64
+		longitude1 float64
+		latitude2  float64
+		longitude2 float64
+		minBear    float64 // minimum expected bearing
+		maxBear    float64 // maximum expected bearing
 	}{
 		{
-			name: "due north",
-			lat1: 0, lng1: 0,
-			lat2: 10, lng2: 0,
-			minBear: 355, maxBear: 5, // approximately 0 degrees
+			name:       "due north",
+			latitude1:  0, longitude1: 0,
+			latitude2:  10, longitude2: 0,
+			minBear:    355, maxBear: 5, // approximately 0 degrees
 		},
 		{
-			name: "due east",
-			lat1: 0, lng1: 0,
-			lat2: 0, lng2: 10,
-			minBear: 85, maxBear: 95,
+			name:       "due east",
+			latitude1:  0, longitude1: 0,
+			latitude2:  0, longitude2: 10,
+			minBear:    85, maxBear: 95,
 		},
 		{
-			name: "due south",
-			lat1: 10, lng1: 0,
-			lat2: 0, lng2: 0,
-			minBear: 175, maxBear: 185,
+			name:       "due south",
+			latitude1:  10, longitude1: 0,
+			latitude2:  0, longitude2: 0,
+			minBear:    175, maxBear: 185,
 		},
 		{
-			name: "due west",
-			lat1: 0, lng1: 10,
-			lat2: 0, lng2: 0,
-			minBear: 265, maxBear: 275,
+			name:       "due west",
+			latitude1:  0, longitude1: 10,
+			latitude2:  0, longitude2: 0,
+			minBear:    265, maxBear: 275,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bearing := svc.calculateBearing(tt.lat1, tt.lng1, tt.lat2, tt.lng2)
+			bearing := svc.calculateBearing(tt.latitude1, tt.longitude1, tt.latitude2, tt.longitude2)
 			assert.GreaterOrEqual(t, bearing, 0.0, "bearing should be >= 0")
 			assert.Less(t, bearing, 360.0, "bearing should be < 360")
 
@@ -124,7 +124,7 @@ func TestCalculateDirectionAlignment(t *testing.T) {
 	}{
 		{
 			name: "same direction (both heading north)",
-			pool: &PoolRide{CenterLat: 0, CenterLng: 0},
+			pool: &PoolRide{CenterLatitude: 0, CenterLongitude: 0},
 			req: &RequestPoolRideRequest{
 				PickupLocation:  Location{Latitude: 0, Longitude: 0},
 				DropoffLocation: Location{Latitude: 10, Longitude: 0},
@@ -134,7 +134,7 @@ func TestCalculateDirectionAlignment(t *testing.T) {
 		},
 		{
 			name: "opposite direction",
-			pool: &PoolRide{CenterLat: 0, CenterLng: -10}, // Pool center west of dropoff → bearing ~90° (east)
+			pool: &PoolRide{CenterLatitude: 0, CenterLongitude: -10}, // Pool center west of dropoff → bearing ~90° (east)
 			req: &RequestPoolRideRequest{
 				PickupLocation:  Location{Latitude: 0, Longitude: 10}, // Pickup east of dropoff → bearing ~270° (west)
 				DropoffLocation: Location{Latitude: 0, Longitude: 0},
@@ -159,11 +159,11 @@ func TestCalculateDirectionAlignment_Range(t *testing.T) {
 	svc := &Service{config: DefaultServiceConfig()}
 
 	// Score should always be between 0 and 1
-	for lat := -90.0; lat <= 90.0; lat += 45.0 {
-		pool := &PoolRide{CenterLat: lat, CenterLng: 0}
+	for latitude := -90.0; latitude <= 90.0; latitude += 45.0 {
+		pool := &PoolRide{CenterLatitude: latitude, CenterLongitude: 0}
 		req := &RequestPoolRideRequest{
-			PickupLocation:  Location{Latitude: lat + 1, Longitude: 10},
-			DropoffLocation: Location{Latitude: lat - 1, Longitude: 20},
+			PickupLocation:  Location{Latitude: latitude + 1, Longitude: 10},
+			DropoffLocation: Location{Latitude: latitude - 1, Longitude: 20},
 		}
 		score := svc.calculateDirectionAlignment(pool, req)
 		assert.GreaterOrEqual(t, score, 0.0)

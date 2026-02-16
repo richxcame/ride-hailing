@@ -242,10 +242,10 @@ func (r *Repository) GetCityByID(ctx context.Context, id uuid.UUID) (*City, erro
 	return city, nil
 }
 
-// ResolveLocation finds the geographic hierarchy for a lat/lng point
-func (r *Repository) ResolveLocation(ctx context.Context, lat, lng float64) (*ResolvedLocation, error) {
+// ResolveLocation finds the geographic hierarchy for a latitude/longitude point
+func (r *Repository) ResolveLocation(ctx context.Context, latitude, longitude float64) (*ResolvedLocation, error) {
 	result := &ResolvedLocation{
-		Location: Location{Latitude: lat, Longitude: lng},
+		Location: Location{Latitude: latitude, Longitude: longitude},
 	}
 
 	// Find city containing the point (uses PostGIS ST_Contains)
@@ -271,7 +271,7 @@ func (r *Repository) ResolveLocation(ctx context.Context, lat, lng float64) (*Re
 	`
 
 	city := &City{Region: &Region{Country: &Country{}}}
-	err := r.db.QueryRow(ctx, cityQuery, lng, lat).Scan(
+	err := r.db.QueryRow(ctx, cityQuery, longitude, latitude).Scan(
 		&city.ID, &city.RegionID, &city.Name, &city.NativeName, &city.Timezone,
 		&city.CenterLatitude, &city.CenterLongitude, &city.Boundary,
 		&city.Population, &city.IsActive, &city.LaunchedAt, &city.CreatedAt, &city.UpdatedAt,
@@ -317,7 +317,7 @@ func (r *Repository) ResolveLocation(ctx context.Context, lat, lng float64) (*Re
 		`
 
 		zone := &PricingZone{}
-		err := r.db.QueryRow(ctx, zoneQuery, result.City.ID, lng, lat).Scan(
+		err := r.db.QueryRow(ctx, zoneQuery, result.City.ID, longitude, latitude).Scan(
 			&zone.ID, &zone.CityID, &zone.Name, &zone.ZoneType, &zone.Boundary,
 			&zone.CenterLatitude, &zone.CenterLongitude, &zone.Priority,
 			&zone.IsActive, &zone.Metadata, &zone.CreatedAt, &zone.UpdatedAt,
@@ -331,7 +331,7 @@ func (r *Repository) ResolveLocation(ctx context.Context, lat, lng float64) (*Re
 }
 
 // FindNearestCity finds the nearest city to a point
-func (r *Repository) FindNearestCity(ctx context.Context, lat, lng float64, maxDistanceKm float64) (*City, error) {
+func (r *Repository) FindNearestCity(ctx context.Context, latitude, longitude float64, maxDistanceKm float64) (*City, error) {
 	query := `
 		SELECT city.id, city.region_id, city.name, city.native_name, city.timezone,
 		       city.center_latitude, city.center_longitude, ST_AsText(city.boundary),
@@ -352,7 +352,7 @@ func (r *Repository) FindNearestCity(ctx context.Context, lat, lng float64, maxD
 
 	city := &City{}
 	var distanceKm float64
-	err := r.db.QueryRow(ctx, query, lng, lat).Scan(
+	err := r.db.QueryRow(ctx, query, longitude, latitude).Scan(
 		&city.ID, &city.RegionID, &city.Name, &city.NativeName, &city.Timezone,
 		&city.CenterLatitude, &city.CenterLongitude, &city.Boundary,
 		&city.Population, &city.IsActive, &city.LaunchedAt, &city.CreatedAt, &city.UpdatedAt,

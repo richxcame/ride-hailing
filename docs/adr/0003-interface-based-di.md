@@ -117,8 +117,8 @@ type ClientInterface interface {
     GetString(ctx context.Context, key string) (string, error)
     SetWithExpiration(ctx context.Context, key string, value interface{}, exp time.Duration) error
     Delete(ctx context.Context, keys ...string) error
-    GeoAdd(ctx context.Context, key string, lng, lat float64, member string) error
-    GeoRadius(ctx context.Context, key string, lng, lat, radius float64, count int) ([]string, error)
+    GeoAdd(ctx context.Context, key string, longitude, latitude float64, member string) error
+    GeoRadius(ctx context.Context, key string, longitude, latitude, radius float64, count int) ([]string, error)
 }
 ```
 

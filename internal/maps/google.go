@@ -480,8 +480,8 @@ func (g *GoogleMapsProvider) convertDirectionsResponse(resp *googleDirectionsRes
 			}
 
 			routeLeg := RouteLeg{
-				StartLocation:     Coordinate{Latitude: leg.StartLocation.Lat, Longitude: leg.StartLocation.Lng},
-				EndLocation:       Coordinate{Latitude: leg.EndLocation.Lat, Longitude: leg.EndLocation.Lng},
+				StartLocation:     Coordinate{Latitude: leg.StartLocation.Latitude, Longitude: leg.StartLocation.Longitude},
+				EndLocation:       Coordinate{Latitude: leg.EndLocation.Latitude, Longitude: leg.EndLocation.Longitude},
 				StartAddress:      leg.StartAddress,
 				EndAddress:        leg.EndAddress,
 				DistanceMeters:    leg.Distance.Value,
@@ -496,8 +496,8 @@ func (g *GoogleMapsProvider) convertDirectionsResponse(resp *googleDirectionsRes
 					Maneuver:        step.Maneuver,
 					DistanceMeters:  step.Distance.Value,
 					DurationSeconds: step.Duration.Value,
-					StartLocation:   Coordinate{Latitude: step.StartLocation.Lat, Longitude: step.StartLocation.Lng},
-					EndLocation:     Coordinate{Latitude: step.EndLocation.Lat, Longitude: step.EndLocation.Lng},
+					StartLocation:   Coordinate{Latitude: step.StartLocation.Latitude, Longitude: step.StartLocation.Longitude},
+					EndLocation:     Coordinate{Latitude: step.EndLocation.Latitude, Longitude: step.EndLocation.Longitude},
 					EncodedPolyline: step.Polyline.Points,
 				}
 				routeLeg.Steps = append(routeLeg.Steps, routeStep)
@@ -519,8 +519,8 @@ func (g *GoogleMapsProvider) convertDirectionsResponse(resp *googleDirectionsRes
 		// Bounds
 		if r.Bounds != nil {
 			route.BoundingBox = &BoundingBox{
-				Northeast: Coordinate{Latitude: r.Bounds.Northeast.Lat, Longitude: r.Bounds.Northeast.Lng},
-				Southwest: Coordinate{Latitude: r.Bounds.Southwest.Lat, Longitude: r.Bounds.Southwest.Lng},
+				Northeast: Coordinate{Latitude: r.Bounds.Northeast.Latitude, Longitude: r.Bounds.Northeast.Longitude},
+				Southwest: Coordinate{Latitude: r.Bounds.Southwest.Latitude, Longitude: r.Bounds.Southwest.Longitude},
 			}
 		}
 
@@ -568,7 +568,7 @@ func (g *GoogleMapsProvider) convertGeocodingResponse(resp *googleGeocodingRespo
 	for i, r := range resp.Results {
 		result := GeocodingResult{
 			FormattedAddress: r.FormattedAddress,
-			Coordinate:       Coordinate{Latitude: r.Geometry.Location.Lat, Longitude: r.Geometry.Location.Lng},
+			Coordinate:       Coordinate{Latitude: r.Geometry.Location.Latitude, Longitude: r.Geometry.Location.Longitude},
 			PlaceID:          r.PlaceID,
 			Types:            r.Types,
 			Confidence:       calculateGeocodingConfidence(r.Geometry.LocationType),
@@ -599,7 +599,7 @@ func (g *GoogleMapsProvider) convertPlacesResponse(resp *googlePlacesResponse) *
 			PlaceID:          r.PlaceID,
 			Name:             r.Name,
 			FormattedAddress: r.Vicinity,
-			Coordinate:       Coordinate{Latitude: r.Geometry.Location.Lat, Longitude: r.Geometry.Location.Lng},
+			Coordinate:       Coordinate{Latitude: r.Geometry.Location.Latitude, Longitude: r.Geometry.Location.Longitude},
 			Types:            r.Types,
 			Icon:             r.Icon,
 		}
@@ -760,8 +760,8 @@ type googleBounds struct {
 }
 
 type googleLatLng struct {
-	Lat float64 `json:"lat"`
-	Lng float64 `json:"lng"`
+	Latitude  float64 `json:"lat"`
+	Longitude float64 `json:"lng"`
 }
 
 type googleValue struct {

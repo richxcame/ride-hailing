@@ -173,15 +173,15 @@ func TestService_FindNearbyDrivers_Success(t *testing.T) {
 	mockRedis := new(mocks.MockRedisClient)
 	service := NewService(mockRedis)
 	ctx := context.Background()
-	pickupLat := 37.7749
-	pickupLon := -122.4194
+	pickupLatitude := 37.7749
+	pickupLongitude := -122.4194
 	maxDrivers := 5
 
 	driver1ID := uuid.New()
 	driver2ID := uuid.New()
 
 	// Mock GeoRadius to return driver IDs (service passes maxDrivers*2 for over-fetching)
-	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers*2).
+	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLongitude, pickupLatitude, searchRadiusKm, maxDrivers*2).
 		Return([]string{driver1ID.String(), driver2ID.String()}, nil)
 
 	// Mock MGetStrings batch fetch for driver locations
@@ -207,7 +207,7 @@ func TestService_FindNearbyDrivers_Success(t *testing.T) {
 	}).Return([]string{string(location1JSON), string(location2JSON)}, nil)
 
 	// Act
-	locations, err := service.FindNearbyDrivers(ctx, pickupLat, pickupLon, maxDrivers)
+	locations, err := service.FindNearbyDrivers(ctx, pickupLatitude, pickupLongitude, maxDrivers)
 
 	// Assert
 	assert.NoError(t, err)
@@ -220,16 +220,16 @@ func TestService_FindNearbyDrivers_NoDriversFound(t *testing.T) {
 	mockRedis := new(mocks.MockRedisClient)
 	service := NewService(mockRedis)
 	ctx := context.Background()
-	pickupLat := 37.7749
-	pickupLon := -122.4194
+	pickupLatitude := 37.7749
+	pickupLongitude := -122.4194
 	maxDrivers := 5
 
 	// Mock GeoRadius to return empty list (service passes maxDrivers*2)
-	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers*2).
+	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLongitude, pickupLatitude, searchRadiusKm, maxDrivers*2).
 		Return([]string{}, nil)
 
 	// Act
-	locations, err := service.FindNearbyDrivers(ctx, pickupLat, pickupLon, maxDrivers)
+	locations, err := service.FindNearbyDrivers(ctx, pickupLatitude, pickupLongitude, maxDrivers)
 
 	// Assert
 	assert.NoError(t, err)
@@ -242,15 +242,15 @@ func TestService_FindNearbyDrivers_GeoRadiusError(t *testing.T) {
 	mockRedis := new(mocks.MockRedisClient)
 	service := NewService(mockRedis)
 	ctx := context.Background()
-	pickupLat := 37.7749
-	pickupLon := -122.4194
+	pickupLatitude := 37.7749
+	pickupLongitude := -122.4194
 	maxDrivers := 5
 
-	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers*2).
+	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLongitude, pickupLatitude, searchRadiusKm, maxDrivers*2).
 		Return(nil, errors.New("redis error"))
 
 	// Act
-	locations, err := service.FindNearbyDrivers(ctx, pickupLat, pickupLon, maxDrivers)
+	locations, err := service.FindNearbyDrivers(ctx, pickupLatitude, pickupLongitude, maxDrivers)
 
 	// Assert
 	assert.Error(t, err)
@@ -363,47 +363,47 @@ func TestService_GetDriverStatus_NotFound(t *testing.T) {
 
 func TestService_CalculateDistance(t *testing.T) {
 	tests := []struct {
-		name      string
-		lat1      float64
-		lon1      float64
-		lat2      float64
-		lon2      float64
-		expected  float64
-		tolerance float64
+		name       string
+		latitude1  float64
+		longitude1 float64
+		latitude2  float64
+		longitude2 float64
+		expected   float64
+		tolerance  float64
 	}{
 		{
-			name:      "San Francisco to Oakland",
-			lat1:      37.7749,
-			lon1:      -122.4194,
-			lat2:      37.8044,
-			lon2:      -122.2712,
-			expected:  13.0, // approximately 13 km
-			tolerance: 1.0,
+			name:       "San Francisco to Oakland",
+			latitude1:  37.7749,
+			longitude1: -122.4194,
+			latitude2:  37.8044,
+			longitude2: -122.2712,
+			expected:   13.0, // approximately 13 km
+			tolerance:  1.0,
 		},
 		{
-			name:      "Same location",
-			lat1:      37.7749,
-			lon1:      -122.4194,
-			lat2:      37.7749,
-			lon2:      -122.4194,
-			expected:  0.0,
-			tolerance: 0.01,
+			name:       "Same location",
+			latitude1:  37.7749,
+			longitude1: -122.4194,
+			latitude2:  37.7749,
+			longitude2: -122.4194,
+			expected:   0.0,
+			tolerance:  0.01,
 		},
 		{
-			name:      "Short distance",
-			lat1:      37.7749,
-			lon1:      -122.4194,
-			lat2:      37.7750,
-			lon2:      -122.4195,
-			expected:  0.01,
-			tolerance: 0.05,
+			name:       "Short distance",
+			latitude1:  37.7749,
+			longitude1: -122.4194,
+			latitude2:  37.7750,
+			longitude2: -122.4195,
+			expected:   0.01,
+			tolerance:  0.05,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			service := NewService(nil)
-			distance := service.CalculateDistance(tt.lat1, tt.lon1, tt.lat2, tt.lon2)
+			distance := service.CalculateDistance(tt.latitude1, tt.longitude1, tt.latitude2, tt.longitude2)
 			assert.InDelta(t, tt.expected, distance, tt.tolerance)
 		})
 	}
@@ -451,8 +451,8 @@ func TestService_FindAvailableDrivers_Success(t *testing.T) {
 	mockRedis := new(mocks.MockRedisClient)
 	service := NewService(mockRedis)
 	ctx := context.Background()
-	pickupLat := 37.7749
-	pickupLon := -122.4194
+	pickupLatitude := 37.7749
+	pickupLongitude := -122.4194
 	maxDrivers := 2
 
 	driver1ID := uuid.New()
@@ -461,7 +461,7 @@ func TestService_FindAvailableDrivers_Success(t *testing.T) {
 
 	// Mock GeoRadius to return 3 drivers
 	// FindAvailableDrivers passes maxDrivers*2 to FindNearbyDrivers, which internally doubles again
-	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers*2*2).
+	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLongitude, pickupLatitude, searchRadiusKm, maxDrivers*2*2).
 		Return([]string{driver1ID.String(), driver2ID.String(), driver3ID.String()}, nil)
 
 	// Mock MGetStrings batch fetch for driver locations
@@ -495,7 +495,7 @@ func TestService_FindAvailableDrivers_Success(t *testing.T) {
 	}).Return([]string{string(status1JSON), string(status2JSON), string(status3JSON)}, nil)
 
 	// Act
-	locations, err := service.FindAvailableDrivers(ctx, pickupLat, pickupLon, maxDrivers)
+	locations, err := service.FindAvailableDrivers(ctx, pickupLatitude, pickupLongitude, maxDrivers)
 
 	// Assert
 	assert.NoError(t, err)
@@ -508,14 +508,14 @@ func TestService_FindAvailableDrivers_NoneAvailable(t *testing.T) {
 	mockRedis := new(mocks.MockRedisClient)
 	service := NewService(mockRedis)
 	ctx := context.Background()
-	pickupLat := 37.7749
-	pickupLon := -122.4194
+	pickupLatitude := 37.7749
+	pickupLongitude := -122.4194
 	maxDrivers := 2
 
 	driver1ID := uuid.New()
 
 	// FindAvailableDrivers passes maxDrivers*2 to FindNearbyDrivers, which internally doubles again
-	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLon, pickupLat, searchRadiusKm, maxDrivers*2*2).
+	mockRedis.On("GeoRadius", ctx, driverGeoIndexKey, pickupLongitude, pickupLatitude, searchRadiusKm, maxDrivers*2*2).
 		Return([]string{driver1ID.String()}, nil)
 
 	// Mock MGetStrings batch fetch for driver locations
@@ -533,7 +533,7 @@ func TestService_FindAvailableDrivers_NoneAvailable(t *testing.T) {
 	}).Return([]string{string(status1JSON)}, nil)
 
 	// Act
-	locations, err := service.FindAvailableDrivers(ctx, pickupLat, pickupLon, maxDrivers)
+	locations, err := service.FindAvailableDrivers(ctx, pickupLatitude, pickupLongitude, maxDrivers)
 
 	// Assert
 	assert.NoError(t, err)

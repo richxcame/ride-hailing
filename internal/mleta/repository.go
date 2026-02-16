@@ -26,10 +26,10 @@ func NewRepository(db *pgxpool.Pool, redis *redis.Client) *Repository {
 // ETAPrediction represents a stored ETA prediction
 type ETAPrediction struct {
 	ID               int       `json:"id"`
-	PickupLat        float64   `json:"pickup_lat"`
-	PickupLng        float64   `json:"pickup_lng"`
-	DropoffLat       float64   `json:"dropoff_lat"`
-	DropoffLng       float64   `json:"dropoff_lng"`
+	PickupLatitude   float64   `json:"pickup_latitude"`
+	PickupLongitude  float64   `json:"pickup_longitude"`
+	DropoffLatitude  float64   `json:"dropoff_latitude"`
+	DropoffLongitude float64   `json:"dropoff_longitude"`
 	PredictedMinutes float64   `json:"predicted_minutes"`
 	ActualMinutes    float64   `json:"actual_minutes,omitempty"`
 	Distance         float64   `json:"distance"`
@@ -45,23 +45,23 @@ type ETAPrediction struct {
 
 // TrainingDataPoint represents data used for model training
 type TrainingDataPoint struct {
-	PickupLat     float64 `json:"pickup_lat"`
-	PickupLng     float64 `json:"pickup_lng"`
-	DropoffLat    float64 `json:"dropoff_lat"`
-	DropoffLng    float64 `json:"dropoff_lng"`
-	ActualMinutes float64 `json:"actual_minutes"`
-	Distance      float64 `json:"distance"`
-	TrafficLevel  string  `json:"traffic_level"`
-	Weather       string  `json:"weather"`
-	TimeOfDay     int     `json:"time_of_day"`
-	DayOfWeek     int     `json:"day_of_week"`
+	PickupLatitude   float64 `json:"pickup_latitude"`
+	PickupLongitude  float64 `json:"pickup_longitude"`
+	DropoffLatitude  float64 `json:"dropoff_latitude"`
+	DropoffLongitude float64 `json:"dropoff_longitude"`
+	ActualMinutes    float64 `json:"actual_minutes"`
+	Distance         float64 `json:"distance"`
+	TrafficLevel     string  `json:"traffic_level"`
+	Weather          string  `json:"weather"`
+	TimeOfDay        int     `json:"time_of_day"`
+	DayOfWeek        int     `json:"day_of_day"`
 }
 
 // StorePrediction stores an ETA prediction
 func (r *Repository) StorePrediction(ctx context.Context, prediction *ETAPrediction) error {
 	query := `
 		INSERT INTO eta_predictions (
-			pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
+			pickup_latitude, pickup_longitude, dropoff_latitude, dropoff_longitude,
 			predicted_minutes, distance, traffic_level, weather,
 			time_of_day, day_of_week, confidence, created_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
@@ -69,10 +69,10 @@ func (r *Repository) StorePrediction(ctx context.Context, prediction *ETAPredict
 	`
 
 	err := r.db.QueryRow(ctx, query,
-		prediction.PickupLat,
-		prediction.PickupLng,
-		prediction.DropoffLat,
-		prediction.DropoffLng,
+		prediction.PickupLatitude,
+		prediction.PickupLongitude,
+		prediction.DropoffLatitude,
+		prediction.DropoffLongitude,
 		prediction.PredictedMinutes,
 		prediction.Distance,
 		prediction.TrafficLevel,
@@ -104,17 +104,17 @@ func (r *Repository) UpdatePredictionWithActual(ctx context.Context, rideID stri
 }
 
 // GetHistoricalETAForRoute gets average historical ETA for similar routes
-func (r *Repository) GetHistoricalETAForRoute(ctx context.Context, pickupLat, pickupLng, dropoffLat, dropoffLng float64) (float64, error) {
+func (r *Repository) GetHistoricalETAForRoute(ctx context.Context, pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude float64) (float64, error) {
 	// Query for rides in similar area (within 0.5km radius)
 	query := `
         SELECT COALESCE(AVG(actual_minutes), 0) as avg_eta
 		FROM eta_predictions
 		WHERE actual_minutes IS NOT NULL
 			AND actual_minutes > 0
-			AND ABS(pickup_lat - $1) < 0.005
-			AND ABS(pickup_lng - $2) < 0.005
-			AND ABS(dropoff_lat - $3) < 0.005
-			AND ABS(dropoff_lng - $4) < 0.005
+			AND ABS(pickup_latitude - $1) < 0.005
+			AND ABS(pickup_longitude - $2) < 0.005
+			AND ABS(dropoff_latitude - $3) < 0.005
+			AND ABS(dropoff_longitude - $4) < 0.005
 			AND created_at > NOW() - INTERVAL '90 days'
 		GROUP BY DATE_TRUNC('hour', created_at)
 		ORDER BY DATE_TRUNC('hour', created_at) DESC
@@ -122,7 +122,7 @@ func (r *Repository) GetHistoricalETAForRoute(ctx context.Context, pickupLat, pi
 	`
 
 	var avgETA float64
-	err := r.db.QueryRow(ctx, query, pickupLat, pickupLng, dropoffLat, dropoffLng).Scan(&avgETA)
+	err := r.db.QueryRow(ctx, query, pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude).Scan(&avgETA)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return 0, nil
@@ -137,7 +137,7 @@ func (r *Repository) GetHistoricalETAForRoute(ctx context.Context, pickupLat, pi
 func (r *Repository) GetTrainingData(ctx context.Context, limit int) ([]*TrainingDataPoint, error) {
 	query := `
 		SELECT
-			pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
+			pickup_latitude, pickup_longitude, dropoff_latitude, dropoff_longitude,
 			actual_minutes, distance,
 			COALESCE(traffic_level, 'medium') as traffic_level,
 			COALESCE(weather, 'clear') as weather,
@@ -161,10 +161,10 @@ func (r *Repository) GetTrainingData(ctx context.Context, limit int) ([]*Trainin
 	for rows.Next() {
 		var dp TrainingDataPoint
 		err := rows.Scan(
-			&dp.PickupLat,
-			&dp.PickupLng,
-			&dp.DropoffLat,
-			&dp.DropoffLng,
+			&dp.PickupLatitude,
+			&dp.PickupLongitude,
+			&dp.DropoffLatitude,
+			&dp.DropoffLongitude,
 			&dp.ActualMinutes,
 			&dp.Distance,
 			&dp.TrafficLevel,
@@ -256,7 +256,7 @@ func (r *Repository) GetModelStats(ctx context.Context) (*ETAModel, error) {
 func (r *Repository) GetPredictionHistory(ctx context.Context, limit int, offset int) ([]*ETAPrediction, error) {
 	query := `
 		SELECT
-			id, pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
+			id, pickup_latitude, pickup_longitude, dropoff_latitude, dropoff_longitude,
             predicted_minutes, COALESCE(actual_minutes, 0), distance, traffic_level,
             weather, time_of_day, day_of_week, confidence, COALESCE(ride_id, ''), created_at
 		FROM eta_predictions
@@ -275,10 +275,10 @@ func (r *Repository) GetPredictionHistory(ctx context.Context, limit int, offset
 		var p ETAPrediction
 		err := rows.Scan(
 			&p.ID,
-			&p.PickupLat,
-			&p.PickupLng,
-			&p.DropoffLat,
-			&p.DropoffLng,
+			&p.PickupLatitude,
+			&p.PickupLongitude,
+			&p.DropoffLatitude,
+			&p.DropoffLongitude,
 			&p.PredictedMinutes,
 			&p.ActualMinutes,
 			&p.Distance,

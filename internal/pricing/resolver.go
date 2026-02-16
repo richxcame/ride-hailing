@@ -127,9 +127,9 @@ func (r *Resolver) getConfigLevel(config *PricingConfig) string {
 	return "global"
 }
 
-// ResolvePricingForLocation is a convenience method that takes lat/lng and resolves
+// ResolvePricingForLocation is a convenience method that takes latitude/longitude and resolves
 // the full geographic hierarchy before resolving pricing
-func (r *Resolver) ResolvePricingForLocation(ctx context.Context, lat, lng float64, rideTypeID *uuid.UUID) (*ResolvedPricing, error) {
+func (r *Resolver) ResolvePricingForLocation(ctx context.Context, latitude, longitude float64, rideTypeID *uuid.UUID) (*ResolvedPricing, error) {
 	// Note: This would integrate with the geography service
 	// For now, return defaults - the service layer will handle the integration
 	return r.Resolve(ctx, ResolveOptions{

@@ -76,8 +76,8 @@ type CancellationRecord struct {
 	MinutesSinceRequest float64             `json:"minutes_since_request" db:"minutes_since_request"`
 	MinutesSinceAccept  *float64            `json:"minutes_since_accept,omitempty" db:"minutes_since_accept"`
 	RideStatus       string                 `json:"ride_status_at_cancel" db:"ride_status_at_cancel"`
-	PickupLat        float64                `json:"pickup_lat" db:"pickup_lat"`
-	PickupLng        float64                `json:"pickup_lng" db:"pickup_lng"`
+	PickupLatitude   float64                `json:"pickup_latitude" db:"pickup_latitude"`
+	PickupLongitude  float64                `json:"pickup_longitude" db:"pickup_longitude"`
 	CancelledAt      time.Time              `json:"cancelled_at" db:"cancelled_at"`
 	CreatedAt        time.Time              `json:"created_at" db:"created_at"`
 }

@@ -28,27 +28,27 @@ func (h *Handler) RegisterRoutes(rg *gin.RouterGroup) {
 
 // GetAvailableRideTypes returns ride types available at a given location
 func (h *Handler) GetAvailableRideTypes(c *gin.Context) {
-	latStr := c.Query("lat")
-	lngStr := c.Query("lng")
+	latStr := c.Query("latitude")
+	lngStr := c.Query("longitude")
 
 	if latStr == "" || lngStr == "" {
-		common.ErrorResponse(c, http.StatusBadRequest, "lat and lng are required")
+		common.ErrorResponse(c, http.StatusBadRequest, "latitude and longitude are required")
 		return
 	}
 
-	lat, err := strconv.ParseFloat(latStr, 64)
+	latitude, err := strconv.ParseFloat(latStr, 64)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusBadRequest, "invalid lat value")
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitude value")
 		return
 	}
 
-	lng, err := strconv.ParseFloat(lngStr, 64)
+	longitude, err := strconv.ParseFloat(lngStr, 64)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusBadRequest, "invalid lng value")
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid longitude value")
 		return
 	}
 
-	rideTypes, err := h.service.GetAvailableRideTypes(c.Request.Context(), lat, lng)
+	rideTypes, err := h.service.GetAvailableRideTypes(c.Request.Context(), latitude, longitude)
 	if err != nil {
 		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to get available ride types")
 		return

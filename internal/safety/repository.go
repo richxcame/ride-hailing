@@ -606,13 +606,13 @@ func (r *Repository) GetExpiredPendingSafetyChecks(ctx context.Context, timeout 
 func (r *Repository) CreateRouteDeviationAlert(ctx context.Context, alert *RouteDeviationAlert) error {
 	query := `
 		INSERT INTO route_deviation_alerts (
-			id, ride_id, driver_id, expected_lat, expected_lng, actual_lat, actual_lng,
+			id, ride_id, driver_id, expected_latitude, expected_longitude, actual_latitude, actual_longitude,
 			deviation_meters, expected_route, actual_route, rider_notified, created_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
 	_, err := r.db.Exec(ctx, query,
-		alert.ID, alert.RideID, alert.DriverID, alert.ExpectedLat, alert.ExpectedLng,
-		alert.ActualLat, alert.ActualLng, alert.DeviationMeters,
+		alert.ID, alert.RideID, alert.DriverID, alert.ExpectedLatitude, alert.ExpectedLongitude,
+		alert.ActualLatitude, alert.ActualLongitude, alert.DeviationMeters,
 		alert.ExpectedRoute, alert.ActualRoute, alert.RiderNotified, alert.CreatedAt,
 	)
 	return err
@@ -628,7 +628,7 @@ func (r *Repository) UpdateRouteDeviationAcknowledgement(ctx context.Context, id
 // GetRecentRouteDeviations retrieves recent route deviations for a ride
 func (r *Repository) GetRecentRouteDeviations(ctx context.Context, rideID uuid.UUID, since time.Duration) ([]*RouteDeviationAlert, error) {
 	query := `
-		SELECT id, ride_id, driver_id, expected_lat, expected_lng, actual_lat, actual_lng,
+		SELECT id, ride_id, driver_id, expected_latitude, expected_longitude, actual_latitude, actual_longitude,
 			deviation_meters, expected_route, actual_route, rider_notified, driver_response,
 			acknowledged, acknowledged_at, created_at
 		FROM route_deviation_alerts
@@ -645,8 +645,8 @@ func (r *Repository) GetRecentRouteDeviations(ctx context.Context, rideID uuid.U
 	for rows.Next() {
 		var alert RouteDeviationAlert
 		if err := rows.Scan(
-			&alert.ID, &alert.RideID, &alert.DriverID, &alert.ExpectedLat, &alert.ExpectedLng,
-			&alert.ActualLat, &alert.ActualLng, &alert.DeviationMeters,
+			&alert.ID, &alert.RideID, &alert.DriverID, &alert.ExpectedLatitude, &alert.ExpectedLongitude,
+			&alert.ActualLatitude, &alert.ActualLongitude, &alert.DeviationMeters,
 			&alert.ExpectedRoute, &alert.ActualRoute, &alert.RiderNotified, &alert.DriverResponse,
 			&alert.Acknowledged, &alert.AcknowledgedAt, &alert.CreatedAt,
 		); err != nil {

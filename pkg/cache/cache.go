@@ -139,8 +139,8 @@ func (k CacheKeys) DriverLocation(driverID string) string {
 }
 
 // NearbyDrivers returns cache key for nearby drivers search
-func (k CacheKeys) NearbyDrivers(lat, lng float64, radius float64) string {
-	return fmt.Sprintf("nearby_drivers:%.6f:%.6f:%.1f", lat, lng, radius)
+func (k CacheKeys) NearbyDrivers(latitude, longitude float64, radius float64) string {
+	return fmt.Sprintf("nearby_drivers:%.6f:%.6f:%.1f", latitude, longitude, radius)
 }
 
 // Wallet returns cache key for wallet balance

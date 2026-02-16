@@ -111,13 +111,13 @@ type FinancialReport struct {
 
 // DemandZone represents a high-demand geographic zone
 type DemandZone struct {
-	ZoneName   string  `json:"zone_name"`
-	CenterLat  float64 `json:"center_latitude"`
-	CenterLon  float64 `json:"center_longitude"`
-	RadiusKm   float64 `json:"radius_km"`
-	TotalRides int     `json:"total_rides"`
-	AvgSurge   float64 `json:"avg_surge_multiplier"`
-	PeakHours  string  `json:"peak_hours"`
+	ZoneName        string  `json:"zone_name"`
+	CenterLatitude  float64 `json:"center_latitude"`
+	CenterLongitude float64 `json:"center_longitude"`
+	RadiusKm        float64 `json:"radius_km"`
+	TotalRides      int     `json:"total_rides"`
+	AvgSurge        float64 `json:"avg_surge_multiplier"`
+	PeakHours       string  `json:"peak_hours"`
 }
 
 // RevenueTimeSeries represents time-series revenue data for charts

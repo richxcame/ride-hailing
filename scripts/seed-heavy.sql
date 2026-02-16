@@ -221,10 +221,10 @@ DECLARE
     ride_uuid UUID;
     payment_uuid UUID;
     ride_status TEXT;
-    pickup_lat DECIMAL(10,8);
-    pickup_lon DECIMAL(10,8);
-    dropoff_lat DECIMAL(10,8);
-    dropoff_lon DECIMAL(10,8);
+    pickup_latitude DECIMAL(10,8);
+    pickup_longitude DECIMAL(10,8);
+    dropoff_latitude DECIMAL(10,8);
+    dropoff_longitude DECIMAL(10,8);
     distance DECIMAL(10,2);
     duration INTEGER;
     fare DECIMAL(10,2);
@@ -253,10 +253,10 @@ BEGIN
         END;
 
         -- Generate realistic coordinates (SF Bay Area)
-        pickup_lat := 37.7 + (random() * 0.2);
-        pickup_lon := -122.5 + (random() * 0.2);
-        dropoff_lat := 37.7 + (random() * 0.2);
-        dropoff_lon := -122.5 + (random() * 0.2);
+        pickup_latitude := 37.7 + (random() * 0.2);
+        pickup_longitude := -122.5 + (random() * 0.2);
+        dropoff_latitude := 37.7 + (random() * 0.2);
+        dropoff_longitude := -122.5 + (random() * 0.2);
 
         -- Calculate distance and duration
         distance := (1 + random() * 15)::DECIMAL(10,2); -- 1-16 miles
@@ -285,8 +285,8 @@ BEGIN
             ride_uuid, rider_uuid,
             CASE WHEN ride_status = 'requested' THEN NULL ELSE driver_uuid END,
             ride_status,
-            pickup_lat, pickup_lon, floor(random() * 1000) || ' Market St, San Francisco, CA',
-            dropoff_lat, dropoff_lon, floor(random() * 1000) || ' Mission St, San Francisco, CA',
+            pickup_latitude, pickup_longitude, floor(random() * 1000) || ' Market St, San Francisco, CA',
+            dropoff_latitude, dropoff_longitude, floor(random() * 1000) || ' Mission St, San Francisco, CA',
             distance, duration, fare,
             CASE WHEN ride_status = 'completed' THEN (distance + random() * 0.5)::DECIMAL(10,2) ELSE NULL END,
             CASE WHEN ride_status = 'completed' THEN (duration + (random() * 5)::INT) ELSE NULL END,

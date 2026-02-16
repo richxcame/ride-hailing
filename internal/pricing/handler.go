@@ -11,7 +11,7 @@ import (
 
 // RideTypesProvider defines the interface for fetching ride types
 type RideTypesProvider interface {
-	GetAvailableRideTypes(ctx interface{}, lat, lng float64) ([]interface{}, error)
+	GetAvailableRideTypes(ctx interface{}, latitude, longitude float64) ([]interface{}, error)
 }
 
 // Handler handles HTTP requests for pricing
@@ -124,27 +124,27 @@ func getInt(m map[string]interface{}, key string) int {
 
 // GetSurge returns current surge information
 func (h *Handler) GetSurge(c *gin.Context) {
-	latStr := c.Query("lat")
-	lngStr := c.Query("lng")
+	latStr := c.Query("latitude")
+	lngStr := c.Query("longitude")
 
 	if latStr == "" || lngStr == "" {
-		common.ErrorResponse(c, http.StatusBadRequest, "lat and lng are required")
+		common.ErrorResponse(c, http.StatusBadRequest, "latitude and longitude are required")
 		return
 	}
 
-	lat, err := strconv.ParseFloat(latStr, 64)
+	latitude, err := strconv.ParseFloat(latStr, 64)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusBadRequest, "invalid lat")
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitude")
 		return
 	}
 
-	lng, err := strconv.ParseFloat(lngStr, 64)
+	longitude, err := strconv.ParseFloat(lngStr, 64)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusBadRequest, "invalid lng")
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid longitude")
 		return
 	}
 
-	surgeInfo, err := h.service.GetSurgeInfo(c.Request.Context(), lat, lng)
+	surgeInfo, err := h.service.GetSurgeInfo(c.Request.Context(), latitude, longitude)
 	if err != nil {
 		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get surge info")
 		return
@@ -184,24 +184,24 @@ func (h *Handler) ValidatePrice(c *gin.Context) {
 
 // GetPricing returns resolved pricing for a location
 func (h *Handler) GetPricing(c *gin.Context) {
-	latStr := c.Query("lat")
-	lngStr := c.Query("lng")
+	latStr := c.Query("latitude")
+	lngStr := c.Query("longitude")
 	rideTypeIDStr := c.Query("ride_type_id")
 
 	if latStr == "" || lngStr == "" {
-		common.ErrorResponse(c, http.StatusBadRequest, "lat and lng are required")
+		common.ErrorResponse(c, http.StatusBadRequest, "latitude and longitude are required")
 		return
 	}
 
-	lat, err := strconv.ParseFloat(latStr, 64)
+	latitude, err := strconv.ParseFloat(latStr, 64)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusBadRequest, "invalid lat")
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitude")
 		return
 	}
 
-	lng, err := strconv.ParseFloat(lngStr, 64)
+	longitude, err := strconv.ParseFloat(lngStr, 64)
 	if err != nil {
-		common.ErrorResponse(c, http.StatusBadRequest, "invalid lng")
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid longitude")
 		return
 	}
 
@@ -215,7 +215,7 @@ func (h *Handler) GetPricing(c *gin.Context) {
 		rideTypeID = &id
 	}
 
-	pricing, err := h.service.GetPricing(c.Request.Context(), lat, lng, rideTypeID)
+	pricing, err := h.service.GetPricing(c.Request.Context(), latitude, longitude, rideTypeID)
 	if err != nil {
 		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get pricing")
 		return

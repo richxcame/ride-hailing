@@ -460,8 +460,8 @@ func (h *HEREMapsProvider) convertGeocodingResponse(resp *hereGeocodingResponse)
 		result := GeocodingResult{
 			FormattedAddress: item.Address.Label,
 			Coordinate: Coordinate{
-				Latitude:  item.Position.Lat,
-				Longitude: item.Position.Lng,
+				Latitude:  item.Position.Latitude,
+				Longitude: item.Position.Longitude,
 			},
 			PlaceID:    item.ID,
 			Confidence: float64(item.Scoring.QueryScore),
@@ -512,8 +512,8 @@ func (h *HEREMapsProvider) convertPlacesResponse(resp *hereGeocodingResponse) *P
 			Name:             item.Title,
 			FormattedAddress: item.Address.Label,
 			Coordinate: Coordinate{
-				Latitude:  item.Position.Lat,
-				Longitude: item.Position.Lng,
+				Latitude:  item.Position.Latitude,
+				Longitude: item.Position.Longitude,
 			},
 			Types: item.Categories,
 		}
@@ -683,8 +683,8 @@ type hereLocation struct {
 }
 
 type herePosition struct {
-	Lat float64 `json:"lat"`
-	Lng float64 `json:"lng"`
+	Latitude  float64 `json:"lat"`
+	Longitude float64 `json:"lng"`
 }
 
 type hereSummary struct {

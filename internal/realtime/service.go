@@ -52,8 +52,8 @@ func (s *Service) handleLocationUpdate(client *ws.Client, msg *ws.Message) {
 		return
 	}
 
-	lat, latOk := msg.Data["latitude"].(float64)
-	lng, lngOk := msg.Data["longitude"].(float64)
+	latitude, latOk := msg.Data["latitude"].(float64)
+	longitude, lngOk := msg.Data["longitude"].(float64)
 
 	if !latOk || !lngOk {
 		s.logger.Warn("invalid location data from driver", zap.String("client_id", client.ID))
@@ -64,8 +64,8 @@ func (s *Service) handleLocationUpdate(client *ws.Client, msg *ws.Message) {
 	ctx := context.Background()
 	key := "driver:location:" + client.ID
 	locationData := map[string]interface{}{
-		"latitude":  lat,
-		"longitude": lng,
+		"latitude": latitude,
+		"longitude": longitude,
 		"timestamp": time.Now().Unix(),
 		"heading":   msg.Data["heading"],
 		"speed":     msg.Data["speed"],
@@ -89,8 +89,8 @@ func (s *Service) handleLocationUpdate(client *ws.Client, msg *ws.Message) {
 					UserID:    client.ID,
 					Timestamp: time.Now(),
 					Data: map[string]interface{}{
-						"latitude":  lat,
-						"longitude": lng,
+						"latitude": latitude,
+						"longitude": longitude,
 						"heading":   msg.Data["heading"],
 						"speed":     msg.Data["speed"],
 					},

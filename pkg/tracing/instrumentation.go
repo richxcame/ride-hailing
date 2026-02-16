@@ -48,8 +48,8 @@ const (
 	FareAmountKey   = attribute.Key("fare.amount")
 	DistanceKey     = attribute.Key("distance.meters")
 	DurationKey     = attribute.Key("duration.seconds")
-	LocationLatKey  = attribute.Key("location.lat")
-	LocationLonKey  = attribute.Key("location.lon")
+	LocationLatitudeKey  = attribute.Key("location.latitude")
+	LocationLongitudeKey = attribute.Key("location.longitude")
 )
 
 // TraceDBQuery wraps a database query with tracing
@@ -238,9 +238,9 @@ func PaymentAttributes(paymentID string, amount float64) []attribute.KeyValue {
 }
 
 // Helper function to create location-specific attributes
-func LocationAttributes(lat, lon float64) []attribute.KeyValue {
+func LocationAttributes(latitude, longitude float64) []attribute.KeyValue {
 	return []attribute.KeyValue{
-		LocationLatKey.Float64(lat),
-		LocationLonKey.Float64(lon),
+		LocationLatitudeKey.Float64(latitude),
+		LocationLongitudeKey.Float64(longitude),
 	}
 }

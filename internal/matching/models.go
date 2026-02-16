@@ -8,23 +8,23 @@ import (
 
 // RideRequestedEvent represents a ride request event from NATS
 type RideRequestedEvent struct {
-	RideID          uuid.UUID `json:"ride_id"`
-	RiderID         uuid.UUID `json:"rider_id"`
-	RiderName       string    `json:"rider_name"`
-	RiderRating     float64   `json:"rider_rating"`
-	PickupLatitude  float64   `json:"pickup_latitude"`
-	PickupLongitude float64   `json:"pickup_longitude"`
-	PickupAddress   string    `json:"pickup_address"`
-	DropoffLatitude  *float64  `json:"dropoff_latitude,omitempty"`
-	DropoffLongitude *float64  `json:"dropoff_longitude,omitempty"`
-	DropoffAddress   *string   `json:"dropoff_address,omitempty"`
-	RideTypeID      uuid.UUID `json:"ride_type_id"`
-	RideTypeName    string    `json:"ride_type_name"`
-	EstimatedFare   float64   `json:"estimated_fare"`
-	EstimatedDistance float64 `json:"estimated_distance_km"`
-	EstimatedDuration int     `json:"estimated_duration_minutes"`
-	Currency        string    `json:"currency"`
-	RequestedAt     time.Time `json:"requested_at"`
+	RideID            uuid.UUID `json:"ride_id"`
+	RiderID           uuid.UUID `json:"rider_id"`
+	RiderName         string    `json:"rider_name"`
+	RiderRating       float64   `json:"rider_rating"`
+	PickupLatitude    float64   `json:"pickup_latitude"`
+	PickupLongitude   float64   `json:"pickup_longitude"`
+	PickupAddress     string    `json:"pickup_address"`
+	DropoffLatitude   *float64  `json:"dropoff_latitude,omitempty"`
+	DropoffLongitude  *float64  `json:"dropoff_longitude,omitempty"`
+	DropoffAddress    *string   `json:"dropoff_address,omitempty"`
+	RideTypeID        uuid.UUID `json:"ride_type_id"`
+	RideTypeName      string    `json:"ride_type_name"`
+	EstimatedFare     float64   `json:"estimated_fare"`
+	EstimatedDistance float64   `json:"estimated_distance_km"`
+	EstimatedDuration int       `json:"estimated_duration_minutes"`
+	Currency          string    `json:"currency"`
+	RequestedAt       time.Time `json:"requested_at"`
 }
 
 // RideAcceptedEvent represents a ride acceptance event

@@ -813,14 +813,14 @@ func TestHandler_SubmitOffer_WithDriverLocation(t *testing.T) {
 	sessionID := uuid.New()
 	expectedOffer := createTestOffer(sessionID, driverID)
 
-	lat := 40.7128
-	lng := -74.0060
+	latitude := 40.7128
+	longitude := -74.0060
 	eta := 5
 
 	reqBody := SubmitOfferRequest{
 		OfferedPrice:        90.0,
-		DriverLatitude:      &lat,
-		DriverLongitude:     &lng,
+		DriverLatitude:      &latitude,
+		DriverLongitude:     &longitude,
 		EstimatedPickupTime: &eta,
 	}
 

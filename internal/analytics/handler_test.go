@@ -963,8 +963,8 @@ func TestHandler_GetDemandZones_Success(t *testing.T) {
 	router := setupTestRouter()
 
 	zones := []*DemandZone{
-		{ZoneName: "Downtown", CenterLat: 40.7128, CenterLon: -74.0060, TotalRides: 5000, PeakHours: "8-10, 17-19"},
-		{ZoneName: "Airport", CenterLat: 40.6413, CenterLon: -73.7781, TotalRides: 3000, PeakHours: "6-8, 20-22"},
+		{ZoneName: "Downtown", CenterLatitude: 40.7128, CenterLongitude: -74.0060, TotalRides: 5000, PeakHours: "8-10, 17-19"},
+		{ZoneName: "Airport", CenterLatitude: 40.6413, CenterLongitude: -73.7781, TotalRides: 3000, PeakHours: "6-8, 20-22"},
 	}
 
 	mockSvc.On("GetDemandZones", mock.Anything, mock.AnythingOfType("time.Time"), mock.AnythingOfType("time.Time"), 20).Return(zones, nil)

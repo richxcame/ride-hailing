@@ -193,7 +193,7 @@ Validates presence of all three fields. On success the updated user object is re
 | POST | `/rides` | Create a ride using `models.RideRequest`. Optional `ride_type_id`, `promo_code`, `scheduled_at`. |
 | GET | `/rides/:id` | Fetch one of your rides (rider or assigned driver). |
 | GET | `/rides` | Paginated list (`page`, `per_page`) of rides for the authenticated rider/driver. |
-| GET | `/rides/surge-info?lat=..&lon=..` | Returns current surge multiplier for the provided coordinates. |
+| GET | `/rides/surge-info?latitude =..&longitude =..` | Returns current surge multiplier for the provided coordinates. |
 | POST | `/rides/:id/cancel` | Cancels a ride. Accepts optional `reason` body. Riders can always cancel; drivers can cancel assigned rides. |
 | POST | `/rides/:id/rate` | Submit a rating for a completed ride. Body matches `models.RideRatingRequest`. |
 
@@ -261,7 +261,7 @@ Returns the updated ride, including `final_fare`, `actual_duration` and `complet
 
 #### Surge info response
 
-`GET /api/v1/rides/surge-info?lat=40.75&lon=-73.98`
+`GET /api/v1/rides/surge-info?latitude =40.75&longitude =-73.98`
 
 ```json
 {
@@ -736,10 +736,10 @@ Machine-learning driven ETA predictions plus model management endpoints.
 
 ```json
 {
-  "pickup_lat": 40.758,
-  "pickup_lng": -73.9855,
-  "dropoff_lat": 40.7128,
-  "dropoff_lng": -74.006,
+  "pickup_latitude": 40.758,
+  "pickup_longitude": -73.9855,
+  "dropoff_latitude": 40.7128,
+  "dropoff_longitude": -74.006,
   "traffic_level": "high",
   "weather": "rain",
   "driver_id": "5a4e...",

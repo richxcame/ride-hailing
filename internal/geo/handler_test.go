@@ -73,21 +73,21 @@ func parseResponse(w *httptest.ResponseRecorder) map[string]interface{} {
 	return response
 }
 
-func createTestDriverLocation(driverID uuid.UUID, lat, lng float64) *DriverLocation {
+func createTestDriverLocation(driverID uuid.UUID, latitude, longitude float64) *DriverLocation {
 	return &DriverLocation{
 		DriverID:  driverID,
-		Latitude:  lat,
-		Longitude: lng,
-		H3Cell:    GetMatchingCell(lat, lng),
+		Latitude: latitude,
+		Longitude: longitude,
+		H3Cell:    GetMatchingCell(latitude, longitude),
 		Heading:   45.0,
 		Speed:     30.0,
 		Timestamp: time.Now(),
 	}
 }
 
-func createTestSurgeInfo(lat, lng float64) *SurgeInfo {
+func createTestSurgeInfo(latitude, longitude float64) *SurgeInfo {
 	return &SurgeInfo{
-		H3Cell:          GetSurgeZone(lat, lng),
+		H3Cell:          GetSurgeZone(latitude, longitude),
 		SurgeMultiplier: 1.5,
 		DemandCount:     10,
 		SupplyCount:     5,
@@ -95,23 +95,23 @@ func createTestSurgeInfo(lat, lng float64) *SurgeInfo {
 	}
 }
 
-func createTestDemandInfo(lat, lng float64) *DemandInfo {
+func createTestDemandInfo(latitude, longitude float64) *DemandInfo {
 	return &DemandInfo{
-		H3Cell:       GetDemandZone(lat, lng),
+		H3Cell:       GetDemandZone(latitude, longitude),
 		RequestCount: 15,
-		Latitude:     lat,
-		Longitude:    lng,
+		Latitude: latitude,
+		Longitude: longitude,
 	}
 }
 
-func createTestGeocodingResult(lat, lng float64) *GeocodingResult {
+func createTestGeocodingResult(latitude, longitude float64) *GeocodingResult {
 	return &GeocodingResult{
 		PlaceID:          "test-place-id-123",
 		FormattedAddress: "123 Test Street, Test City",
-		Latitude:         lat,
-		Longitude:        lng,
+		Latitude: latitude,
+		Longitude: longitude,
 		Types:            []string{"street_address"},
-		H3Cell:           GetMatchingCell(lat, lng),
+		H3Cell:           GetMatchingCell(latitude, longitude),
 	}
 }
 
@@ -1393,11 +1393,11 @@ func TestHandler_RegisterActiveRide_Success(t *testing.T) {
 		"ride_id":    rideID.String(),
 		"rider_id":   riderID.String(),
 		"driver_id":  driverID.String(),
-		"dropoff_lat": 37.7850,
-		"dropoff_lng": -122.4094,
+		"dropoff_latitude": 37.7850,
+		"dropoff_longitude": -122.4094,
 		"status":     "accepted",
-		"pickup_lat": 37.7749,
-		"pickup_lng": -122.4194,
+		"pickup_latitude": 37.7749,
+		"pickup_longitude": -122.4194,
 	}
 
 	c, w := setupTestContext("POST", "/api/v1/internal/eta/register", reqBody)
@@ -1446,8 +1446,8 @@ func TestHandler_RegisterActiveRide_ETATrackerNotEnabled(t *testing.T) {
 		"ride_id":    rideID.String(),
 		"rider_id":   riderID.String(),
 		"driver_id":  driverID.String(),
-		"dropoff_lat": 37.7850,
-		"dropoff_lng": -122.4094,
+		"dropoff_latitude": 37.7850,
+		"dropoff_longitude": -122.4094,
 		"status":     "accepted",
 	}
 
@@ -1483,8 +1483,8 @@ func TestHandler_RegisterActiveRide_ServiceError(t *testing.T) {
 		"ride_id":    rideID.String(),
 		"rider_id":   riderID.String(),
 		"driver_id":  driverID.String(),
-		"dropoff_lat": 37.7850,
-		"dropoff_lng": -122.4094,
+		"dropoff_latitude": 37.7850,
+		"dropoff_longitude": -122.4094,
 		"status":     "accepted",
 	}
 

@@ -82,8 +82,8 @@ $$ LANGUAGE plpgsql;
 
 -- 7. Create function to get nearby drivers using PostGIS
 CREATE OR REPLACE FUNCTION get_nearby_drivers_postgis(
-    lat DOUBLE PRECISION,
-    lng DOUBLE PRECISION,
+    latitude DOUBLE PRECISION,
+    longitude DOUBLE PRECISION,
     radius_meters DOUBLE PRECISION DEFAULT 10000
 )
 RETURNS TABLE (
@@ -101,7 +101,7 @@ BEGIN
         d.id,
         d.user_id,
         ST_Distance(
-            ST_MakePoint(lng, lat)::geography,
+            ST_MakePoint(longitude, latitude)::geography,
             ST_MakePoint(d.current_longitude, d.current_latitude)::geography
         ) AS distance_meters,
         d.current_latitude,
@@ -114,7 +114,7 @@ BEGIN
       AND d.current_latitude IS NOT NULL
       AND d.current_longitude IS NOT NULL
       AND ST_DWithin(
-          ST_MakePoint(lng, lat)::geography,
+          ST_MakePoint(longitude, latitude)::geography,
           ST_MakePoint(d.current_longitude, d.current_latitude)::geography,
           radius_meters
       )
@@ -145,4 +145,4 @@ COMMENT ON EXTENSION postgis IS 'PostGIS geometry and geography spatial types an
 COMMENT ON EXTENSION pg_stat_statements IS 'Track planning and execution statistics of all SQL statements';
 COMMENT ON MATERIALIZED VIEW driver_statistics IS 'Cached driver performance statistics - refresh periodically';
 COMMENT ON FUNCTION refresh_driver_statistics() IS 'Refresh the driver_statistics materialized view concurrently';
-COMMENT ON FUNCTION get_nearby_drivers_postgis(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION) IS 'Find nearby available drivers using PostGIS within radius';
+COMMENT ON FUNCTION get_nearby_drivers_postgis(DOUBLE PRECISION, DOUBLE PRECISION, DOUBLE PRECISION) IS 'Find nearby available drivers using PostGIS within radius (latitude, longitude, radius_meters)';

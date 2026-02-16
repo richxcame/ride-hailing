@@ -13,11 +13,11 @@ type RideRequestedData struct {
 	RiderID           uuid.UUID `json:"rider_id"`
 	RiderName         string    `json:"rider_name"`
 	RiderRating       float64   `json:"rider_rating"`
-	PickupLat         float64   `json:"pickup_lat"`
-	PickupLng         float64   `json:"pickup_lng"`
+	PickupLatitude    float64   `json:"pickup_latitude"`
+	PickupLongitude   float64   `json:"pickup_longitude"`
 	PickupAddress     string    `json:"pickup_address"`
-	DropoffLat        float64   `json:"dropoff_lat"`
-	DropoffLng        float64   `json:"dropoff_lng"`
+	DropoffLatitude   float64   `json:"dropoff_latitude"`
+	DropoffLongitude  float64   `json:"dropoff_longitude"`
 	DropoffAddress    string    `json:"dropoff_address"`
 	RideTypeID        uuid.UUID `json:"ride_type_id"`
 	RideTypeName      string    `json:"ride_type_name"`
@@ -30,14 +30,14 @@ type RideRequestedData struct {
 
 // RideAcceptedData is emitted when a driver accepts a ride.
 type RideAcceptedData struct {
-	RideID     uuid.UUID `json:"ride_id"`
-	RiderID    uuid.UUID `json:"rider_id"`
-	DriverID   uuid.UUID `json:"driver_id"`
-	PickupLat  float64   `json:"pickup_lat"`
-	PickupLng  float64   `json:"pickup_lng"`
-	DropoffLat float64   `json:"dropoff_lat"`
-	DropoffLng float64   `json:"dropoff_lng"`
-	AcceptedAt time.Time `json:"accepted_at"`
+	RideID            uuid.UUID `json:"ride_id"`
+	RiderID           uuid.UUID `json:"rider_id"`
+	DriverID          uuid.UUID `json:"driver_id"`
+	PickupLatitude    float64   `json:"pickup_latitude"`
+	PickupLongitude   float64   `json:"pickup_longitude"`
+	DropoffLatitude   float64   `json:"dropoff_latitude"`
+	DropoffLongitude  float64   `json:"dropoff_longitude"`
+	AcceptedAt        time.Time `json:"accepted_at"`
 }
 
 // RideStartedData is emitted when a ride begins.
@@ -117,22 +117,22 @@ type FraudDetectedData struct {
 
 // NegotiationStartedData is emitted when a negotiation session starts.
 type NegotiationStartedData struct {
-	SessionID            uuid.UUID `json:"session_id"`
-	RiderID              uuid.UUID `json:"rider_id"`
-	PickupLat            float64   `json:"pickup_lat"`
-	PickupLng            float64   `json:"pickup_lng"`
-	DropoffLat           float64   `json:"dropoff_lat"`
-	DropoffLng           float64   `json:"dropoff_lng"`
-	PickupAddress        string    `json:"pickup_address"`
-	DropoffAddress       string    `json:"dropoff_address"`
+	SessionID            uuid.UUID  `json:"session_id"`
+	RiderID              uuid.UUID  `json:"rider_id"`
+	PickupLatitude       float64    `json:"pickup_latitude"`
+	PickupLongitude      float64    `json:"pickup_longitude"`
+	DropoffLatitude      float64    `json:"dropoff_latitude"`
+	DropoffLongitude     float64    `json:"dropoff_longitude"`
+	PickupAddress        string     `json:"pickup_address"`
+	DropoffAddress       string     `json:"dropoff_address"`
 	CityID               *uuid.UUID `json:"city_id,omitempty"`
-	EstimatedFare        float64   `json:"estimated_fare"`
-	FairPriceMin         float64   `json:"fair_price_min"`
-	FairPriceMax         float64   `json:"fair_price_max"`
-	CurrencyCode         string    `json:"currency_code"`
-	RiderInitialOffer    *float64  `json:"rider_initial_offer,omitempty"`
-	ExpiresAt            time.Time `json:"expires_at"`
-	StartedAt            time.Time `json:"started_at"`
+	EstimatedFare        float64    `json:"estimated_fare"`
+	FairPriceMin         float64    `json:"fair_price_min"`
+	FairPriceMax         float64    `json:"fair_price_max"`
+	CurrencyCode         string     `json:"currency_code"`
+	RiderInitialOffer    *float64   `json:"rider_initial_offer,omitempty"`
+	ExpiresAt            time.Time  `json:"expires_at"`
+	StartedAt            time.Time  `json:"started_at"`
 }
 
 // NegotiationOfferData is emitted when a driver makes an offer.
@@ -180,8 +180,8 @@ type NegotiationCancelledData struct {
 type DriverInviteData struct {
 	SessionID         uuid.UUID   `json:"session_id"`
 	DriverIDs         []uuid.UUID `json:"driver_ids"`
-	PickupLat         float64     `json:"pickup_lat"`
-	PickupLng         float64     `json:"pickup_lng"`
+	PickupLatitude    float64     `json:"pickup_latitude"`
+	PickupLongitude   float64     `json:"pickup_longitude"`
 	EstimatedFare     float64     `json:"estimated_fare"`
 	FairPriceMin      float64     `json:"fair_price_min"`
 	FairPriceMax      float64     `json:"fair_price_max"`

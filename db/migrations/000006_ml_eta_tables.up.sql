@@ -4,10 +4,10 @@
 -- Table to store ETA predictions
 CREATE TABLE IF NOT EXISTS eta_predictions (
     id SERIAL PRIMARY KEY,
-    pickup_lat DOUBLE PRECISION NOT NULL,
-    pickup_lng DOUBLE PRECISION NOT NULL,
-    dropoff_lat DOUBLE PRECISION NOT NULL,
-    dropoff_lng DOUBLE PRECISION NOT NULL,
+    pickup_latitude DOUBLE PRECISION NOT NULL,
+    pickup_longitude DOUBLE PRECISION NOT NULL,
+    dropoff_latitude DOUBLE PRECISION NOT NULL,
+    dropoff_longitude DOUBLE PRECISION NOT NULL,
     predicted_minutes DOUBLE PRECISION NOT NULL,
     actual_minutes DOUBLE PRECISION,
     distance DOUBLE PRECISION NOT NULL,
@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS eta_predictions (
 -- Indexes for performance
 CREATE INDEX idx_eta_predictions_ride_id ON eta_predictions(ride_id);
 CREATE INDEX idx_eta_predictions_created_at ON eta_predictions(created_at DESC);
-CREATE INDEX idx_eta_predictions_coordinates ON eta_predictions(pickup_lat, pickup_lng, dropoff_lat, dropoff_lng);
+CREATE INDEX idx_eta_predictions_coordinates ON eta_predictions(pickup_latitude, pickup_longitude, dropoff_latitude, dropoff_longitude);
 CREATE INDEX idx_eta_predictions_actual_not_null ON eta_predictions(actual_minutes) WHERE actual_minutes IS NOT NULL;
 
 -- Table to store model training statistics

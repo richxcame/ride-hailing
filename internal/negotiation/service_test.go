@@ -97,8 +97,8 @@ func (m *mockPricing) GetEstimate(ctx context.Context, req pricing.EstimateReque
 
 type mockGeo struct{ mock.Mock }
 
-func (m *mockGeo) ResolveLocation(ctx context.Context, lat, lng float64) (*geography.ResolvedLocation, error) {
-	args := m.Called(ctx, lat, lng)
+func (m *mockGeo) ResolveLocation(ctx context.Context, latitude, longitude float64) (*geography.ResolvedLocation, error) {
+	args := m.Called(ctx, latitude, longitude)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

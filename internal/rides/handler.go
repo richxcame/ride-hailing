@@ -472,21 +472,21 @@ func (h *Handler) UpdateUserProfile(c *gin.Context) {
 
 // GetSurgeInfo surfaces surge pricing details for the supplied coordinates.
 func (h *Handler) GetSurgeInfo(c *gin.Context) {
-	latStr := c.Query("lat")
-	lonStr := c.Query("lon")
+	latStr := c.Query("latitude")
+	lonStr := c.Query("longitude")
 
 	if latStr == "" || lonStr == "" {
 		common.ErrorResponse(c, http.StatusBadRequest, "latitude and longitude are required")
 		return
 	}
 
-	lat, err := strconv.ParseFloat(latStr, 64)
+	latitude, err := strconv.ParseFloat(latStr, 64)
 	if err != nil {
 		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitude")
 		return
 	}
 
-	lon, err := strconv.ParseFloat(lonStr, 64)
+	longitude, err := strconv.ParseFloat(lonStr, 64)
 	if err != nil {
 		common.ErrorResponse(c, http.StatusBadRequest, "invalid longitude")
 		return
@@ -503,7 +503,7 @@ func (h *Handler) GetSurgeInfo(c *gin.Context) {
 		return
 	}
 
-	surgeInfo, err := h.service.surgeCalculator.GetCurrentSurgeInfo(c.Request.Context(), lat, lon)
+	surgeInfo, err := h.service.surgeCalculator.GetCurrentSurgeInfo(c.Request.Context(), latitude, longitude)
 	if err != nil {
 		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get surge information")
 		return
@@ -521,18 +521,18 @@ func (h *Handler) MatchDrivers(c *gin.Context) {
 		return
 	}
 
-	lat, err := strconv.ParseFloat(latStr, 64)
+	latitude, err := strconv.ParseFloat(latStr, 64)
 	if err != nil {
 		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitude")
 		return
 	}
-	lng, err := strconv.ParseFloat(lngStr, 64)
+	longitude, err := strconv.ParseFloat(lngStr, 64)
 	if err != nil {
 		common.ErrorResponse(c, http.StatusBadRequest, "invalid longitude")
 		return
 	}
 
-	candidates, err := h.service.MatchDrivers(c.Request.Context(), lat, lng)
+	candidates, err := h.service.MatchDrivers(c.Request.Context(), latitude, longitude)
 	if err != nil {
 		if appErr, ok := err.(*common.AppError); ok {
 			common.AppErrorResponse(c, appErr)

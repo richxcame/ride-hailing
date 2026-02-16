@@ -47,14 +47,14 @@ func ValidateStruct(s interface{}) error {
 
 // validateLatitude checks if latitude is within valid range (-90 to 90)
 func validateLatitude(fl validator.FieldLevel) bool {
-	lat := fl.Field().Float()
-	return lat >= -90.0 && lat <= 90.0
+	latitude := fl.Field().Float()
+	return latitude >= -90.0 && latitude <= 90.0
 }
 
 // validateLongitude checks if longitude is within valid range (-180 to 180)
 func validateLongitude(fl validator.FieldLevel) bool {
-	lon := fl.Field().Float()
-	return lon >= -180.0 && lon <= 180.0
+	longitude := fl.Field().Float()
+	return longitude >= -180.0 && longitude <= 180.0
 }
 
 // validatePhone checks if phone number is in E.164 format
@@ -128,12 +128,12 @@ func ValidatePhoneNumber(phone string) bool {
 }
 
 // ValidateCoordinates validates latitude and longitude
-func ValidateCoordinates(lat, lon float64) error {
-	if lat < -90.0 || lat > 90.0 {
-		return fmt.Errorf("latitude must be between -90 and 90, got: %f", lat)
+func ValidateCoordinates(latitude, longitude float64) error {
+	if latitude < -90.0 || latitude > 90.0 {
+		return fmt.Errorf("latitude must be between -90 and 90, got: %f", latitude)
 	}
-	if lon < -180.0 || lon > 180.0 {
-		return fmt.Errorf("longitude must be between -180 and 180, got: %f", lon)
+	if longitude < -180.0 || longitude > 180.0 {
+		return fmt.Errorf("longitude must be between -180 and 180, got: %f", longitude)
 	}
 	return nil
 }

@@ -31,7 +31,7 @@ func (r *Repository) CreatePoolRide(ctx context.Context, pool *PoolRide) error {
 		INSERT INTO pool_rides (
 			id, driver_id, vehicle_id, status, max_passengers, current_passengers,
 			optimized_route, total_distance_km, total_duration_minutes,
-			center_lat, center_lng, radius_km, h3_index,
+			center_latitude, center_longitude, radius_km, h3_index,
 			base_fare, per_km_rate, per_minute_rate,
 			match_deadline, created_at, updated_at
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
@@ -40,7 +40,7 @@ func (r *Repository) CreatePoolRide(ctx context.Context, pool *PoolRide) error {
 	_, err := r.db.Exec(ctx, query,
 		pool.ID, pool.DriverID, pool.VehicleID, pool.Status, pool.MaxPassengers, pool.CurrentPassengers,
 		routeJSON, pool.TotalDistance, pool.TotalDuration,
-		pool.CenterLat, pool.CenterLng, pool.RadiusKm, pool.H3Index,
+		pool.CenterLatitude, pool.CenterLongitude, pool.RadiusKm, pool.H3Index,
 		pool.BaseFare, pool.PerKmRate, pool.PerMinuteRate,
 		pool.MatchDeadline, pool.CreatedAt, pool.UpdatedAt,
 	)
@@ -52,7 +52,7 @@ func (r *Repository) GetPoolRide(ctx context.Context, poolID uuid.UUID) (*PoolRi
 	query := `
 		SELECT id, driver_id, vehicle_id, status, max_passengers, current_passengers,
 			optimized_route, total_distance_km, total_duration_minutes,
-			center_lat, center_lng, radius_km, h3_index,
+			center_latitude, center_longitude, radius_km, h3_index,
 			base_fare, per_km_rate, per_minute_rate,
 			match_deadline, started_at, completed_at, created_at, updated_at
 		FROM pool_rides
@@ -64,7 +64,7 @@ func (r *Repository) GetPoolRide(ctx context.Context, poolID uuid.UUID) (*PoolRi
 	err := r.db.QueryRow(ctx, query, poolID).Scan(
 		&pool.ID, &pool.DriverID, &pool.VehicleID, &pool.Status, &pool.MaxPassengers, &pool.CurrentPassengers,
 		&routeJSON, &pool.TotalDistance, &pool.TotalDuration,
-		&pool.CenterLat, &pool.CenterLng, &pool.RadiusKm, &pool.H3Index,
+		&pool.CenterLatitude, &pool.CenterLongitude, &pool.RadiusKm, &pool.H3Index,
 		&pool.BaseFare, &pool.PerKmRate, &pool.PerMinuteRate,
 		&pool.MatchDeadline, &pool.StartedAt, &pool.CompletedAt, &pool.CreatedAt, &pool.UpdatedAt,
 	)
@@ -84,7 +84,7 @@ func (r *Repository) GetActivePoolRides(ctx context.Context, h3Index string, sta
 	query := `
 		SELECT id, driver_id, vehicle_id, status, max_passengers, current_passengers,
 			optimized_route, total_distance_km, total_duration_minutes,
-			center_lat, center_lng, radius_km, h3_index,
+			center_latitude, center_longitude, radius_km, h3_index,
 			base_fare, per_km_rate, per_minute_rate,
 			match_deadline, started_at, completed_at, created_at, updated_at
 		FROM pool_rides
@@ -108,7 +108,7 @@ func (r *Repository) GetActivePoolRides(ctx context.Context, h3Index string, sta
 		err := rows.Scan(
 			&pool.ID, &pool.DriverID, &pool.VehicleID, &pool.Status, &pool.MaxPassengers, &pool.CurrentPassengers,
 			&routeJSON, &pool.TotalDistance, &pool.TotalDuration,
-			&pool.CenterLat, &pool.CenterLng, &pool.RadiusKm, &pool.H3Index,
+			&pool.CenterLatitude, &pool.CenterLongitude, &pool.RadiusKm, &pool.H3Index,
 			&pool.BaseFare, &pool.PerKmRate, &pool.PerMinuteRate,
 			&pool.MatchDeadline, &pool.StartedAt, &pool.CompletedAt, &pool.CreatedAt, &pool.UpdatedAt,
 		)
@@ -129,7 +129,7 @@ func (r *Repository) GetNearbyPoolRides(ctx context.Context, h3Indexes []string,
 	query := `
 		SELECT id, driver_id, vehicle_id, status, max_passengers, current_passengers,
 			optimized_route, total_distance_km, total_duration_minutes,
-			center_lat, center_lng, radius_km, h3_index,
+			center_latitude, center_longitude, radius_km, h3_index,
 			base_fare, per_km_rate, per_minute_rate,
 			match_deadline, started_at, completed_at, created_at, updated_at
 		FROM pool_rides
@@ -154,7 +154,7 @@ func (r *Repository) GetNearbyPoolRides(ctx context.Context, h3Indexes []string,
 		err := rows.Scan(
 			&pool.ID, &pool.DriverID, &pool.VehicleID, &pool.Status, &pool.MaxPassengers, &pool.CurrentPassengers,
 			&routeJSON, &pool.TotalDistance, &pool.TotalDuration,
-			&pool.CenterLat, &pool.CenterLng, &pool.RadiusKm, &pool.H3Index,
+			&pool.CenterLatitude, &pool.CenterLongitude, &pool.RadiusKm, &pool.H3Index,
 			&pool.BaseFare, &pool.PerKmRate, &pool.PerMinuteRate,
 			&pool.MatchDeadline, &pool.StartedAt, &pool.CompletedAt, &pool.CreatedAt, &pool.UpdatedAt,
 		)
@@ -230,7 +230,7 @@ func (r *Repository) CreatePoolPassenger(ctx context.Context, passenger *PoolPas
 	query := `
 		INSERT INTO pool_passengers (
 			id, pool_ride_id, rider_id, status,
-			pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
+			pickup_latitude, pickup_longitude, dropoff_latitude, dropoff_longitude,
 			pickup_address, dropoff_address,
 			direct_distance_km, direct_duration_minutes,
 			original_fare, pool_fare, savings_percent,
@@ -256,7 +256,7 @@ func (r *Repository) CreatePoolPassenger(ctx context.Context, passenger *PoolPas
 func (r *Repository) GetPoolPassenger(ctx context.Context, passengerID uuid.UUID) (*PoolPassenger, error) {
 	query := `
 		SELECT id, pool_ride_id, rider_id, status,
-			pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
+			pickup_latitude, pickup_longitude, dropoff_latitude, dropoff_longitude,
 			pickup_address, dropoff_address,
 			direct_distance_km, direct_duration_minutes,
 			original_fare, pool_fare, savings_percent,
@@ -267,10 +267,10 @@ func (r *Repository) GetPoolPassenger(ctx context.Context, passengerID uuid.UUID
 	`
 
 	var p PoolPassenger
-	var pickupLat, pickupLng, dropoffLat, dropoffLng float64
+	var pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude float64
 	err := r.db.QueryRow(ctx, query, passengerID).Scan(
 		&p.ID, &p.PoolRideID, &p.RiderID, &p.Status,
-		&pickupLat, &pickupLng, &dropoffLat, &dropoffLng,
+		&pickupLatitude, &pickupLongitude, &dropoffLatitude, &dropoffLongitude,
 		&p.PickupAddress, &p.DropoffAddress,
 		&p.DirectDistance, &p.DirectDuration,
 		&p.OriginalFare, &p.PoolFare, &p.SavingsPercent,
@@ -281,8 +281,8 @@ func (r *Repository) GetPoolPassenger(ctx context.Context, passengerID uuid.UUID
 		return nil, err
 	}
 
-	p.PickupLocation = Location{Latitude: pickupLat, Longitude: pickupLng}
-	p.DropoffLocation = Location{Latitude: dropoffLat, Longitude: dropoffLng}
+	p.PickupLocation = Location{Latitude: pickupLatitude, Longitude: pickupLongitude}
+	p.DropoffLocation = Location{Latitude: dropoffLatitude, Longitude: dropoffLongitude}
 
 	return &p, nil
 }
@@ -291,7 +291,7 @@ func (r *Repository) GetPoolPassenger(ctx context.Context, passengerID uuid.UUID
 func (r *Repository) GetPoolPassengerByRider(ctx context.Context, riderID, poolRideID uuid.UUID) (*PoolPassenger, error) {
 	query := `
 		SELECT id, pool_ride_id, rider_id, status,
-			pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
+			pickup_latitude, pickup_longitude, dropoff_latitude, dropoff_longitude,
 			pickup_address, dropoff_address,
 			direct_distance_km, direct_duration_minutes,
 			original_fare, pool_fare, savings_percent,
@@ -302,10 +302,10 @@ func (r *Repository) GetPoolPassengerByRider(ctx context.Context, riderID, poolR
 	`
 
 	var p PoolPassenger
-	var pickupLat, pickupLng, dropoffLat, dropoffLng float64
+	var pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude float64
 	err := r.db.QueryRow(ctx, query, riderID, poolRideID).Scan(
 		&p.ID, &p.PoolRideID, &p.RiderID, &p.Status,
-		&pickupLat, &pickupLng, &dropoffLat, &dropoffLng,
+		&pickupLatitude, &pickupLongitude, &dropoffLatitude, &dropoffLongitude,
 		&p.PickupAddress, &p.DropoffAddress,
 		&p.DirectDistance, &p.DirectDuration,
 		&p.OriginalFare, &p.PoolFare, &p.SavingsPercent,
@@ -316,8 +316,8 @@ func (r *Repository) GetPoolPassengerByRider(ctx context.Context, riderID, poolR
 		return nil, err
 	}
 
-	p.PickupLocation = Location{Latitude: pickupLat, Longitude: pickupLng}
-	p.DropoffLocation = Location{Latitude: dropoffLat, Longitude: dropoffLng}
+	p.PickupLocation = Location{Latitude: pickupLatitude, Longitude: pickupLongitude}
+	p.DropoffLocation = Location{Latitude: dropoffLatitude, Longitude: dropoffLongitude}
 
 	return &p, nil
 }
@@ -326,7 +326,7 @@ func (r *Repository) GetPoolPassengerByRider(ctx context.Context, riderID, poolR
 func (r *Repository) GetPassengersForPool(ctx context.Context, poolRideID uuid.UUID) ([]*PoolPassenger, error) {
 	query := `
 		SELECT id, pool_ride_id, rider_id, status,
-			pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
+			pickup_latitude, pickup_longitude, dropoff_latitude, dropoff_longitude,
 			pickup_address, dropoff_address,
 			direct_distance_km, direct_duration_minutes,
 			original_fare, pool_fare, savings_percent,
@@ -346,10 +346,10 @@ func (r *Repository) GetPassengersForPool(ctx context.Context, poolRideID uuid.U
 	var passengers []*PoolPassenger
 	for rows.Next() {
 		var p PoolPassenger
-		var pickupLat, pickupLng, dropoffLat, dropoffLng float64
+		var pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude float64
 		err := rows.Scan(
 			&p.ID, &p.PoolRideID, &p.RiderID, &p.Status,
-			&pickupLat, &pickupLng, &dropoffLat, &dropoffLng,
+			&pickupLatitude, &pickupLongitude, &dropoffLatitude, &dropoffLongitude,
 			&p.PickupAddress, &p.DropoffAddress,
 			&p.DirectDistance, &p.DirectDuration,
 			&p.OriginalFare, &p.PoolFare, &p.SavingsPercent,
@@ -359,8 +359,8 @@ func (r *Repository) GetPassengersForPool(ctx context.Context, poolRideID uuid.U
 		if err != nil {
 			continue
 		}
-		p.PickupLocation = Location{Latitude: pickupLat, Longitude: pickupLng}
-		p.DropoffLocation = Location{Latitude: dropoffLat, Longitude: dropoffLng}
+		p.PickupLocation = Location{Latitude: pickupLatitude, Longitude: pickupLongitude}
+		p.DropoffLocation = Location{Latitude: dropoffLatitude, Longitude: dropoffLongitude}
 		passengers = append(passengers, &p)
 	}
 
@@ -392,7 +392,7 @@ func (r *Repository) UpdatePassengerDroppedOff(ctx context.Context, passengerID 
 func (r *Repository) GetActivePassengerForRider(ctx context.Context, riderID uuid.UUID) (*PoolPassenger, error) {
 	query := `
 		SELECT id, pool_ride_id, rider_id, status,
-			pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
+			pickup_latitude, pickup_longitude, dropoff_latitude, dropoff_longitude,
 			pickup_address, dropoff_address,
 			direct_distance_km, direct_duration_minutes,
 			original_fare, pool_fare, savings_percent,
@@ -405,10 +405,10 @@ func (r *Repository) GetActivePassengerForRider(ctx context.Context, riderID uui
 	`
 
 	var p PoolPassenger
-	var pickupLat, pickupLng, dropoffLat, dropoffLng float64
+	var pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude float64
 	err := r.db.QueryRow(ctx, query, riderID).Scan(
 		&p.ID, &p.PoolRideID, &p.RiderID, &p.Status,
-		&pickupLat, &pickupLng, &dropoffLat, &dropoffLng,
+		&pickupLatitude, &pickupLongitude, &dropoffLatitude, &dropoffLongitude,
 		&p.PickupAddress, &p.DropoffAddress,
 		&p.DirectDistance, &p.DirectDuration,
 		&p.OriginalFare, &p.PoolFare, &p.SavingsPercent,
@@ -419,8 +419,8 @@ func (r *Repository) GetActivePassengerForRider(ctx context.Context, riderID uui
 		return nil, err
 	}
 
-	p.PickupLocation = Location{Latitude: pickupLat, Longitude: pickupLng}
-	p.DropoffLocation = Location{Latitude: dropoffLat, Longitude: dropoffLng}
+	p.PickupLocation = Location{Latitude: pickupLatitude, Longitude: pickupLongitude}
+	p.DropoffLocation = Location{Latitude: dropoffLatitude, Longitude: dropoffLongitude}
 
 	return &p, nil
 }
@@ -544,7 +544,7 @@ func (r *Repository) GetDriverActivePool(ctx context.Context, driverID uuid.UUID
 	query := `
 		SELECT id, driver_id, vehicle_id, status, max_passengers, current_passengers,
 			optimized_route, total_distance_km, total_duration_minutes,
-			center_lat, center_lng, radius_km, h3_index,
+			center_latitude, center_longitude, radius_km, h3_index,
 			base_fare, per_km_rate, per_minute_rate,
 			match_deadline, started_at, completed_at, created_at, updated_at
 		FROM pool_rides
@@ -558,7 +558,7 @@ func (r *Repository) GetDriverActivePool(ctx context.Context, driverID uuid.UUID
 	err := r.db.QueryRow(ctx, query, driverID).Scan(
 		&pool.ID, &pool.DriverID, &pool.VehicleID, &pool.Status, &pool.MaxPassengers, &pool.CurrentPassengers,
 		&routeJSON, &pool.TotalDistance, &pool.TotalDuration,
-		&pool.CenterLat, &pool.CenterLng, &pool.RadiusKm, &pool.H3Index,
+		&pool.CenterLatitude, &pool.CenterLongitude, &pool.RadiusKm, &pool.H3Index,
 		&pool.BaseFare, &pool.PerKmRate, &pool.PerMinuteRate,
 		&pool.MatchDeadline, &pool.StartedAt, &pool.CompletedAt, &pool.CreatedAt, &pool.UpdatedAt,
 	)
@@ -591,7 +591,7 @@ func (r *Repository) CancelExpiredPoolRides(ctx context.Context) (int64, error) 
 func (r *Repository) GetUnmatchedPassengers(ctx context.Context, poolRideID uuid.UUID) ([]*PoolPassenger, error) {
 	query := `
 		SELECT id, pool_ride_id, rider_id, status,
-			pickup_lat, pickup_lng, dropoff_lat, dropoff_lng,
+			pickup_latitude, pickup_longitude, dropoff_latitude, dropoff_longitude,
 			pickup_address, dropoff_address,
 			direct_distance_km, direct_duration_minutes,
 			original_fare, pool_fare, savings_percent,
@@ -610,10 +610,10 @@ func (r *Repository) GetUnmatchedPassengers(ctx context.Context, poolRideID uuid
 	var passengers []*PoolPassenger
 	for rows.Next() {
 		var p PoolPassenger
-		var pickupLat, pickupLng, dropoffLat, dropoffLng float64
+		var pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude float64
 		err := rows.Scan(
 			&p.ID, &p.PoolRideID, &p.RiderID, &p.Status,
-			&pickupLat, &pickupLng, &dropoffLat, &dropoffLng,
+			&pickupLatitude, &pickupLongitude, &dropoffLatitude, &dropoffLongitude,
 			&p.PickupAddress, &p.DropoffAddress,
 			&p.DirectDistance, &p.DirectDuration,
 			&p.OriginalFare, &p.PoolFare, &p.SavingsPercent,
@@ -623,8 +623,8 @@ func (r *Repository) GetUnmatchedPassengers(ctx context.Context, poolRideID uuid
 		if err != nil {
 			continue
 		}
-		p.PickupLocation = Location{Latitude: pickupLat, Longitude: pickupLng}
-		p.DropoffLocation = Location{Latitude: dropoffLat, Longitude: dropoffLng}
+		p.PickupLocation = Location{Latitude: pickupLatitude, Longitude: pickupLongitude}
+		p.DropoffLocation = Location{Latitude: dropoffLatitude, Longitude: dropoffLongitude}
 		passengers = append(passengers, &p)
 	}
 

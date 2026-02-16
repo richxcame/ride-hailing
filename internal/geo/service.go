@@ -447,12 +447,12 @@ func (s *Service) IncrementDemand(ctx context.Context, latitude, longitude float
 		}
 	}
 
-	centerLat, centerLng := CellToLatLng(LatLngToCell(latitude, longitude, H3ResolutionDemand))
+	centerLatitude, centerLongitude := CellToLatLng(LatLngToCell(latitude, longitude, H3ResolutionDemand))
 	info := &DemandInfo{
 		H3Cell:       demandZone,
 		RequestCount: count + 1,
-		Latitude:     centerLat,
-		Longitude:    centerLng,
+		Latitude:     centerLatitude,
+		Longitude:    centerLongitude,
 	}
 
 	jsonData, err := json.Marshal(info)
@@ -490,15 +490,15 @@ func (s *Service) GetDemandHeatmap(ctx context.Context, latitude, longitude floa
 }
 
 // CalculateDistance calculates distance between two coordinates in kilometers
-func (s *Service) CalculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
+func (s *Service) CalculateDistance(latitude1, longitude1, latitude2, longitude2 float64) float64 {
 	const earthRadius = 6371.0 // km
 
-	dLat := (lat2 - lat1) * math.Pi / 180.0
-	dLon := (lon2 - lon1) * math.Pi / 180.0
+	deltaLatitude := (latitude2 - latitude1) * math.Pi / 180.0
+	deltaLongitude := (longitude2 - longitude1) * math.Pi / 180.0
 
-	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
-		math.Cos(lat1*math.Pi/180.0)*math.Cos(lat2*math.Pi/180.0)*
-			math.Sin(dLon/2)*math.Sin(dLon/2)
+	a := math.Sin(deltaLatitude/2)*math.Sin(deltaLatitude/2) +
+		math.Cos(latitude1*math.Pi/180.0)*math.Cos(latitude2*math.Pi/180.0)*
+			math.Sin(deltaLongitude/2)*math.Sin(deltaLongitude/2)
 
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 	distance := earthRadius * c

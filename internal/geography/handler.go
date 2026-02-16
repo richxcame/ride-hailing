@@ -151,7 +151,7 @@ func (h *Handler) GetPricingZones(c *gin.Context) {
 	common.SuccessResponse(c, responses)
 }
 
-// ResolveLocation resolves a lat/lng to geographic hierarchy
+// ResolveLocation resolves a latitude/longitude to geographic hierarchy
 func (h *Handler) ResolveLocation(c *gin.Context) {
 	var req ResolveLocationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

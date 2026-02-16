@@ -139,8 +139,8 @@ func (s *Service) CancelRide(ctx context.Context, rideID, userID uuid.UUID, req 
 		MinutesSinceRequest: minutesSinceRequest,
 		MinutesSinceAccept:  minutesSinceAccept,
 		RideStatus:          string(ride.Status),
-		PickupLat:           ride.PickupLatitude,
-		PickupLng:           ride.PickupLongitude,
+		PickupLatitude:      ride.PickupLatitude,
+		PickupLongitude:     ride.PickupLongitude,
 		CancelledAt:         now,
 		CreatedAt:           now,
 	}

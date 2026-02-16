@@ -6,15 +6,15 @@ import "time"
 
 // CreateRideRequest represents a ride creation request with validation rules
 type CreateRideRequest struct {
-	PickupLat    float64    `json:"pickup_latitude" validate:"required,latitude"`
-	PickupLon    float64    `json:"pickup_longitude" validate:"required,longitude"`
-	PickupAddr   string     `json:"pickup_address" validate:"required,min=5,max=500"`
-	DropoffLat   float64    `json:"dropoff_latitude" validate:"required,latitude"`
-	DropoffLon   float64    `json:"dropoff_longitude" validate:"required,longitude"`
-	DropoffAddr  string     `json:"dropoff_address" validate:"required,min=5,max=500"`
-	RideType     string     `json:"ride_type" validate:"required,oneof=economy premium xl"`
-	PromoCode    string     `json:"promo_code" validate:"omitempty,alphanum,max=20"`
-	ScheduledFor *time.Time `json:"scheduled_for" validate:"omitempty"`
+	PickupLatitude   float64    `json:"pickup_latitude" validate:"required,latitude"`
+	PickupLongitude  float64    `json:"pickup_longitude" validate:"required,longitude"`
+	PickupAddr       string     `json:"pickup_address" validate:"required,min=5,max=500"`
+	DropoffLatitude  float64    `json:"dropoff_latitude" validate:"required,latitude"`
+	DropoffLongitude float64    `json:"dropoff_longitude" validate:"required,longitude"`
+	DropoffAddr      string     `json:"dropoff_address" validate:"required,min=5,max=500"`
+	RideType         string     `json:"ride_type" validate:"required,oneof=economy premium xl"`
+	PromoCode        string     `json:"promo_code" validate:"omitempty,alphanum,max=20"`
+	ScheduledFor     *time.Time `json:"scheduled_for" validate:"omitempty"`
 }
 
 // RegisterUserRequest represents a user registration request
@@ -121,7 +121,7 @@ func ValidateRideRequest(req *CreateRideRequest) error {
 	validationErr := &ValidationError{Errors: make(map[string]string)}
 
 	// Check if pickup and dropoff are not the same
-	if req.PickupLat == req.DropoffLat && req.PickupLon == req.DropoffLon {
+	if req.PickupLatitude == req.DropoffLatitude && req.PickupLongitude == req.DropoffLongitude {
 		validationErr.AddError("location", "Pickup and dropoff locations cannot be the same")
 	}
 

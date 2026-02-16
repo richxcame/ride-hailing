@@ -180,8 +180,8 @@ func (s *TestableService) CancelRide(ctx context.Context, rideID, userID uuid.UU
 		MinutesSinceRequest: minutesSinceRequest,
 		MinutesSinceAccept:  minutesSinceAccept,
 		RideStatus:          string(ride.Status),
-		PickupLat:           ride.PickupLatitude,
-		PickupLng:           ride.PickupLongitude,
+		PickupLatitude:      ride.PickupLatitude,
+		PickupLongitude:     ride.PickupLongitude,
 		CancelledAt:         now,
 		CreatedAt:           now,
 	}

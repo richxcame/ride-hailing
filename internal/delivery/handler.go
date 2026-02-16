@@ -274,18 +274,18 @@ func (h *Handler) GetAvailableDeliveries(c *gin.Context) {
 		return
 	}
 
-	lat, err := strconv.ParseFloat(latStr, 64)
+	latitude, err := strconv.ParseFloat(latStr, 64)
 	if err != nil {
 		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitude")
 		return
 	}
-	lng, err := strconv.ParseFloat(lngStr, 64)
+	longitude, err := strconv.ParseFloat(lngStr, 64)
 	if err != nil {
 		common.ErrorResponse(c, http.StatusBadRequest, "invalid longitude")
 		return
 	}
 
-	deliveries, err := h.service.GetAvailableDeliveries(c.Request.Context(), lat, lng)
+	deliveries, err := h.service.GetAvailableDeliveries(c.Request.Context(), latitude, longitude)
 	if err != nil {
 		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get available deliveries")
 		return

@@ -54,8 +54,8 @@ type Service struct {
 
 // SurgeCalculator defines the interface for surge pricing calculation
 type SurgeCalculator interface {
-	CalculateSurgeMultiplier(ctx context.Context, lat, lon float64) (float64, error)
-	GetCurrentSurgeInfo(ctx context.Context, lat, lon float64) (map[string]interface{}, error)
+	CalculateSurgeMultiplier(ctx context.Context, latitude, longitude float64) (float64, error)
+	GetCurrentSurgeInfo(ctx context.Context, latitude, longitude float64) (map[string]interface{}, error)
 }
 
 // NewService creates a new rides service
@@ -119,11 +119,11 @@ func (s *Service) publishEvent(subject string, eventType, source string, data in
 }
 
 // MatchDrivers finds and scores the best drivers for a pickup location.
-func (s *Service) MatchDrivers(ctx context.Context, pickupLat, pickupLng float64) ([]*DriverCandidate, error) {
+func (s *Service) MatchDrivers(ctx context.Context, pickupLatitude, pickupLongitude float64) ([]*DriverCandidate, error) {
 	if s.matcher == nil {
 		return nil, common.NewInternalServerError("matching engine not configured")
 	}
-	return s.matcher.FindBestDrivers(ctx, pickupLat, pickupLng)
+	return s.matcher.FindBestDrivers(ctx, pickupLatitude, pickupLongitude)
 }
 
 // EnableMLPredictions wires an optional ML ETA client with breaker protection.
@@ -139,8 +139,8 @@ func (s *Service) RequestRide(ctx context.Context, riderID uuid.UUID, req *model
 
 	tracing.AddSpanAttributes(ctx,
 		tracing.UserIDKey.String(riderID.String()),
-		tracing.LocationLatKey.Float64(req.PickupLatitude),
-		tracing.LocationLonKey.Float64(req.PickupLongitude),
+		tracing.LocationLatitudeKey.Float64(req.PickupLatitude),
+		tracing.LocationLongitudeKey.Float64(req.PickupLongitude),
 	)
 
 	// Calculate estimated values
@@ -299,11 +299,11 @@ func (s *Service) RequestRide(ctx context.Context, riderID uuid.UUID, req *model
 		RiderID:           riderID,
 		RiderName:         riderName,
 		RiderRating:       riderRating,
-		PickupLat:         req.PickupLatitude,
-		PickupLng:         req.PickupLongitude,
+		PickupLatitude:    req.PickupLatitude,
+		PickupLongitude:   req.PickupLongitude,
 		PickupAddress:     req.PickupAddress,
-		DropoffLat:        req.DropoffLatitude,
-		DropoffLng:        req.DropoffLongitude,
+		DropoffLatitude:   req.DropoffLatitude,
+		DropoffLongitude:  req.DropoffLongitude,
 		DropoffAddress:    req.DropoffAddress,
 		RideTypeID:        resolvedRideTypeID,
 		RideTypeName:      rideTypeName,
@@ -362,13 +362,13 @@ func (s *Service) AcceptRide(ctx context.Context, rideID, driverID uuid.UUID) (*
 
 	s.publishEvent(eventbus.SubjectRideAccepted, "ride.accepted", "rides-service", eventbus.RideAcceptedData{
 		RideID:     rideID,
-		RiderID:    ride.RiderID,
-		DriverID:   driverID,
-		PickupLat:  ride.PickupLatitude,
-		PickupLng:  ride.PickupLongitude,
-		DropoffLat: ride.DropoffLatitude,
-		DropoffLng: ride.DropoffLongitude,
-		AcceptedAt: *ride.AcceptedAt,
+		RiderID:          ride.RiderID,
+		DriverID:         driverID,
+		PickupLatitude:   ride.PickupLatitude,
+		PickupLongitude:  ride.PickupLongitude,
+		DropoffLatitude:  ride.DropoffLatitude,
+		DropoffLongitude: ride.DropoffLongitude,
+		AcceptedAt:       *ride.AcceptedAt,
 	})
 
 	return ride, nil
@@ -603,15 +603,15 @@ func (s *Service) GetAvailableRides(ctx context.Context) ([]*models.Ride, error)
 
 // calculateDistance calculates distance between two coordinates in kilometers
 // Using Haversine formula
-func calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
+func calculateDistance(latitude1, longitude1, latitude2, longitude2 float64) float64 {
 	const earthRadius = 6371.0 // km
 
-	dLat := (lat2 - lat1) * math.Pi / 180.0
-	dLon := (lon2 - lon1) * math.Pi / 180.0
+	deltaLatitude := (latitude2 - latitude1) * math.Pi / 180.0
+	deltaLongitude := (longitude2 - longitude1) * math.Pi / 180.0
 
-	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
-		math.Cos(lat1*math.Pi/180.0)*math.Cos(lat2*math.Pi/180.0)*
-			math.Sin(dLon/2)*math.Sin(dLon/2)
+	a := math.Sin(deltaLatitude/2)*math.Sin(deltaLatitude/2) +
+		math.Cos(latitude1*math.Pi/180.0)*math.Cos(latitude2*math.Pi/180.0)*
+			math.Sin(deltaLongitude/2)*math.Sin(deltaLongitude/2)
 
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 	distance := earthRadius * c
@@ -706,14 +706,14 @@ func (s *Service) validatePromoCode(ctx context.Context, code string, riderID uu
 }
 
 type mlEtaPredictRequest struct {
-	PickupLat    float64 `json:"pickup_lat"`
-	PickupLng    float64 `json:"pickup_lng"`
-	DropoffLat   float64 `json:"dropoff_lat"`
-	DropoffLng   float64 `json:"dropoff_lng"`
-	TrafficLevel string  `json:"traffic_level"`
-	Weather      string  `json:"weather"`
-	DriverID     string  `json:"driver_id"`
-	RideTypeID   int     `json:"ride_type_id"`
+	PickupLatitude   float64 `json:"pickup_latitude"`
+	PickupLongitude  float64 `json:"pickup_longitude"`
+	DropoffLatitude  float64 `json:"dropoff_latitude"`
+	DropoffLongitude float64 `json:"dropoff_longitude"`
+	TrafficLevel     string  `json:"traffic_level"`
+	Weather          string  `json:"weather"`
+	DriverID         string  `json:"driver_id"`
+	RideTypeID       int     `json:"ride_type_id"`
 }
 
 type mlEtaPredictResponse struct {
@@ -727,11 +727,11 @@ func (s *Service) predictETAFromML(ctx context.Context, req *models.RideRequest)
 	}
 
 	payload := mlEtaPredictRequest{
-		PickupLat:    req.PickupLatitude,
-		PickupLng:    req.PickupLongitude,
-		DropoffLat:   req.DropoffLatitude,
-		DropoffLng:   req.DropoffLongitude,
-		TrafficLevel: "medium",
+		PickupLatitude:   req.PickupLatitude,
+		PickupLongitude:  req.PickupLongitude,
+		DropoffLatitude:  req.DropoffLatitude,
+		DropoffLongitude: req.DropoffLongitude,
+		TrafficLevel:     "medium",
 		Weather:      "clear",
 		DriverID:     "",
 	}

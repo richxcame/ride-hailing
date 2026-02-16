@@ -177,8 +177,8 @@ func TestGeoIntegration_MultipleDriverLocations(t *testing.T) {
 	// Update locations
 	locations := []struct {
 		driver authSession
-		lat    float64
-		lon    float64
+		latitude    float64
+		longitude    float64
 	}{
 		{driver1, 37.7749, -122.4194},  // San Francisco
 		{driver2, 37.7849, -122.4094},  // Nearby SF
@@ -187,8 +187,8 @@ func TestGeoIntegration_MultipleDriverLocations(t *testing.T) {
 
 	for _, loc := range locations {
 		updateReq := map[string]interface{}{
-			"latitude":  loc.lat,
-			"longitude": loc.lon,
+			"latitude":  loc.latitude,
+			"longitude": loc.longitude,
 		}
 		updateResp := doRequest[map[string]interface{}](t, geoServiceKey, http.MethodPost, "/api/v1/geo/location", updateReq, authHeaders(loc.driver.Token))
 		require.True(t, updateResp.Success)
@@ -203,8 +203,8 @@ func TestGeoIntegration_MultipleDriverLocations(t *testing.T) {
 		}
 		locationResp := doRequest[locationResponse](t, geoServiceKey, http.MethodGet, locationPath, nil, authHeaders(loc.driver.Token))
 		require.True(t, locationResp.Success, "Driver %d location retrieval failed", i+1)
-		require.InEpsilon(t, loc.lat, locationResp.Data.Latitude, 1e-6)
-		require.InEpsilon(t, loc.lon, locationResp.Data.Longitude, 1e-6)
+		require.InEpsilon(t, loc.latitude, locationResp.Data.Latitude, 1e-6)
+		require.InEpsilon(t, loc.longitude, locationResp.Data.Longitude, 1e-6)
 	}
 }
 
@@ -271,46 +271,46 @@ func TestGeoIntegration_DistanceCalculationEdgeCases(t *testing.T) {
 	rider := registerAndLogin(t, models.RoleRider)
 
 	testCases := []struct {
-		name        string
-		fromLat     float64
-		fromLon     float64
-		toLat       float64
-		toLon       float64
-		expectError bool
+		name           string
+		fromLatitude   float64
+		fromLongitude  float64
+		toLatitude     float64
+		toLongitude    float64
+		expectError    bool
 	}{
 		{
-			name:        "same location",
-			fromLat:     37.7749,
-			fromLon:     -122.4194,
-			toLat:       37.7749,
-			toLon:       -122.4194,
-			expectError: false,
+			name:          "same location",
+			fromLatitude:  37.7749,
+			fromLongitude: -122.4194,
+			toLatitude:    37.7749,
+			toLongitude:   -122.4194,
+			expectError:   false,
 		},
 		{
-			name:        "cross country",
-			fromLat:     37.7749,  // San Francisco
-			fromLon:     -122.4194,
-			toLat:       40.7128,  // New York
-			toLon:       -74.0060,
-			expectError: false,
+			name:          "cross country",
+			fromLatitude:  37.7749,  // San Francisco
+			fromLongitude: -122.4194,
+			toLatitude:    40.7128,  // New York
+			toLongitude:   -74.0060,
+			expectError:   false,
 		},
 		{
-			name:        "international",
-			fromLat:     37.7749,  // San Francisco
-			fromLon:     -122.4194,
-			toLat:       51.5074,  // London
-			toLon:       -0.1278,
-			expectError: false,
+			name:          "international",
+			fromLatitude:  37.7749,  // San Francisco
+			fromLongitude: -122.4194,
+			toLatitude:    51.5074,  // London
+			toLongitude:   -0.1278,
+			expectError:   false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			distanceReq := map[string]interface{}{
-				"from_latitude":  tc.fromLat,
-				"from_longitude": tc.fromLon,
-				"to_latitude":    tc.toLat,
-				"to_longitude":   tc.toLon,
+				"from_latitude":  tc.fromLatitude,
+				"from_longitude": tc.fromLongitude,
+				"to_latitude":    tc.toLatitude,
+				"to_longitude":   tc.toLongitude,
 			}
 
 			type distanceResponse struct {

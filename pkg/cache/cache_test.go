@@ -463,8 +463,8 @@ func TestCacheKeys_DriverLocation(t *testing.T) {
 
 func TestCacheKeys_NearbyDrivers(t *testing.T) {
 	tests := []struct {
-		lat      float64
-		lng      float64
+		latitude      float64
+		longitude      float64
 		radius   float64
 		expected string
 	}{
@@ -474,7 +474,7 @@ func TestCacheKeys_NearbyDrivers(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		key := Keys.NearbyDrivers(tc.lat, tc.lng, tc.radius)
+		key := Keys.NearbyDrivers(tc.latitude, tc.longitude, tc.radius)
 		if key != tc.expected {
 			t.Errorf("expected %s, got %s", tc.expected, key)
 		}

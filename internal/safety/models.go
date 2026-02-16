@@ -168,11 +168,11 @@ type RouteDeviationAlert struct {
 	DriverID        uuid.UUID `json:"driver_id"`
 
 	// Expected vs actual location
-	ExpectedLat     float64   `json:"expected_lat"`
-	ExpectedLng     float64   `json:"expected_lng"`
-	ActualLat       float64   `json:"actual_lat"`
-	ActualLng       float64   `json:"actual_lng"`
-	DeviationMeters int       `json:"deviation_meters"`
+	ExpectedLatitude  float64 `json:"expected_latitude"`
+	ExpectedLongitude float64 `json:"expected_longitude"`
+	ActualLatitude    float64 `json:"actual_latitude"`
+	ActualLongitude   float64 `json:"actual_longitude"`
+	DeviationMeters   int     `json:"deviation_meters"`
 
 	// Context
 	ExpectedRoute   string    `json:"expected_route,omitempty"` // Polyline

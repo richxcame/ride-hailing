@@ -161,8 +161,8 @@ func TestLoginResponse_Fields(t *testing.T) {
 func TestDriver_Fields(t *testing.T) {
 	driverID := uuid.New()
 	userID := uuid.New()
-	lat := 40.7128
-	lng := -74.0060
+	latitude := 40.7128
+	longitude := -74.0060
 	now := time.Now()
 
 	driver := Driver{
@@ -177,8 +177,8 @@ func TestDriver_Fields(t *testing.T) {
 		IsOnline:           true,
 		Rating:             4.8,
 		TotalRides:         150,
-		CurrentLatitude:    &lat,
-		CurrentLongitude:   &lng,
+		CurrentLatitude:    &latitude,
+		CurrentLongitude:   &longitude,
 		LastLocationUpdate: &now,
 		CreatedAt:          now,
 		UpdatedAt:          now,

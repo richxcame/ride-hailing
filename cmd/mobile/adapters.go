@@ -22,7 +22,7 @@ type stubMapsService struct{}
 
 func (s *stubMapsService) GetRoute(_ context.Context, origin, destination pool.Location) (*pool.RouteInfo, error) {
 	logger.Warn("stubMapsService.GetRoute called — wire a real MapsService",
-		zap.Float64("origin_lat", origin.Latitude), zap.Float64("origin_lng", origin.Longitude))
+		zap.Float64("origin_latitude", origin.Latitude), zap.Float64("origin_longitude", origin.Longitude))
 	return &pool.RouteInfo{DistanceKm: 0, DurationMinutes: 0}, nil
 }
 
@@ -160,17 +160,17 @@ func (s *stubDriverService) GetDriverByUserID(_ context.Context, userID uuid.UUI
 
 type rideTypesServiceAdapter struct {
 	service interface {
-		GetAvailableRideTypes(ctx context.Context, lat, lng float64) ([]*ridetypes.RideType, error)
+		GetAvailableRideTypes(ctx context.Context, latitude, longitude float64) ([]*ridetypes.RideType, error)
 	}
 }
 
-func (a *rideTypesServiceAdapter) GetAvailableRideTypes(ctx interface{}, lat, lng float64) ([]interface{}, error) {
+func (a *rideTypesServiceAdapter) GetAvailableRideTypes(ctx interface{}, latitude, longitude float64) ([]interface{}, error) {
 	ctxTyped, ok := ctx.(context.Context)
 	if !ok {
 		return nil, fmt.Errorf("invalid context type")
 	}
 
-	rideTypes, err := a.service.GetAvailableRideTypes(ctxTyped, lat, lng)
+	rideTypes, err := a.service.GetAvailableRideTypes(ctxTyped, latitude, longitude)
 	if err != nil {
 		return nil, err
 	}

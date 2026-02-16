@@ -85,8 +85,8 @@ func (m *mockRepo) GetDeliveriesBySender(ctx context.Context, senderID uuid.UUID
 	return args.Get(0).([]*Delivery), args.Get(1).(int64), args.Error(2)
 }
 
-func (m *mockRepo) GetAvailableDeliveries(ctx context.Context, lat, lng float64, radiusKm float64) ([]*Delivery, error) {
-	args := m.Called(ctx, lat, lng, radiusKm)
+func (m *mockRepo) GetAvailableDeliveries(ctx context.Context, latitude, longitude float64, radiusKm float64) ([]*Delivery, error) {
+	args := m.Called(ctx, latitude, longitude, radiusKm)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -1920,16 +1920,16 @@ func TestGetMyDeliveries(t *testing.T) {
 func TestGetAvailableDeliveries(t *testing.T) {
 	tests := []struct {
 		name       string
-		lat        float64
-		lng        float64
+		latitude        float64
+		longitude        float64
 		setupMocks func(m *mockRepo)
 		wantErr    bool
 		validate   func(t *testing.T, deliveries []*Delivery)
 	}{
 		{
 			name: "success - returns available deliveries",
-			lat:  40.7128,
-			lng:  -74.0060,
+			latitude:  40.7128,
+			longitude:  -74.0060,
 			setupMocks: func(m *mockRepo) {
 				deliveries := []*Delivery{
 					{ID: uuid.New(), Status: DeliveryStatusRequested, Priority: DeliveryPriorityExpress},
@@ -1944,8 +1944,8 @@ func TestGetAvailableDeliveries(t *testing.T) {
 		},
 		{
 			name: "success - no available deliveries",
-			lat:  40.7128,
-			lng:  -74.0060,
+			latitude:  40.7128,
+			longitude:  -74.0060,
 			setupMocks: func(m *mockRepo) {
 				m.On("GetAvailableDeliveries", mock.Anything, 40.7128, -74.0060, 15.0).Return([]*Delivery{}, nil)
 			},
@@ -1956,8 +1956,8 @@ func TestGetAvailableDeliveries(t *testing.T) {
 		},
 		{
 			name: "error - repository error",
-			lat:  40.7128,
-			lng:  -74.0060,
+			latitude:  40.7128,
+			longitude:  -74.0060,
 			setupMocks: func(m *mockRepo) {
 				m.On("GetAvailableDeliveries", mock.Anything, 40.7128, -74.0060, 15.0).Return(nil, errors.New("database error"))
 			},
@@ -1971,7 +1971,7 @@ func TestGetAvailableDeliveries(t *testing.T) {
 			tt.setupMocks(m)
 			svc := newTestService(m)
 
-			deliveries, err := svc.GetAvailableDeliveries(context.Background(), tt.lat, tt.lng)
+			deliveries, err := svc.GetAvailableDeliveries(context.Background(), tt.latitude, tt.longitude)
 
 			if tt.wantErr {
 				require.Error(t, err)

@@ -44,8 +44,8 @@ CREATE TABLE IF NOT EXISTS cancellation_records (
     minutes_since_request DECIMAL(10,2) NOT NULL DEFAULT 0,
     minutes_since_accept DECIMAL(10,2),
     ride_status_at_cancel VARCHAR(20) NOT NULL,
-    pickup_lat DECIMAL(10,8) NOT NULL,
-    pickup_lng DECIMAL(11,8) NOT NULL,
+    pickup_latitude DECIMAL(10,8) NOT NULL,
+    pickup_longitude DECIMAL(11,8) NOT NULL,
     cancelled_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

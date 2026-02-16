@@ -639,7 +639,7 @@
                       "language": "json"
                     }
                   },
-                  "raw": "{\n  \"pickup_latitude\": 41.2995,\n  \"pickup_longitude\": 69.2401,\n  \"pickup_address\": \"Tashkent, Amir Temur Square\",\n  \"dropoff_latitude\": 41.3111,\n  \"dropoff_longitude\": 69.2797,\n  \"dropoff_address\": \"Tashkent, Chorsu Bazaar\",\n  \"ride_type\": \"standard\"\n}"
+                  "raw": "{\n  \"pickup_latitude\": 37.903304,\n  \"pickup_longitude\": 58.343444,\n  \"pickup_address\": \"Ashgabat, Pickup Location\",\n  \"dropoff_latitude\": 37.895233,\n  \"dropoff_longitude\": 58.370719,\n  \"dropoff_address\": \"Ashgabat, Dropoff Location\",\n  \"ride_type_id\": \"dd433fc7-53f3-4c5e-9ccc-d67ed25e44c6\"\n}"
                 },
                 "description": "Request a new ride",
                 "header": [
@@ -804,11 +804,11 @@
                   ],
                   "query": [
                     {
-                      "key": "lat",
+                      "key": "latitude",
                       "value": "41.2995"
                     },
                     {
-                      "key": "lon",
+                      "key": "longitude",
                       "value": "69.2401"
                     }
                   ],
@@ -1052,15 +1052,15 @@
                   ],
                   "query": [
                     {
-                      "key": "lat",
+                      "key": "latitude",
                       "value": "41.2995"
                     },
                     {
-                      "key": "lng",
+                      "key": "longitude",
                       "value": "69.2401"
                     }
                   ],
-                  "raw": "{{base_url}}/api/v1/ride-types/available?lat=41.2995&lng=69.2401"
+                  "raw": "{{base_url}}/api/v1/ride-types/available?latitude =41.2995&longitude =69.2401"
                 }
               },
               "response": []
@@ -1962,11 +1962,11 @@
                   ],
                   "query": [
                     {
-                      "key": "lat",
+                      "key": "latitude",
                       "value": "41.2995"
                     },
                     {
-                      "key": "lng",
+                      "key": "longitude",
                       "value": "69.2401"
                     },
                     {
@@ -1997,11 +1997,11 @@
                   ],
                   "query": [
                     {
-                      "key": "lat",
+                      "key": "latitude",
                       "value": "41.2995"
                     },
                     {
-                      "key": "lng",
+                      "key": "longitude",
                       "value": "69.2401"
                     },
                     {
@@ -3416,7 +3416,7 @@
                       "language": "json"
                     }
                   },
-                  "raw": "{\n  \"latitude\": 41.2995,\n  \"longitude\": 69.2401,\n  \"heading\": 90.0,\n  \"speed\": 30.0\n}"
+                  "raw": "{\n  \"latitude\": 37.900000,\n  \"longitude\": 58.340000,\n  \"heading\": 90.0,\n  \"speed\": 30.0\n}"
                 },
                 "description": "Update driver's current location",
                 "header": [
@@ -4952,7 +4952,7 @@
                       "language": "json"
                     }
                   },
-                  "raw": "{\n  \"pickup_latitude\": 41.2995,\n  \"pickup_longitude\": 69.2401,\n  \"dropoff_latitude\": 41.3111,\n  \"dropoff_longitude\": 69.2797\n}"
+                  "raw": "{\n  \"pickup_latitude\": 37.903304,\n  \"pickup_longitude\": 58.343444,\n  \"dropoff_latitude\": 37.895233,\n  \"dropoff_longitude\": 58.370719\n}"
                 },
                 "description": "Get ride price estimate",
                 "header": [
@@ -4995,11 +4995,11 @@
                   ],
                   "query": [
                     {
-                      "key": "lat",
+                      "key": "latitude",
                       "value": "41.2995"
                     },
                     {
-                      "key": "lng",
+                      "key": "longitude",
                       "value": "69.2401"
                     }
                   ],
@@ -5061,11 +5061,11 @@
                   ],
                   "query": [
                     {
-                      "key": "lat",
+                      "key": "latitude",
                       "value": "41.2995"
                     },
                     {
-                      "key": "lng",
+                      "key": "longitude",
                       "value": "69.2401"
                     }
                   ],
@@ -18461,7 +18461,7 @@
                       "language": "json"
                     }
                   },
-                  "raw": "{\n  \"pickup_lat\": 41.2995,\n  \"pickup_lng\": 69.2401,\n  \"dropoff_lat\": 41.3111,\n  \"dropoff_lng\": 69.2797,\n  \"traffic_level\": \"medium\",\n  \"weather\": \"clear\",\n  \"driver_id\": \"{{driver_id}}\",\n  \"ride_type_id\": 1\n}"
+                  "raw": "{\n  \"pickup_latitude\": 41.2995,\n  \"pickup_longitude\": 69.2401,\n  \"dropoff_latitude\": 41.3111,\n  \"dropoff_longitude\": 69.2797,\n  \"traffic_level\": \"medium\",\n  \"weather\": \"clear\",\n  \"driver_id\": \"{{driver_id}}\",\n  \"ride_type_id\": 1\n}"
                 },
                 "description": "Predict ETA for a route",
                 "header": [
@@ -18500,7 +18500,7 @@
                       "language": "json"
                     }
                   },
-                  "raw": "[\n  {\n    \"pickup_lat\": 41.2995,\n    \"pickup_lng\": 69.2401,\n    \"dropoff_lat\": 41.3111,\n    \"dropoff_lng\": 69.2797,\n    \"traffic_level\": \"medium\",\n    \"weather\": \"clear\"\n  }\n]"
+                  "raw": "[\n  {\n    \"pickup_latitude\": 41.2995,\n    \"pickup_longitude\": 69.2401,\n    \"dropoff_latitude\": 41.3111,\n    \"dropoff_longitude\": 69.2797,\n    \"traffic_level\": \"medium\",\n    \"weather\": \"clear\"\n  }\n]"
                 },
                 "description": "Predict ETA for multiple routes",
                 "header": [
@@ -18891,7 +18891,7 @@
                       "language": "json"
                     }
                   },
-                  "raw": "{\n  \"pickup_latitude\": 41.2995,\n  \"pickup_longitude\": 69.2401,\n  \"pickup_address\": \"Tashkent, Amir Temur Square\",\n  \"dropoff_latitude\": 41.3111,\n  \"dropoff_longitude\": 69.2797,\n  \"dropoff_address\": \"Tashkent, Chorsu Bazaar\",\n  \"ride_type\": \"standard\"\n}"
+                  "raw": "{\n  \"pickup_latitude\": 37.903304,\n  \"pickup_longitude\": 58.343444,\n  \"pickup_address\": \"Ashgabat, Pickup Location\",\n  \"dropoff_latitude\": 37.895233,\n  \"dropoff_longitude\": 58.370719,\n  \"dropoff_address\": \"Ashgabat, Dropoff Location\",\n  \"ride_type_id\": \"dd433fc7-53f3-4c5e-9ccc-d67ed25e44c6\"\n}"
                 },
                 "description": "Request a new ride",
                 "header": [
@@ -19006,12 +19006,12 @@
                   "query": [
                     {
                       "disabled": true,
-                      "key": "lat",
+                      "key": "latitude",
                       "value": "41.2995"
                     },
                     {
                       "disabled": true,
-                      "key": "lon",
+                      "key": "longitude",
                       "value": "69.2401"
                     }
                   ],

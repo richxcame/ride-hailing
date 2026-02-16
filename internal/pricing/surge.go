@@ -28,8 +28,8 @@ type SurgeFactors struct {
 }
 
 // CalculateSurgeMultiplier calculates the dynamic surge multiplier
-func (sc *SurgeCalculator) CalculateSurgeMultiplier(ctx context.Context, lat, lon float64) (float64, error) {
-	factors, err := sc.getSurgeFactors(ctx, lat, lon)
+func (sc *SurgeCalculator) CalculateSurgeMultiplier(ctx context.Context, latitude, longitude float64) (float64, error) {
+	factors, err := sc.getSurgeFactors(ctx, latitude, longitude)
 	if err != nil {
 		// Fallback to time-based surge on error
 		return calculateTimeBasedSurge(time.Now()), nil
@@ -62,17 +62,17 @@ func (sc *SurgeCalculator) CalculateSurgeMultiplier(ctx context.Context, lat, lo
 }
 
 // getSurgeFactors retrieves all factors that contribute to surge pricing
-func (sc *SurgeCalculator) getSurgeFactors(ctx context.Context, lat, lon float64) (*SurgeFactors, error) {
+func (sc *SurgeCalculator) getSurgeFactors(ctx context.Context, latitude, longitude float64) (*SurgeFactors, error) {
 	now := time.Now()
 
 	// Get demand ratio (active requests vs available drivers in the area)
-	demandRatio, err := sc.getDemandRatio(ctx, lat, lon)
+	demandRatio, err := sc.getDemandRatio(ctx, latitude, longitude)
 	if err != nil {
 		demandRatio = 1.0 // Default neutral
 	}
 
 	// Get zone multiplier (high-demand geographic areas)
-	zoneMultiplier, err := sc.getZoneMultiplier(ctx, lat, lon)
+	zoneMultiplier, err := sc.getZoneMultiplier(ctx, latitude, longitude)
 	if err != nil {
 		zoneMultiplier = 1.0 // Default neutral
 	}
@@ -87,7 +87,7 @@ func (sc *SurgeCalculator) getSurgeFactors(ctx context.Context, lat, lon float64
 }
 
 // getDemandRatio calculates the ratio of ride requests to available drivers
-func (sc *SurgeCalculator) getDemandRatio(ctx context.Context, lat, lon float64) (float64, error) {
+func (sc *SurgeCalculator) getDemandRatio(ctx context.Context, latitude, longitude float64) (float64, error) {
 	// Count active ride requests in the past 15 minutes within 10km radius
 	requestCountQuery := `
 		SELECT COUNT(*) as request_count
@@ -102,7 +102,7 @@ func (sc *SurgeCalculator) getDemandRatio(ctx context.Context, lat, lon float64)
 	`
 
 	var requestCount int
-	err := sc.db.QueryRow(ctx, requestCountQuery, lon, lat).Scan(&requestCount)
+	err := sc.db.QueryRow(ctx, requestCountQuery, longitude, latitude).Scan(&requestCount)
 	if err != nil {
 		return 1.0, err
 	}
@@ -125,7 +125,7 @@ func (sc *SurgeCalculator) getDemandRatio(ctx context.Context, lat, lon float64)
 	`
 
 	var driverCount int
-	err = sc.db.QueryRow(ctx, driverCountQuery, lon, lat).Scan(&driverCount)
+	err = sc.db.QueryRow(ctx, driverCountQuery, longitude, latitude).Scan(&driverCount)
 	if err != nil || driverCount == 0 {
 		// Assume average driver availability
 		driverCount = 10
@@ -140,7 +140,7 @@ func (sc *SurgeCalculator) getDemandRatio(ctx context.Context, lat, lon float64)
 }
 
 // getZoneMultiplier calculates surge based on geographic demand patterns
-func (sc *SurgeCalculator) getZoneMultiplier(ctx context.Context, lat, lon float64) (float64, error) {
+func (sc *SurgeCalculator) getZoneMultiplier(ctx context.Context, latitude, longitude float64) (float64, error) {
 	// Check if this location is in a high-demand zone
 	// High-demand zones: airports, train stations, event venues, business districts
 	// This would ideally be configured in a separate zones table
@@ -159,7 +159,7 @@ func (sc *SurgeCalculator) getZoneMultiplier(ctx context.Context, lat, lon float
 	`
 
 	var rideDensity int
-	err := sc.db.QueryRow(ctx, query, lon, lat).Scan(&rideDensity)
+	err := sc.db.QueryRow(ctx, query, longitude, latitude).Scan(&rideDensity)
 	if err != nil {
 		return 1.0, err
 	}
@@ -253,13 +253,13 @@ func calculateDayBasedSurge(t time.Time) float64 {
 }
 
 // GetCurrentSurgeInfo returns detailed surge information for a location
-func (sc *SurgeCalculator) GetCurrentSurgeInfo(ctx context.Context, lat, lon float64) (map[string]interface{}, error) {
-	factors, err := sc.getSurgeFactors(ctx, lat, lon)
+func (sc *SurgeCalculator) GetCurrentSurgeInfo(ctx context.Context, latitude, longitude float64) (map[string]interface{}, error) {
+	factors, err := sc.getSurgeFactors(ctx, latitude, longitude)
 	if err != nil {
 		return nil, err
 	}
 
-	surge, _ := sc.CalculateSurgeMultiplier(ctx, lat, lon)
+	surge, _ := sc.CalculateSurgeMultiplier(ctx, latitude, longitude)
 
 	return map[string]interface{}{
 		"surge_multiplier": surge,

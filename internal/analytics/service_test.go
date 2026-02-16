@@ -852,8 +852,8 @@ func TestService_GetDemandZones_Success(t *testing.T) {
 	end := time.Now()
 	minRides := 10
 	expected := []*DemandZone{
-		{ZoneName: "Zone 1", CenterLat: 37.77, CenterLon: -122.42, TotalRides: 150, AvgSurge: 1.5, PeakHours: "[08:00 17:00 18:00]"},
-		{ZoneName: "Zone 2", CenterLat: 37.78, CenterLon: -122.43, TotalRides: 100, AvgSurge: 1.3, PeakHours: "[09:00 18:00 19:00]"},
+		{ZoneName: "Zone 1", CenterLatitude: 37.77, CenterLongitude: -122.42, TotalRides: 150, AvgSurge: 1.5, PeakHours: "[08:00 17:00 18:00]"},
+		{ZoneName: "Zone 2", CenterLatitude: 37.78, CenterLongitude: -122.43, TotalRides: 100, AvgSurge: 1.3, PeakHours: "[09:00 18:00 19:00]"},
 	}
 
 	repo.On("GetDemandZones", ctx, start, end, minRides).Return(expected, nil).Once()

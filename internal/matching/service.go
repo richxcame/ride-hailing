@@ -16,8 +16,8 @@ import (
 
 // GeoService provides driver location lookups
 type GeoService interface {
-	FindAvailableDrivers(ctx context.Context, lat, lng float64, maxDrivers int) ([]*GeoDriverLocation, error)
-	CalculateDistance(lat1, lon1, lat2, lon2 float64) float64
+	FindAvailableDrivers(ctx context.Context, latitude, longitude float64, maxDrivers int) ([]*GeoDriverLocation, error)
+	CalculateDistance(latitude1, longitude1, latitude2, longitude2 float64) float64
 }
 
 // RidesRepository provides ride data access
@@ -59,43 +59,69 @@ func NewService(
 func (s *Service) Start(ctx context.Context) error {
 	logger.Info("Starting matching service")
 
-	// Subscribe to ride.requested events
-	_, err := s.eventBus.Subscribe("ride.requested", func(msg *nats.Msg) {
+	// Subscribe to rides.requested events
+	_, err := s.eventBus.Subscribe("rides.requested", func(msg *nats.Msg) {
+		// First unmarshal the event envelope
+		var envelope struct {
+			Data json.RawMessage `json:"data"`
+		}
+		if err := json.Unmarshal(msg.Data, &envelope); err != nil {
+			logger.Error("Failed to unmarshal event envelope", zap.Error(err))
+			return
+		}
+
+		// Then unmarshal the actual event data
 		var event RideRequestedEvent
-		if err := json.Unmarshal(msg.Data, &event); err != nil {
-			logger.Error("Failed to unmarshal ride.requested event", zap.Error(err))
+		if err := json.Unmarshal(envelope.Data, &event); err != nil {
+			logger.Error("Failed to unmarshal rides.requested event data", zap.Error(err), zap.String("raw_data", string(envelope.Data)))
 			return
 		}
 		s.onRideRequested(ctx, &event)
 	})
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to ride.requested: %w", err)
+		return fmt.Errorf("failed to subscribe to rides.requested: %w", err)
 	}
 
-	// Subscribe to ride.accepted events
-	_, err = s.eventBus.Subscribe("ride.accepted", func(msg *nats.Msg) {
+	// Subscribe to rides.accepted events
+	_, err = s.eventBus.Subscribe("rides.accepted", func(msg *nats.Msg) {
+		var envelope struct {
+			Data json.RawMessage `json:"data"`
+		}
+		if err := json.Unmarshal(msg.Data, &envelope); err != nil {
+			logger.Error("Failed to unmarshal event envelope", zap.Error(err))
+			return
+		}
+
 		var event RideAcceptedEvent
-		if err := json.Unmarshal(msg.Data, &event); err != nil {
-			logger.Error("Failed to unmarshal ride.accepted event", zap.Error(err))
+		if err := json.Unmarshal(envelope.Data, &event); err != nil {
+			logger.Error("Failed to unmarshal rides.accepted event data", zap.Error(err))
 			return
 		}
 		s.onRideAccepted(ctx, &event)
 	})
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to ride.accepted: %w", err)
+		return fmt.Errorf("failed to subscribe to rides.accepted: %w", err)
 	}
 
-	// Subscribe to ride.cancelled events
-	_, err = s.eventBus.Subscribe("ride.cancelled", func(msg *nats.Msg) {
+	// Subscribe to rides.cancelled events
+	_, err = s.eventBus.Subscribe("rides.cancelled", func(msg *nats.Msg) {
+		var envelope struct {
+			Data json.RawMessage `json:"data"`
+		}
+		if err := json.Unmarshal(msg.Data, &envelope); err != nil {
+			logger.Error("Failed to unmarshal event envelope", zap.Error(err))
+			return
+		}
+
 		var event RideCancelledEvent
-		if err := json.Unmarshal(msg.Data, &event); err != nil {
-			logger.Error("Failed to unmarshal ride.cancelled event", zap.Error(err))
+		if err := json.Unmarshal(envelope.Data, &event); err != nil {
+			logger.Error("Failed to unmarshal rides.cancelled event data", zap.Error(err))
 			return
 		}
 		s.onRideCancelled(ctx, &event)
 	})
 	if err != nil {
-		return fmt.Errorf("failed to subscribe to ride.cancelled: %w", err)
+		return fmt.Errorf("failed to subscribe to rides.cancelled: %w", err)
 	}
 
 	logger.Info("Matching service started successfully")
@@ -106,8 +132,8 @@ func (s *Service) Start(ctx context.Context) error {
 func (s *Service) onRideRequested(ctx context.Context, event *RideRequestedEvent) {
 	logger.Info("Processing ride request",
 		zap.String("ride_id", event.RideID.String()),
-		zap.Float64("pickup_lat", event.PickupLatitude),
-		zap.Float64("pickup_lng", event.PickupLongitude))
+		zap.Float64("pickup_latitude", event.PickupLatitude),
+		zap.Float64("pickup_longitude", event.PickupLongitude))
 
 	// Find nearby drivers
 	drivers, err := s.findAvailableDrivers(ctx, event.PickupLatitude, event.PickupLongitude)
@@ -133,12 +159,20 @@ func (s *Service) onRideRequested(ctx context.Context, event *RideRequestedEvent
 }
 
 // findAvailableDrivers searches for nearby available drivers
-func (s *Service) findAvailableDrivers(ctx context.Context, lat, lng float64) ([]DriverLocation, error) {
+func (s *Service) findAvailableDrivers(ctx context.Context, latitude, longitude float64) ([]DriverLocation, error) {
+	logger.Info("Searching for available drivers",
+		zap.Float64("pickup_latitude", latitude),
+		zap.Float64("pickup_longitude", longitude),
+		zap.Int("max_drivers", s.config.MaxDriversToNotify))
+
 	// Use geo service to find available drivers (it handles radius expansion internally)
-	geoDrivers, err := s.geoService.FindAvailableDrivers(ctx, lat, lng, s.config.MaxDriversToNotify)
+	geoDrivers, err := s.geoService.FindAvailableDrivers(ctx, latitude, longitude, s.config.MaxDriversToNotify)
 	if err != nil {
+		logger.Error("Geo service error", zap.Error(err))
 		return nil, fmt.Errorf("failed to find available drivers: %w", err)
 	}
+
+	logger.Info("Geo service returned drivers", zap.Int("count", len(geoDrivers)))
 
 	if len(geoDrivers) == 0 {
 		return []DriverLocation{}, nil
@@ -252,9 +286,10 @@ func (s *Service) sendOfferToDriver(ctx context.Context, event *RideRequestedEve
 
 	// Send WebSocket message to driver
 	msg := &websocket.Message{
-		Type:   "ride.offer",
-		RideID: event.RideID.String(),
-		UserID: driver.UserID.String(),
+		Type:      "ride.offer",
+		RideID:    event.RideID.String(),
+		UserID:    driver.UserID.String(),
+		Timestamp: time.Now(),
 		Data: map[string]interface{}{
 			"ride_id":             offer.RideID.String(),
 			"rider_name":          offer.RiderName,

@@ -28,7 +28,7 @@ type RepositoryInterface interface {
 	// Special Events
 	CreateEvent(ctx context.Context, event *SpecialEvent) error
 	GetUpcomingEvents(ctx context.Context, startTime, endTime time.Time) ([]*SpecialEvent, error)
-	GetEventsNearLocation(ctx context.Context, lat, lng float64, radiusKm float64, timeWindow time.Duration) ([]*SpecialEvent, error)
+	GetEventsNearLocation(ctx context.Context, latitude, longitude float64, radiusKm float64, timeWindow time.Duration) ([]*SpecialEvent, error)
 
 	// Model Accuracy Tracking
 	RecordPredictionAccuracy(ctx context.Context, predictionID uuid.UUID, actualRides int) error

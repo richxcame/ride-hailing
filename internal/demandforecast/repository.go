@@ -462,7 +462,7 @@ func (r *Repository) GetUpcomingEvents(ctx context.Context, startTime, endTime t
 }
 
 // GetEventsNearLocation gets events near a specific location
-func (r *Repository) GetEventsNearLocation(ctx context.Context, lat, lng float64, radiusKm float64, timeWindow time.Duration) ([]*SpecialEvent, error) {
+func (r *Repository) GetEventsNearLocation(ctx context.Context, latitude, longitude float64, radiusKm float64, timeWindow time.Duration) ([]*SpecialEvent, error) {
 	query := `
 		SELECT id, name, event_type, latitude, longitude, h3_index,
 			   start_time, end_time, expected_attendees, impact_radius,
@@ -478,7 +478,7 @@ func (r *Repository) GetEventsNearLocation(ctx context.Context, lat, lng float64
 		ORDER BY start_time ASC
 	`
 
-	rows, err := r.db.Query(ctx, query, lng, lat, radiusKm, timeWindow.String())
+	rows, err := r.db.Query(ctx, query, longitude, latitude, radiusKm, timeWindow.String())
 	if err != nil {
 		return nil, err
 	}

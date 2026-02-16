@@ -335,11 +335,11 @@ curl -X POST http://localhost:8082/api/v1/rides \
   -H "Authorization: Bearer $RIDER_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "pickup_lat": 37.7749,
-    "pickup_lon": -122.4194,
+    "pickup_latitude": 37.7749,
+    "pickup_longitude": -122.4194,
     "pickup_address": "123 Market St, SF",
-    "dropoff_lat": 37.7849,
-    "dropoff_lon": -122.4094,
+    "dropoff_latitude": 37.7849,
+    "dropoff_longitude": -122.4094,
     "dropoff_address": "456 Mission St, SF",
     "ride_type_id": "RIDE_TYPE_UUID"
   }'

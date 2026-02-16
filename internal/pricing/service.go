@@ -106,8 +106,8 @@ func (s *Service) GetEstimate(ctx context.Context, req EstimateRequest) (*Estima
 }
 
 // GetPricing returns the resolved pricing for a location
-func (s *Service) GetPricing(ctx context.Context, lat, lng float64, rideTypeID *uuid.UUID) (*ResolvedPricing, error) {
-	return s.calculator.GetPricingForLocation(ctx, lat, lng, rideTypeID)
+func (s *Service) GetPricing(ctx context.Context, latitude, longitude float64, rideTypeID *uuid.UUID) (*ResolvedPricing, error) {
+	return s.calculator.GetPricingForLocation(ctx, latitude, longitude, rideTypeID)
 }
 
 // GetBulkEstimate returns fare estimates for all available ride types at a location
@@ -215,12 +215,12 @@ func (s *Service) ValidateNegotiatedPrice(ctx context.Context, req EstimateReque
 }
 
 // GetSurgeInfo returns current surge information for a location
-func (s *Service) GetSurgeInfo(ctx context.Context, lat, lng float64) (map[string]interface{}, error) {
+func (s *Service) GetSurgeInfo(ctx context.Context, latitude, longitude float64) (map[string]interface{}, error) {
 	// Resolve location
-	resolved, _ := s.geoSvc.ResolveLocation(ctx, lat, lng)
+	resolved, _ := s.geoSvc.ResolveLocation(ctx, latitude, longitude)
 
 	// Get pricing
-	pricing, err := s.calculator.GetPricingForLocation(ctx, lat, lng, nil)
+	pricing, err := s.calculator.GetPricingForLocation(ctx, latitude, longitude, nil)
 	if err != nil {
 		pricing = &DefaultPricing
 	}
@@ -247,8 +247,8 @@ func (s *Service) GetSurgeInfo(ctx context.Context, lat, lng float64) (map[strin
 }
 
 // GetCancellationFee returns the cancellation fee for a ride
-func (s *Service) GetCancellationFee(ctx context.Context, lat, lng float64, minutesSinceRequest float64, estimatedFare float64) (float64, error) {
-	pricing, err := s.calculator.GetPricingForLocation(ctx, lat, lng, nil)
+func (s *Service) GetCancellationFee(ctx context.Context, latitude, longitude float64, minutesSinceRequest float64, estimatedFare float64) (float64, error) {
+	pricing, err := s.calculator.GetPricingForLocation(ctx, latitude, longitude, nil)
 	if err != nil {
 		pricing = &DefaultPricing
 	}
@@ -257,8 +257,8 @@ func (s *Service) GetCancellationFee(ctx context.Context, lat, lng float64, minu
 }
 
 // GetCommissionRate returns the commission rate for a location
-func (s *Service) GetCommissionRate(ctx context.Context, lat, lng float64) (float64, error) {
-	pricing, err := s.calculator.GetPricingForLocation(ctx, lat, lng, nil)
+func (s *Service) GetCommissionRate(ctx context.Context, latitude, longitude float64) (float64, error) {
+	pricing, err := s.calculator.GetPricingForLocation(ctx, latitude, longitude, nil)
 	if err != nil {
 		return DefaultPricing.PlatformCommissionPct / 100, nil
 	}
@@ -266,8 +266,8 @@ func (s *Service) GetCommissionRate(ctx context.Context, lat, lng float64) (floa
 }
 
 // CalculateDriverEarnings calculates driver earnings from a fare
-func (s *Service) CalculateDriverEarnings(ctx context.Context, lat, lng float64, fare float64) (float64, error) {
-	pricing, err := s.calculator.GetPricingForLocation(ctx, lat, lng, nil)
+func (s *Service) CalculateDriverEarnings(ctx context.Context, latitude, longitude float64, fare float64) (float64, error) {
+	pricing, err := s.calculator.GetPricingForLocation(ctx, latitude, longitude, nil)
 	if err != nil {
 		pricing = &DefaultPricing
 	}
@@ -277,17 +277,17 @@ func (s *Service) CalculateDriverEarnings(ctx context.Context, lat, lng float64,
 }
 
 // haversineDistance calculates the distance between two points in km
-func haversineDistance(lat1, lon1, lat2, lon2 float64) float64 {
+func haversineDistance(latitude1, longitude1, latitude2, longitude2 float64) float64 {
 	const R = 6371 // Earth's radius in km
 
-	lat1Rad := lat1 * math.Pi / 180
-	lat2Rad := lat2 * math.Pi / 180
-	deltaLat := (lat2 - lat1) * math.Pi / 180
-	deltaLon := (lon2 - lon1) * math.Pi / 180
+	latitude1Rad := latitude1 * math.Pi / 180
+	latitude2Rad := latitude2 * math.Pi / 180
+	deltaLatitude := (latitude2 - latitude1) * math.Pi / 180
+	deltaLongitude := (longitude2 - longitude1) * math.Pi / 180
 
-	a := math.Sin(deltaLat/2)*math.Sin(deltaLat/2) +
-		math.Cos(lat1Rad)*math.Cos(lat2Rad)*
-			math.Sin(deltaLon/2)*math.Sin(deltaLon/2)
+	a := math.Sin(deltaLatitude/2)*math.Sin(deltaLatitude/2) +
+		math.Cos(latitude1Rad)*math.Cos(latitude2Rad)*
+			math.Sin(deltaLongitude/2)*math.Sin(deltaLongitude/2)
 
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 

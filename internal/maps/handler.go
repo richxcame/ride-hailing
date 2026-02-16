@@ -550,19 +550,19 @@ func (h *Handler) RegisterInternalRoutes(rg *gin.RouterGroup) {
 	{
 		// Quick ETA for internal services
 		internal.GET("/eta", func(c *gin.Context) {
-			originLat, _ := strconv.ParseFloat(c.Query("origin_lat"), 64)
-			originLng, _ := strconv.ParseFloat(c.Query("origin_lng"), 64)
-			destLat, _ := strconv.ParseFloat(c.Query("dest_lat"), 64)
-			destLng, _ := strconv.ParseFloat(c.Query("dest_lng"), 64)
+			originLatitude, _ := strconv.ParseFloat(c.Query("origin_latitude"), 64)
+			originLongitude, _ := strconv.ParseFloat(c.Query("origin_longitude"), 64)
+			destLatitude, _ := strconv.ParseFloat(c.Query("dest_latitude"), 64)
+			destLongitude, _ := strconv.ParseFloat(c.Query("dest_longitude"), 64)
 
-			if originLat == 0 || originLng == 0 || destLat == 0 || destLng == 0 {
+			if originLatitude == 0 || originLongitude == 0 || destLatitude == 0 || destLongitude == 0 {
 				common.ErrorResponse(c, http.StatusBadRequest, "invalid coordinates")
 				return
 			}
 
 			req := &ETARequest{
-				Origin:      Coordinate{Latitude: originLat, Longitude: originLng},
-				Destination: Coordinate{Latitude: destLat, Longitude: destLng},
+				Origin:      Coordinate{Latitude: originLatitude, Longitude: originLongitude},
+				Destination: Coordinate{Latitude: destLatitude, Longitude: destLongitude},
 			}
 
 			ctx := c.Request.Context()
@@ -577,16 +577,16 @@ func (h *Handler) RegisterInternalRoutes(rg *gin.RouterGroup) {
 
 		// Traffic level for a location
 		internal.GET("/traffic", func(c *gin.Context) {
-			lat, _ := strconv.ParseFloat(c.Query("lat"), 64)
-			lng, _ := strconv.ParseFloat(c.Query("lng"), 64)
+			latitude, _ := strconv.ParseFloat(c.Query("latitude"), 64)
+			longitude, _ := strconv.ParseFloat(c.Query("longitude"), 64)
 
-			if lat == 0 || lng == 0 {
+			if latitude == 0 || longitude == 0 {
 				common.ErrorResponse(c, http.StatusBadRequest, "invalid coordinates")
 				return
 			}
 
 			req := &TrafficFlowRequest{
-				Location:     Coordinate{Latitude: lat, Longitude: lng},
+				Location:     Coordinate{Latitude: latitude, Longitude: longitude},
 				RadiusMeters: 5000,
 			}
 

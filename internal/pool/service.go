@@ -595,7 +595,7 @@ func (s *Service) calculateMatchScore(ctx context.Context, pool *PoolRide, req *
 // calculateDirectionAlignment checks if routes are going in similar direction
 func (s *Service) calculateDirectionAlignment(pool *PoolRide, req *RequestPoolRideRequest) float64 {
 	// Calculate bearing from pickup to dropoff for both routes
-	poolBearing := s.calculateBearing(pool.CenterLat, pool.CenterLng,
+	poolBearing := s.calculateBearing(pool.CenterLatitude, pool.CenterLongitude,
 		req.DropoffLocation.Latitude, req.DropoffLocation.Longitude)
 	reqBearing := s.calculateBearing(req.PickupLocation.Latitude, req.PickupLocation.Longitude,
 		req.DropoffLocation.Latitude, req.DropoffLocation.Longitude)
@@ -611,13 +611,13 @@ func (s *Service) calculateDirectionAlignment(pool *PoolRide, req *RequestPoolRi
 }
 
 // calculateBearing calculates bearing between two points
-func (s *Service) calculateBearing(lat1, lng1, lat2, lng2 float64) float64 {
-	lat1Rad := lat1 * math.Pi / 180
-	lat2Rad := lat2 * math.Pi / 180
-	dLng := (lng2 - lng1) * math.Pi / 180
+func (s *Service) calculateBearing(latitude1, longitude1, latitude2, longitude2 float64) float64 {
+	latitude1Rad := latitude1 * math.Pi / 180
+	latitude2Rad := latitude2 * math.Pi / 180
+	deltaLongitude := (longitude2 - longitude1) * math.Pi / 180
 
-	y := math.Sin(dLng) * math.Cos(lat2Rad)
-	x := math.Cos(lat1Rad)*math.Sin(lat2Rad) - math.Sin(lat1Rad)*math.Cos(lat2Rad)*math.Cos(dLng)
+	y := math.Sin(deltaLongitude) * math.Cos(latitude2Rad)
+	x := math.Cos(latitude1Rad)*math.Sin(latitude2Rad) - math.Sin(latitude1Rad)*math.Cos(latitude2Rad)*math.Cos(deltaLongitude)
 
 	bearing := math.Atan2(y, x) * 180 / math.Pi
 	return math.Mod(bearing+360, 360)
@@ -678,8 +678,8 @@ func (s *Service) createNewPoolRide(req *RequestPoolRideRequest, route *RouteInf
 		CurrentPassengers: 1,
 		TotalDistance:     route.DistanceKm,
 		TotalDuration:     route.DurationMinutes,
-		CenterLat:         req.PickupLocation.Latitude,
-		CenterLng:         req.PickupLocation.Longitude,
+		CenterLatitude:         req.PickupLocation.Latitude,
+		CenterLongitude:         req.PickupLocation.Longitude,
 		RadiusKm:          config.MatchRadiusKm,
 		H3Index:           h3Index,
 		BaseFare:          2.0,

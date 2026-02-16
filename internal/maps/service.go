@@ -469,15 +469,15 @@ func (s *Service) fallbackETA(req *ETARequest) *ETAResponse {
 }
 
 // haversineDistance calculates the great-circle distance between two points
-func haversineDistance(lat1, lon1, lat2, lon2 float64) float64 {
+func haversineDistance(latitude1, longitude1, latitude2, longitude2 float64) float64 {
 	const earthRadius = 6371.0 // km
 
-	dLat := (lat2 - lat1) * math.Pi / 180.0
-	dLon := (lon2 - lon1) * math.Pi / 180.0
+	deltaLatitude := (latitude2 - latitude1) * math.Pi / 180.0
+	deltaLongitude := (longitude2 - longitude1) * math.Pi / 180.0
 
-	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
-		math.Cos(lat1*math.Pi/180.0)*math.Cos(lat2*math.Pi/180.0)*
-			math.Sin(dLon/2)*math.Sin(dLon/2)
+	a := math.Sin(deltaLatitude/2)*math.Sin(deltaLatitude/2) +
+		math.Cos(latitude1*math.Pi/180.0)*math.Cos(latitude2*math.Pi/180.0)*
+			math.Sin(deltaLongitude/2)*math.Sin(deltaLongitude/2)
 
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 
@@ -510,17 +510,17 @@ func (s *Service) geocodeCacheKey(req *GeocodingRequest) string {
 
 func (s *Service) reverseGeocodeCacheKey(req *GeocodingRequest) string {
 	// Round coordinates to 5 decimal places (~1m precision)
-	lat := math.Round(req.Coordinate.Latitude*100000) / 100000
-	lng := math.Round(req.Coordinate.Longitude*100000) / 100000
-	data := fmt.Sprintf("rgeo:%f,%f:%s", lat, lng, req.Language)
+	latitude := math.Round(req.Coordinate.Latitude*100000) / 100000
+	longitude := math.Round(req.Coordinate.Longitude*100000) / 100000
+	data := fmt.Sprintf("rgeo:%f,%f:%s", latitude, longitude, req.Language)
 	return s.config.CachePrefix + s.hashKey(data)
 }
 
 func (s *Service) trafficCacheKey(req *TrafficFlowRequest) string {
 	// Round coordinates for cache key
-	lat := math.Round(req.Location.Latitude*1000) / 1000
-	lng := math.Round(req.Location.Longitude*1000) / 1000
-	return fmt.Sprintf("traffic:%f,%f", lat, lng)
+	latitude := math.Round(req.Location.Latitude*1000) / 1000
+	longitude := math.Round(req.Location.Longitude*1000) / 1000
+	return fmt.Sprintf("traffic:%f,%f", latitude, longitude)
 }
 
 func (s *Service) hashKey(data string) string {

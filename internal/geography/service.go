@@ -62,16 +62,16 @@ func (s *Service) GetCityByID(ctx context.Context, id uuid.UUID) (*City, error) 
 	return s.repo.GetCityByID(ctx, id)
 }
 
-// ResolveLocation resolves lat/lng to geographic hierarchy
-func (s *Service) ResolveLocation(ctx context.Context, lat, lng float64) (*ResolvedLocation, error) {
-	resolved, err := s.repo.ResolveLocation(ctx, lat, lng)
+// ResolveLocation resolves latitude/longitude to geographic hierarchy
+func (s *Service) ResolveLocation(ctx context.Context, latitude, longitude float64) (*ResolvedLocation, error) {
+	resolved, err := s.repo.ResolveLocation(ctx, latitude, longitude)
 	if err != nil {
 		return nil, err
 	}
 
 	// If no city found via boundary, try nearest city within 50km
 	if resolved.City == nil {
-		city, err := s.repo.FindNearestCity(ctx, lat, lng, 50.0)
+		city, err := s.repo.FindNearestCity(ctx, latitude, longitude, 50.0)
 		if err == nil && city != nil {
 			// Load full hierarchy for nearest city
 			fullCity, err := s.repo.GetCityByID(ctx, city.ID)
@@ -121,8 +121,8 @@ func (s *Service) AddDriverRegion(ctx context.Context, driverID, regionID uuid.U
 }
 
 // GetTimezone returns the effective timezone for a location
-func (s *Service) GetTimezone(ctx context.Context, lat, lng float64) (string, error) {
-	resolved, err := s.ResolveLocation(ctx, lat, lng)
+func (s *Service) GetTimezone(ctx context.Context, latitude, longitude float64) (string, error) {
+	resolved, err := s.ResolveLocation(ctx, latitude, longitude)
 	if err != nil {
 		return "", err
 	}
@@ -135,8 +135,8 @@ func (s *Service) GetTimezone(ctx context.Context, lat, lng float64) (string, er
 }
 
 // IsLocationServiceable checks if a location is within an active service area
-func (s *Service) IsLocationServiceable(ctx context.Context, lat, lng float64) (bool, *ResolvedLocation, error) {
-	resolved, err := s.ResolveLocation(ctx, lat, lng)
+func (s *Service) IsLocationServiceable(ctx context.Context, latitude, longitude float64) (bool, *ResolvedLocation, error) {
+	resolved, err := s.ResolveLocation(ctx, latitude, longitude)
 	if err != nil {
 		return false, nil, err
 	}
@@ -150,8 +150,8 @@ func (s *Service) IsLocationServiceable(ctx context.Context, lat, lng float64) (
 }
 
 // GetCurrencyForLocation returns the currency code for a location
-func (s *Service) GetCurrencyForLocation(ctx context.Context, lat, lng float64) (string, error) {
-	resolved, err := s.ResolveLocation(ctx, lat, lng)
+func (s *Service) GetCurrencyForLocation(ctx context.Context, latitude, longitude float64) (string, error) {
+	resolved, err := s.ResolveLocation(ctx, latitude, longitude)
 	if err != nil {
 		return "", err
 	}

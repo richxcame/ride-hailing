@@ -93,15 +93,15 @@ func (s *Service) ListCityRideTypes(ctx context.Context, cityID uuid.UUID, inclu
 
 // GetAvailableRideTypes returns ride types available at a given location.
 // Uses cascading resolution:
-//   1. Resolve lat/lng → country + city via geography service
+//   1. Resolve latitude/longitude → country + city via geography service
 //   2. If city has explicit ride type mappings → use those
 //   3. Else if country has ride type mappings → use those (available in all cities)
 //   4. Else → return all active ride types globally
-func (s *Service) GetAvailableRideTypes(ctx context.Context, lat, lng float64) ([]*RideType, error) {
+func (s *Service) GetAvailableRideTypes(ctx context.Context, latitude, longitude float64) ([]*RideType, error) {
 	var countryID, cityID *uuid.UUID
 
 	if s.geoSvc != nil {
-		resolved, err := s.geoSvc.ResolveLocation(ctx, lat, lng)
+		resolved, err := s.geoSvc.ResolveLocation(ctx, latitude, longitude)
 		if err == nil && resolved != nil {
 			if resolved.Country != nil {
 				countryID = &resolved.Country.ID

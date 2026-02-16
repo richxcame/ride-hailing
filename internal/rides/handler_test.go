@@ -33,7 +33,7 @@ type ServiceInterface interface {
 	GetAvailableRides(ctx context.Context) ([]*models.Ride, error)
 	GetUserProfile(ctx context.Context, userID uuid.UUID) (*models.User, error)
 	UpdateUserProfile(ctx context.Context, userID uuid.UUID, firstName, lastName, phoneNumber string) error
-	MatchDrivers(ctx context.Context, pickupLat, pickupLng float64) ([]*DriverCandidate, error)
+	MatchDrivers(ctx context.Context, pickupLatitude, pickupLongitude float64) ([]*DriverCandidate, error)
 }
 
 // MockService is a mock implementation of ServiceInterface
@@ -131,8 +131,8 @@ func (m *MockService) UpdateUserProfile(ctx context.Context, userID uuid.UUID, f
 	return args.Error(0)
 }
 
-func (m *MockService) MatchDrivers(ctx context.Context, pickupLat, pickupLng float64) ([]*DriverCandidate, error) {
-	args := m.Called(ctx, pickupLat, pickupLng)
+func (m *MockService) MatchDrivers(ctx context.Context, pickupLatitude, pickupLongitude float64) ([]*DriverCandidate, error) {
+	args := m.Called(ctx, pickupLatitude, pickupLongitude)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -547,21 +547,21 @@ func (h *MockableHandler) UpdateUserProfile(c *gin.Context) {
 
 // GetSurgeInfo surfaces surge pricing details - testable version
 func (h *MockableHandler) GetSurgeInfo(c *gin.Context) {
-	latStr := c.Query("lat")
-	lonStr := c.Query("lon")
+	latStr := c.Query("latitude")
+	lonStr := c.Query("longitude")
 
 	if latStr == "" || lonStr == "" {
 		common.ErrorResponse(c, http.StatusBadRequest, "latitude and longitude are required")
 		return
 	}
 
-	var lat, lon float64
-	if _, err := fmt.Sscanf(latStr, "%f", &lat); err != nil {
+	var latitude, longitude float64
+	if _, err := fmt.Sscanf(latStr, "%f", &latitude); err != nil {
 		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitude")
 		return
 	}
 
-	if _, err := fmt.Sscanf(lonStr, "%f", &lon); err != nil {
+	if _, err := fmt.Sscanf(lonStr, "%f", &longitude); err != nil {
 		common.ErrorResponse(c, http.StatusBadRequest, "invalid longitude")
 		return
 	}
@@ -584,17 +584,17 @@ func (h *MockableHandler) MatchDrivers(c *gin.Context) {
 		return
 	}
 
-	var lat, lng float64
-	if _, err := fmt.Sscanf(latStr, "%f", &lat); err != nil {
+	var latitude, longitude float64
+	if _, err := fmt.Sscanf(latStr, "%f", &latitude); err != nil {
 		common.ErrorResponse(c, http.StatusBadRequest, "invalid latitude")
 		return
 	}
-	if _, err := fmt.Sscanf(lngStr, "%f", &lng); err != nil {
+	if _, err := fmt.Sscanf(lngStr, "%f", &longitude); err != nil {
 		common.ErrorResponse(c, http.StatusBadRequest, "invalid longitude")
 		return
 	}
 
-	candidates, err := h.service.MatchDrivers(c.Request.Context(), lat, lng)
+	candidates, err := h.service.MatchDrivers(c.Request.Context(), latitude, longitude)
 	if err != nil {
 		if appErr, ok := err.(*common.AppError); ok {
 			common.AppErrorResponse(c, appErr)
@@ -1790,8 +1790,8 @@ func TestHandler_GetSurgeInfo_Success(t *testing.T) {
 	mockService := new(MockService)
 	handler := NewMockableHandler(mockService)
 
-	c, w := setupTestContext("GET", "/api/v1/rides/surge-info?lat=40.7128&lon=-74.0060", nil)
-	req := httptest.NewRequest("GET", "/api/v1/rides/surge-info?lat=40.7128&lon=-74.0060", nil)
+	c, w := setupTestContext("GET", "/api/v1/rides/surge-info?latitude=40.7128&longitude=-74.0060", nil)
+	req := httptest.NewRequest("GET", "/api/v1/rides/surge-info?latitude=40.7128&longitude=-74.0060", nil)
 	c.Request = req
 
 	handler.GetSurgeInfo(c)
@@ -1810,8 +1810,8 @@ func TestHandler_GetSurgeInfo_MissingLatitude(t *testing.T) {
 	mockService := new(MockService)
 	handler := NewMockableHandler(mockService)
 
-	c, w := setupTestContext("GET", "/api/v1/rides/surge-info?lon=-74.0060", nil)
-	req := httptest.NewRequest("GET", "/api/v1/rides/surge-info?lon=-74.0060", nil)
+	c, w := setupTestContext("GET", "/api/v1/rides/surge-info?longitude=-74.0060", nil)
+	req := httptest.NewRequest("GET", "/api/v1/rides/surge-info?longitude=-74.0060", nil)
 	c.Request = req
 
 	handler.GetSurgeInfo(c)
@@ -1827,8 +1827,8 @@ func TestHandler_GetSurgeInfo_MissingLongitude(t *testing.T) {
 	mockService := new(MockService)
 	handler := NewMockableHandler(mockService)
 
-	c, w := setupTestContext("GET", "/api/v1/rides/surge-info?lat=40.7128", nil)
-	req := httptest.NewRequest("GET", "/api/v1/rides/surge-info?lat=40.7128", nil)
+	c, w := setupTestContext("GET", "/api/v1/rides/surge-info?latitude=40.7128", nil)
+	req := httptest.NewRequest("GET", "/api/v1/rides/surge-info?latitude=40.7128", nil)
 	c.Request = req
 
 	handler.GetSurgeInfo(c)
@@ -1842,8 +1842,8 @@ func TestHandler_GetSurgeInfo_InvalidLatitude(t *testing.T) {
 	mockService := new(MockService)
 	handler := NewMockableHandler(mockService)
 
-	c, w := setupTestContext("GET", "/api/v1/rides/surge-info?lat=invalid&lon=-74.0060", nil)
-	req := httptest.NewRequest("GET", "/api/v1/rides/surge-info?lat=invalid&lon=-74.0060", nil)
+	c, w := setupTestContext("GET", "/api/v1/rides/surge-info?latitude=invalid&longitude=-74.0060", nil)
+	req := httptest.NewRequest("GET", "/api/v1/rides/surge-info?latitude=invalid&longitude=-74.0060", nil)
 	c.Request = req
 
 	handler.GetSurgeInfo(c)
@@ -1859,8 +1859,8 @@ func TestHandler_GetSurgeInfo_InvalidLongitude(t *testing.T) {
 	mockService := new(MockService)
 	handler := NewMockableHandler(mockService)
 
-	c, w := setupTestContext("GET", "/api/v1/rides/surge-info?lat=40.7128&lon=invalid", nil)
-	req := httptest.NewRequest("GET", "/api/v1/rides/surge-info?lat=40.7128&lon=invalid", nil)
+	c, w := setupTestContext("GET", "/api/v1/rides/surge-info?latitude=40.7128&longitude=invalid", nil)
+	req := httptest.NewRequest("GET", "/api/v1/rides/surge-info?latitude=40.7128&longitude=invalid", nil)
 	c.Request = req
 
 	handler.GetSurgeInfo(c)
@@ -1890,8 +1890,8 @@ func TestHandler_GetSurgeInfo_EdgeCoordinates(t *testing.T) {
 
 	tests := []struct {
 		name string
-		lat  string
-		lon  string
+		latitude  string
+		longitude  string
 	}{
 		{"zero coordinates", "0", "0"},
 		{"max latitude", "90", "0"},
@@ -1905,8 +1905,8 @@ func TestHandler_GetSurgeInfo_EdgeCoordinates(t *testing.T) {
 			mockService := new(MockService)
 			handler := NewMockableHandler(mockService)
 
-			c, w := setupTestContext("GET", fmt.Sprintf("/api/v1/rides/surge-info?lat=%s&lon=%s", tt.lat, tt.lon), nil)
-			req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/rides/surge-info?lat=%s&lon=%s", tt.lat, tt.lon), nil)
+			c, w := setupTestContext("GET", fmt.Sprintf("/api/v1/rides/surge-info?latitude=%s&longitude=%s", tt.latitude, tt.longitude), nil)
+			req := httptest.NewRequest("GET", fmt.Sprintf("/api/v1/rides/surge-info?latitude=%s&longitude=%s", tt.latitude, tt.longitude), nil)
 			c.Request = req
 
 			handler.GetSurgeInfo(c)
@@ -2333,11 +2333,11 @@ func TestHandler_RequestRide_ExtremeCoordinates(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	tests := []struct {
-		name       string
-		pickupLat  float64
-		pickupLon  float64
-		dropoffLat float64
-		dropoffLon float64
+		name            string
+		pickupLatitude  float64
+		pickupLongitude float64
+		dropoffLatitude float64
+		dropoffLongitude float64
 	}{
 		{"valid NYC", 40.7128, -74.0060, 40.7580, -73.9855},
 		{"negative coordinates", -33.8688, 151.2093, -33.8568, 151.2153},
@@ -2355,11 +2355,11 @@ func TestHandler_RequestRide_ExtremeCoordinates(t *testing.T) {
 			mockService.On("RequestRide", mock.Anything, userID, mock.AnythingOfType("*models.RideRequest")).Return(expectedRide, nil)
 
 			reqBody := map[string]interface{}{
-				"pickup_latitude":   tt.pickupLat,
-				"pickup_longitude":  tt.pickupLon,
+				"pickup_latitude":   tt.pickupLatitude,
+				"pickup_longitude":  tt.pickupLongitude,
 				"pickup_address":    "123 Main St",
-				"dropoff_latitude":  tt.dropoffLat,
-				"dropoff_longitude": tt.dropoffLon,
+				"dropoff_latitude":  tt.dropoffLatitude,
+				"dropoff_longitude": tt.dropoffLongitude,
 				"dropoff_address":   "456 Broadway",
 			}
 
@@ -2384,8 +2384,8 @@ func TestHandler_SuccessResponseFormat(t *testing.T) {
 	mockService := new(MockService)
 	handler := NewMockableHandler(mockService)
 
-	c, w := setupTestContext("GET", "/api/v1/rides/surge-info?lat=40.7128&lon=-74.0060", nil)
-	req := httptest.NewRequest("GET", "/api/v1/rides/surge-info?lat=40.7128&lon=-74.0060", nil)
+	c, w := setupTestContext("GET", "/api/v1/rides/surge-info?latitude=40.7128&longitude=-74.0060", nil)
+	req := httptest.NewRequest("GET", "/api/v1/rides/surge-info?latitude=40.7128&longitude=-74.0060", nil)
 	c.Request = req
 
 	handler.GetSurgeInfo(c)

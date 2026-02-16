@@ -54,8 +54,8 @@ type PoolRide struct {
 	TotalDuration   int         `json:"total_duration_minutes" db:"total_duration_minutes"`
 
 	// Geographic bounds for matching
-	CenterLat       float64    `json:"center_lat" db:"center_lat"`
-	CenterLng       float64    `json:"center_lng" db:"center_lng"`
+	CenterLatitude  float64    `json:"center_latitude" db:"center_latitude"`
+	CenterLongitude float64    `json:"center_longitude" db:"center_longitude"`
 	RadiusKm        float64    `json:"radius_km" db:"radius_km"`
 	H3Index         string     `json:"h3_index" db:"h3_index"` // For spatial matching
 

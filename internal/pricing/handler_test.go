@@ -33,8 +33,8 @@ func (m *MockPricingService) GetEstimate(ctx context.Context, req EstimateReques
 	return args.Get(0).(*EstimateResponse), args.Error(1)
 }
 
-func (m *MockPricingService) GetSurgeInfo(ctx context.Context, lat, lng float64) (map[string]interface{}, error) {
-	args := m.Called(ctx, lat, lng)
+func (m *MockPricingService) GetSurgeInfo(ctx context.Context, latitude, longitude float64) (map[string]interface{}, error) {
+	args := m.Called(ctx, latitude, longitude)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -46,16 +46,16 @@ func (m *MockPricingService) ValidateNegotiatedPrice(ctx context.Context, req Es
 	return args.Error(0)
 }
 
-func (m *MockPricingService) GetPricing(ctx context.Context, lat, lng float64, rideTypeID *uuid.UUID) (*ResolvedPricing, error) {
-	args := m.Called(ctx, lat, lng, rideTypeID)
+func (m *MockPricingService) GetPricing(ctx context.Context, latitude, longitude float64, rideTypeID *uuid.UUID) (*ResolvedPricing, error) {
+	args := m.Called(ctx, latitude, longitude, rideTypeID)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*ResolvedPricing), args.Error(1)
 }
 
-func (m *MockPricingService) GetCancellationFee(ctx context.Context, lat, lng float64, minutesSinceRequest float64, estimatedFare float64) (float64, error) {
-	args := m.Called(ctx, lat, lng, minutesSinceRequest, estimatedFare)
+func (m *MockPricingService) GetCancellationFee(ctx context.Context, latitude, longitude float64, minutesSinceRequest float64, estimatedFare float64) (float64, error) {
+	args := m.Called(ctx, latitude, longitude, minutesSinceRequest, estimatedFare)
 	return args.Get(0).(float64), args.Error(1)
 }
 
@@ -249,46 +249,46 @@ func TestHandler_GetSurge_ValidationErrors(t *testing.T) {
 		expectedError  string
 	}{
 		{
-			name:           "missing lat and lng",
+			name:           "missing latitude and longitude",
 			query:          "",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "lat and lng are required",
+			expectedError:  "latitude and longitude are required",
 		},
 		{
-			name:           "missing lat",
-			query:          "lng=-122.4194",
+			name:           "missing latitude",
+			query:          "longitude=-122.4194",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "lat and lng are required",
+			expectedError:  "latitude and longitude are required",
 		},
 		{
-			name:           "missing lng",
-			query:          "lat=37.7749",
+			name:           "missing longitude",
+			query:          "latitude=37.7749",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "lat and lng are required",
+			expectedError:  "latitude and longitude are required",
 		},
 		{
-			name:           "invalid lat format",
-			query:          "lat=invalid&lng=-122.4194",
+			name:           "invalid latitude format",
+			query:          "latitude=invalid&longitude=-122.4194",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "invalid lat",
+			expectedError:  "invalid latitude",
 		},
 		{
-			name:           "invalid lng format",
-			query:          "lat=37.7749&lng=invalid",
+			name:           "invalid longitude format",
+			query:          "latitude=37.7749&longitude=invalid",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "invalid lng",
+			expectedError:  "invalid longitude",
 		},
 		{
-			name:           "lat with letters",
-			query:          "lat=37.7abc&lng=-122.4194",
+			name:           "latitude with letters",
+			query:          "latitude=37.7abc&longitude=-122.4194",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "invalid lat",
+			expectedError:  "invalid latitude",
 		},
 		{
-			name:           "lng with letters",
-			query:          "lat=37.7749&lng=-122.xyz",
+			name:           "longitude with letters",
+			query:          "latitude=37.7749&longitude=-122.xyz",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "invalid lng",
+			expectedError:  "invalid longitude",
 		},
 	}
 
@@ -398,38 +398,38 @@ func TestHandler_GetPricing_ValidationErrors(t *testing.T) {
 		expectedError  string
 	}{
 		{
-			name:           "missing lat and lng",
+			name:           "missing latitude and longitude",
 			query:          "",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "lat and lng are required",
+			expectedError:  "latitude and longitude are required",
 		},
 		{
-			name:           "missing lat",
-			query:          "lng=-122.4194",
+			name:           "missing latitude",
+			query:          "longitude=-122.4194",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "lat and lng are required",
+			expectedError:  "latitude and longitude are required",
 		},
 		{
-			name:           "missing lng",
-			query:          "lat=37.7749",
+			name:           "missing longitude",
+			query:          "latitude=37.7749",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "lat and lng are required",
+			expectedError:  "latitude and longitude are required",
 		},
 		{
-			name:           "invalid lat",
-			query:          "lat=invalid&lng=-122.4194",
+			name:           "invalid latitude",
+			query:          "latitude=invalid&longitude=-122.4194",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "invalid lat",
+			expectedError:  "invalid latitude",
 		},
 		{
-			name:           "invalid lng",
-			query:          "lat=37.7749&lng=invalid",
+			name:           "invalid longitude",
+			query:          "latitude=37.7749&longitude=invalid",
 			expectedStatus: http.StatusBadRequest,
-			expectedError:  "invalid lng",
+			expectedError:  "invalid longitude",
 		},
 		{
 			name:           "invalid ride_type_id",
-			query:          "lat=37.7749&lng=-122.4194&ride_type_id=not-a-uuid",
+			query:          "latitude=37.7749&longitude=-122.4194&ride_type_id=not-a-uuid",
 			expectedStatus: http.StatusBadRequest,
 			expectedError:  "invalid ride_type_id",
 		},
@@ -473,7 +473,7 @@ func TestHandler_GetCancellationFee_ValidationErrors(t *testing.T) {
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
-			name: "missing latitude",
+			name: "missing latitudeitude",
 			request: map[string]interface{}{
 				"longitude":             -122.4194,
 				"minutes_since_request": 5.0,
@@ -574,17 +574,17 @@ func TestHandler_CoordinateValidation(t *testing.T) {
 		expectedStatus int
 	}{
 		{
-			name:           "surge - empty lat",
+			name:           "surge - empty latitude",
 			endpoint:       "/api/v1/pricing/surge",
 			method:         "GET",
-			query:          "lat=&lng=-122.4194",
+			query:          "latitude=&longitude=-122.4194",
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
-			name:           "surge - empty lng",
+			name:           "surge - empty longitude",
 			endpoint:       "/api/v1/pricing/surge",
 			method:         "GET",
-			query:          "lat=37.7749&lng=",
+			query:          "latitude=37.7749&longitude=",
 			expectedStatus: http.StatusBadRequest,
 		},
 	}
@@ -771,46 +771,46 @@ func TestHandler_ServiceErrors(t *testing.T) {
 
 func TestHaversineDistanceHandler(t *testing.T) {
 	tests := []struct {
-		name     string
-		lat1     float64
-		lon1     float64
-		lat2     float64
-		lon2     float64
-		expected float64
-		delta    float64
+		name       string
+		latitude1  float64
+		longitude1 float64
+		latitude2  float64
+		longitude2 float64
+		expected   float64
+		delta      float64
 	}{
 		{
-			name:     "same location",
-			lat1:     37.7749,
-			lon1:     -122.4194,
-			lat2:     37.7749,
-			lon2:     -122.4194,
-			expected: 0,
-			delta:    0.001,
+			name:       "same location",
+			latitude1:  37.7749,
+			longitude1: -122.4194,
+			latitude2:  37.7749,
+			longitude2: -122.4194,
+			expected:   0,
+			delta:      0.001,
 		},
 		{
-			name:     "short distance",
-			lat1:     37.7749,
-			lon1:     -122.4194,
-			lat2:     37.7849,
-			lon2:     -122.4094,
-			expected: 1.4, // approximately 1.4 km
-			delta:    0.2,
+			name:       "short distance",
+			latitude1:  37.7749,
+			longitude1: -122.4194,
+			latitude2:  37.7849,
+			longitude2: -122.4094,
+			expected:   1.4, // approximately 1.4 km
+			delta:      0.2,
 		},
 		{
-			name:     "SF to LA approximately",
-			lat1:     37.7749,
-			lon1:     -122.4194,
-			lat2:     34.0522,
-			lon2:     -118.2437,
-			expected: 559, // approximately 559 km
-			delta:    10,
+			name:       "SF to LA approximately",
+			latitude1:  37.7749,
+			longitude1: -122.4194,
+			latitude2:  34.0522,
+			longitude2: -118.2437,
+			expected:   559, // approximately 559 km
+			delta:      10,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := haversineDistance(tt.lat1, tt.lon1, tt.lat2, tt.lon2)
+			result := haversineDistance(tt.latitude1, tt.longitude1, tt.latitude2, tt.longitude2)
 			assert.InDelta(t, tt.expected, result, tt.delta)
 		})
 	}

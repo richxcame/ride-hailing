@@ -31,5 +31,5 @@ type PricingServiceInterface interface {
 
 // GeographyServiceInterface defines the geography methods used by the negotiation service
 type GeographyServiceInterface interface {
-	ResolveLocation(ctx context.Context, lat, lng float64) (*geography.ResolvedLocation, error)
+	ResolveLocation(ctx context.Context, latitude, longitude float64) (*geography.ResolvedLocation, error)
 }

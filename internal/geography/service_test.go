@@ -72,16 +72,16 @@ func (m *MockRepository) GetCityByID(ctx context.Context, id uuid.UUID) (*City, 
 	return args.Get(0).(*City), args.Error(1)
 }
 
-func (m *MockRepository) ResolveLocation(ctx context.Context, lat, lng float64) (*ResolvedLocation, error) {
-	args := m.Called(ctx, lat, lng)
+func (m *MockRepository) ResolveLocation(ctx context.Context, latitude, longitude float64) (*ResolvedLocation, error) {
+	args := m.Called(ctx, latitude, longitude)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*ResolvedLocation), args.Error(1)
 }
 
-func (m *MockRepository) FindNearestCity(ctx context.Context, lat, lng float64, maxDistanceKm float64) (*City, error) {
-	args := m.Called(ctx, lat, lng, maxDistanceKm)
+func (m *MockRepository) FindNearestCity(ctx context.Context, latitude, longitude float64, maxDistanceKm float64) (*City, error) {
+	args := m.Called(ctx, latitude, longitude, maxDistanceKm)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -596,7 +596,7 @@ func TestResolveLocation_WithCity(t *testing.T) {
 	service := NewService(mockRepo)
 	ctx := context.Background()
 
-	lat, lng := 37.9601, 58.3261
+	latitude, longitude := 37.9601, 58.3261
 
 	country := createTestCountry()
 	region := createTestRegion(country.ID)
@@ -605,16 +605,16 @@ func TestResolveLocation_WithCity(t *testing.T) {
 	city.Region = region
 
 	resolved := &ResolvedLocation{
-		Location: Location{Latitude: lat, Longitude: lng},
+		Location: Location{Latitude: latitude, Longitude: longitude},
 		Country:  country,
 		Region:   region,
 		City:     city,
 		Timezone: "Asia/Ashgabat",
 	}
 
-	mockRepo.On("ResolveLocation", ctx, lat, lng).Return(resolved, nil)
+	mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(resolved, nil)
 
-	result, err := service.ResolveLocation(ctx, lat, lng)
+	result, err := service.ResolveLocation(ctx, latitude, longitude)
 
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -629,11 +629,11 @@ func TestResolveLocation_WithNearestCityFallback(t *testing.T) {
 	service := NewService(mockRepo)
 	ctx := context.Background()
 
-	lat, lng := 37.9601, 58.3261
+	latitude, longitude := 37.9601, 58.3261
 
 	// ResolveLocation returns no city (outside boundary)
 	resolved := &ResolvedLocation{
-		Location: Location{Latitude: lat, Longitude: lng},
+		Location: Location{Latitude: latitude, Longitude: longitude},
 		City:     nil,
 	}
 
@@ -644,11 +644,11 @@ func TestResolveLocation_WithNearestCityFallback(t *testing.T) {
 	city := createTestCity(region.ID)
 	city.Region = region
 
-	mockRepo.On("ResolveLocation", ctx, lat, lng).Return(resolved, nil)
-	mockRepo.On("FindNearestCity", ctx, lat, lng, 50.0).Return(city, nil)
+	mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(resolved, nil)
+	mockRepo.On("FindNearestCity", ctx, latitude, longitude, 50.0).Return(city, nil)
 	mockRepo.On("GetCityByID", ctx, city.ID).Return(city, nil)
 
-	result, err := service.ResolveLocation(ctx, lat, lng)
+	result, err := service.ResolveLocation(ctx, latitude, longitude)
 
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -663,18 +663,18 @@ func TestResolveLocation_NoNearestCity(t *testing.T) {
 	service := NewService(mockRepo)
 	ctx := context.Background()
 
-	lat, lng := 0.0, 0.0 // Middle of the ocean
+	latitude, longitude := 0.0, 0.0 // Middle of the ocean
 
 	// ResolveLocation returns no city
 	resolved := &ResolvedLocation{
-		Location: Location{Latitude: lat, Longitude: lng},
+		Location: Location{Latitude: latitude, Longitude: longitude},
 		City:     nil,
 	}
 
-	mockRepo.On("ResolveLocation", ctx, lat, lng).Return(resolved, nil)
-	mockRepo.On("FindNearestCity", ctx, lat, lng, 50.0).Return(nil, errors.New("no city found"))
+	mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(resolved, nil)
+	mockRepo.On("FindNearestCity", ctx, latitude, longitude, 50.0).Return(nil, errors.New("no city found"))
 
-	result, err := service.ResolveLocation(ctx, lat, lng)
+	result, err := service.ResolveLocation(ctx, latitude, longitude)
 
 	require.NoError(t, err)
 	assert.NotNil(t, result)
@@ -687,7 +687,7 @@ func TestResolveLocation_TimezoneFromCity(t *testing.T) {
 	service := NewService(mockRepo)
 	ctx := context.Background()
 
-	lat, lng := 37.9601, 58.3261
+	latitude, longitude := 37.9601, 58.3261
 	cityTz := "Asia/Ashgabat"
 
 	country := createTestCountry()
@@ -703,15 +703,15 @@ func TestResolveLocation_TimezoneFromCity(t *testing.T) {
 
 	// No city found in boundary
 	resolved := &ResolvedLocation{
-		Location: Location{Latitude: lat, Longitude: lng},
+		Location: Location{Latitude: latitude, Longitude: longitude},
 		City:     nil,
 	}
 
-	mockRepo.On("ResolveLocation", ctx, lat, lng).Return(resolved, nil)
-	mockRepo.On("FindNearestCity", ctx, lat, lng, 50.0).Return(city, nil)
+	mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(resolved, nil)
+	mockRepo.On("FindNearestCity", ctx, latitude, longitude, 50.0).Return(city, nil)
 	mockRepo.On("GetCityByID", ctx, city.ID).Return(city, nil)
 
-	result, err := service.ResolveLocation(ctx, lat, lng)
+	result, err := service.ResolveLocation(ctx, latitude, longitude)
 
 	require.NoError(t, err)
 	assert.Equal(t, "Asia/Ashgabat", result.Timezone)
@@ -723,7 +723,7 @@ func TestResolveLocation_TimezoneFromRegion(t *testing.T) {
 	service := NewService(mockRepo)
 	ctx := context.Background()
 
-	lat, lng := 37.9601, 58.3261
+	latitude, longitude := 37.9601, 58.3261
 	regionTz := "Asia/Ashgabat"
 
 	country := createTestCountry()
@@ -739,15 +739,15 @@ func TestResolveLocation_TimezoneFromRegion(t *testing.T) {
 
 	// No city found in boundary
 	resolved := &ResolvedLocation{
-		Location: Location{Latitude: lat, Longitude: lng},
+		Location: Location{Latitude: latitude, Longitude: longitude},
 		City:     nil,
 	}
 
-	mockRepo.On("ResolveLocation", ctx, lat, lng).Return(resolved, nil)
-	mockRepo.On("FindNearestCity", ctx, lat, lng, 50.0).Return(city, nil)
+	mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(resolved, nil)
+	mockRepo.On("FindNearestCity", ctx, latitude, longitude, 50.0).Return(city, nil)
 	mockRepo.On("GetCityByID", ctx, city.ID).Return(city, nil)
 
-	result, err := service.ResolveLocation(ctx, lat, lng)
+	result, err := service.ResolveLocation(ctx, latitude, longitude)
 
 	require.NoError(t, err)
 	assert.Equal(t, "Asia/Ashgabat", result.Timezone)
@@ -759,7 +759,7 @@ func TestResolveLocation_TimezoneFromCountry(t *testing.T) {
 	service := NewService(mockRepo)
 	ctx := context.Background()
 
-	lat, lng := 37.9601, 58.3261
+	latitude, longitude := 37.9601, 58.3261
 
 	country := createTestCountry()
 	country.Timezone = "Asia/Ashgabat"
@@ -774,15 +774,15 @@ func TestResolveLocation_TimezoneFromCountry(t *testing.T) {
 
 	// No city found in boundary
 	resolved := &ResolvedLocation{
-		Location: Location{Latitude: lat, Longitude: lng},
+		Location: Location{Latitude: latitude, Longitude: longitude},
 		City:     nil,
 	}
 
-	mockRepo.On("ResolveLocation", ctx, lat, lng).Return(resolved, nil)
-	mockRepo.On("FindNearestCity", ctx, lat, lng, 50.0).Return(city, nil)
+	mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(resolved, nil)
+	mockRepo.On("FindNearestCity", ctx, latitude, longitude, 50.0).Return(city, nil)
 	mockRepo.On("GetCityByID", ctx, city.ID).Return(city, nil)
 
-	result, err := service.ResolveLocation(ctx, lat, lng)
+	result, err := service.ResolveLocation(ctx, latitude, longitude)
 
 	require.NoError(t, err)
 	assert.Equal(t, "Asia/Ashgabat", result.Timezone)
@@ -794,11 +794,11 @@ func TestResolveLocation_Error(t *testing.T) {
 	service := NewService(mockRepo)
 	ctx := context.Background()
 
-	lat, lng := 37.9601, 58.3261
+	latitude, longitude := 37.9601, 58.3261
 
-	mockRepo.On("ResolveLocation", ctx, lat, lng).Return(nil, errors.New("database error"))
+	mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(nil, errors.New("database error"))
 
-	result, err := service.ResolveLocation(ctx, lat, lng)
+	result, err := service.ResolveLocation(ctx, latitude, longitude)
 
 	assert.Error(t, err)
 	assert.Nil(t, result)
@@ -815,17 +815,17 @@ func TestGetTimezone(t *testing.T) {
 		service := NewService(mockRepo)
 		ctx := context.Background()
 
-		lat, lng := 37.9601, 58.3261
+		latitude, longitude := 37.9601, 58.3261
 		city := createTestCity(uuid.New())
 
 		resolved := &ResolvedLocation{
-			Location: Location{Latitude: lat, Longitude: lng},
+			Location: Location{Latitude: latitude, Longitude: longitude},
 			City:     city,
 			Timezone: "Asia/Ashgabat",
 		}
-		mockRepo.On("ResolveLocation", ctx, lat, lng).Return(resolved, nil)
+		mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(resolved, nil)
 
-		timezone, err := service.GetTimezone(ctx, lat, lng)
+		timezone, err := service.GetTimezone(ctx, latitude, longitude)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "Asia/Ashgabat", timezone)
@@ -837,17 +837,17 @@ func TestGetTimezone(t *testing.T) {
 		service := NewService(mockRepo)
 		ctx := context.Background()
 
-		lat, lng := 0.0, 0.0
+		latitude, longitude := 0.0, 0.0
 
 		resolved := &ResolvedLocation{
-			Location: Location{Latitude: lat, Longitude: lng},
+			Location: Location{Latitude: latitude, Longitude: longitude},
 			City:     nil,
 			Timezone: "",
 		}
-		mockRepo.On("ResolveLocation", ctx, lat, lng).Return(resolved, nil)
-		mockRepo.On("FindNearestCity", ctx, lat, lng, 50.0).Return(nil, errors.New("no city found"))
+		mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(resolved, nil)
+		mockRepo.On("FindNearestCity", ctx, latitude, longitude, 50.0).Return(nil, errors.New("no city found"))
 
-		timezone, err := service.GetTimezone(ctx, lat, lng)
+		timezone, err := service.GetTimezone(ctx, latitude, longitude)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "UTC", timezone)
@@ -859,11 +859,11 @@ func TestGetTimezone(t *testing.T) {
 		service := NewService(mockRepo)
 		ctx := context.Background()
 
-		lat, lng := 37.9601, 58.3261
+		latitude, longitude := 37.9601, 58.3261
 
-		mockRepo.On("ResolveLocation", ctx, lat, lng).Return(nil, errors.New("resolution failed"))
+		mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(nil, errors.New("resolution failed"))
 
-		timezone, err := service.GetTimezone(ctx, lat, lng)
+		timezone, err := service.GetTimezone(ctx, latitude, longitude)
 
 		assert.Error(t, err)
 		assert.Empty(t, timezone)
@@ -881,17 +881,17 @@ func TestIsLocationServiceable(t *testing.T) {
 		service := NewService(mockRepo)
 		ctx := context.Background()
 
-		lat, lng := 37.9601, 58.3261
+		latitude, longitude := 37.9601, 58.3261
 		city := createTestCity(uuid.New())
 		city.IsActive = true
 
 		resolved := &ResolvedLocation{
-			Location: Location{Latitude: lat, Longitude: lng},
+			Location: Location{Latitude: latitude, Longitude: longitude},
 			City:     city,
 		}
-		mockRepo.On("ResolveLocation", ctx, lat, lng).Return(resolved, nil)
+		mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(resolved, nil)
 
-		serviceable, result, err := service.IsLocationServiceable(ctx, lat, lng)
+		serviceable, result, err := service.IsLocationServiceable(ctx, latitude, longitude)
 
 		assert.NoError(t, err)
 		assert.True(t, serviceable)
@@ -904,17 +904,17 @@ func TestIsLocationServiceable(t *testing.T) {
 		service := NewService(mockRepo)
 		ctx := context.Background()
 
-		lat, lng := 37.9601, 58.3261
+		latitude, longitude := 37.9601, 58.3261
 		city := createTestCity(uuid.New())
 		city.IsActive = false
 
 		resolved := &ResolvedLocation{
-			Location: Location{Latitude: lat, Longitude: lng},
+			Location: Location{Latitude: latitude, Longitude: longitude},
 			City:     city,
 		}
-		mockRepo.On("ResolveLocation", ctx, lat, lng).Return(resolved, nil)
+		mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(resolved, nil)
 
-		serviceable, result, err := service.IsLocationServiceable(ctx, lat, lng)
+		serviceable, result, err := service.IsLocationServiceable(ctx, latitude, longitude)
 
 		assert.NoError(t, err)
 		assert.False(t, serviceable)
@@ -927,16 +927,16 @@ func TestIsLocationServiceable(t *testing.T) {
 		service := NewService(mockRepo)
 		ctx := context.Background()
 
-		lat, lng := 0.0, 0.0
+		latitude, longitude := 0.0, 0.0
 
 		resolved := &ResolvedLocation{
-			Location: Location{Latitude: lat, Longitude: lng},
+			Location: Location{Latitude: latitude, Longitude: longitude},
 			City:     nil,
 		}
-		mockRepo.On("ResolveLocation", ctx, lat, lng).Return(resolved, nil)
-		mockRepo.On("FindNearestCity", ctx, lat, lng, 50.0).Return(nil, errors.New("no city found"))
+		mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(resolved, nil)
+		mockRepo.On("FindNearestCity", ctx, latitude, longitude, 50.0).Return(nil, errors.New("no city found"))
 
-		serviceable, result, err := service.IsLocationServiceable(ctx, lat, lng)
+		serviceable, result, err := service.IsLocationServiceable(ctx, latitude, longitude)
 
 		assert.NoError(t, err)
 		assert.False(t, serviceable)
@@ -949,7 +949,7 @@ func TestIsLocationServiceable(t *testing.T) {
 		service := NewService(mockRepo)
 		ctx := context.Background()
 
-		lat, lng := 37.9601, 58.3261
+		latitude, longitude := 37.9601, 58.3261
 
 		country := createTestCountry()
 		region := createTestRegion(country.ID)
@@ -960,14 +960,14 @@ func TestIsLocationServiceable(t *testing.T) {
 
 		// No city in boundary
 		resolved := &ResolvedLocation{
-			Location: Location{Latitude: lat, Longitude: lng},
+			Location: Location{Latitude: latitude, Longitude: longitude},
 			City:     nil,
 		}
-		mockRepo.On("ResolveLocation", ctx, lat, lng).Return(resolved, nil)
-		mockRepo.On("FindNearestCity", ctx, lat, lng, 50.0).Return(city, nil)
+		mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(resolved, nil)
+		mockRepo.On("FindNearestCity", ctx, latitude, longitude, 50.0).Return(city, nil)
 		mockRepo.On("GetCityByID", ctx, city.ID).Return(city, nil)
 
-		serviceable, result, err := service.IsLocationServiceable(ctx, lat, lng)
+		serviceable, result, err := service.IsLocationServiceable(ctx, latitude, longitude)
 
 		assert.NoError(t, err)
 		assert.True(t, serviceable)
@@ -981,11 +981,11 @@ func TestIsLocationServiceable(t *testing.T) {
 		service := NewService(mockRepo)
 		ctx := context.Background()
 
-		lat, lng := 37.9601, 58.3261
+		latitude, longitude := 37.9601, 58.3261
 
-		mockRepo.On("ResolveLocation", ctx, lat, lng).Return(nil, errors.New("resolution failed"))
+		mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(nil, errors.New("resolution failed"))
 
-		serviceable, result, err := service.IsLocationServiceable(ctx, lat, lng)
+		serviceable, result, err := service.IsLocationServiceable(ctx, latitude, longitude)
 
 		assert.Error(t, err)
 		assert.False(t, serviceable)
@@ -1004,19 +1004,19 @@ func TestGetCurrencyForLocation(t *testing.T) {
 		service := NewService(mockRepo)
 		ctx := context.Background()
 
-		lat, lng := 37.9601, 58.3261
+		latitude, longitude := 37.9601, 58.3261
 		country := createTestCountry()
 		country.CurrencyCode = "TMT"
 		city := createTestCity(uuid.New())
 
 		resolved := &ResolvedLocation{
-			Location: Location{Latitude: lat, Longitude: lng},
+			Location: Location{Latitude: latitude, Longitude: longitude},
 			Country:  country,
 			City:     city,
 		}
-		mockRepo.On("ResolveLocation", ctx, lat, lng).Return(resolved, nil)
+		mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(resolved, nil)
 
-		currency, err := service.GetCurrencyForLocation(ctx, lat, lng)
+		currency, err := service.GetCurrencyForLocation(ctx, latitude, longitude)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "TMT", currency)
@@ -1028,17 +1028,17 @@ func TestGetCurrencyForLocation(t *testing.T) {
 		service := NewService(mockRepo)
 		ctx := context.Background()
 
-		lat, lng := 0.0, 0.0
+		latitude, longitude := 0.0, 0.0
 
 		resolved := &ResolvedLocation{
-			Location: Location{Latitude: lat, Longitude: lng},
+			Location: Location{Latitude: latitude, Longitude: longitude},
 			Country:  nil,
 			City:     nil,
 		}
-		mockRepo.On("ResolveLocation", ctx, lat, lng).Return(resolved, nil)
-		mockRepo.On("FindNearestCity", ctx, lat, lng, 50.0).Return(nil, errors.New("no city found"))
+		mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(resolved, nil)
+		mockRepo.On("FindNearestCity", ctx, latitude, longitude, 50.0).Return(nil, errors.New("no city found"))
 
-		currency, err := service.GetCurrencyForLocation(ctx, lat, lng)
+		currency, err := service.GetCurrencyForLocation(ctx, latitude, longitude)
 
 		assert.NoError(t, err)
 		assert.Equal(t, "USD", currency)
@@ -1050,11 +1050,11 @@ func TestGetCurrencyForLocation(t *testing.T) {
 		service := NewService(mockRepo)
 		ctx := context.Background()
 
-		lat, lng := 37.9601, 58.3261
+		latitude, longitude := 37.9601, 58.3261
 
-		mockRepo.On("ResolveLocation", ctx, lat, lng).Return(nil, errors.New("resolution failed"))
+		mockRepo.On("ResolveLocation", ctx, latitude, longitude).Return(nil, errors.New("resolution failed"))
 
-		currency, err := service.GetCurrencyForLocation(ctx, lat, lng)
+		currency, err := service.GetCurrencyForLocation(ctx, latitude, longitude)
 
 		assert.Error(t, err)
 		assert.Empty(t, currency)

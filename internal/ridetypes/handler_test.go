@@ -146,8 +146,8 @@ func TestHandler_GetAvailableRideTypes_Success(t *testing.T) {
 	mockRepo.On("GetAvailableRideTypes", mock.Anything, (*uuid.UUID)(nil), (*uuid.UUID)(nil)).
 		Return(rideTypes, nil)
 
-	c, w := setupHandlerTestContext("GET", "/api/v1/ride-types/available?lat=41.2995&lng=69.2401")
-	c.Request.URL.RawQuery = "lat=41.2995&lng=69.2401"
+	c, w := setupHandlerTestContext("GET", "/api/v1/ride-types/available?latitude=41.2995&longitude=69.2401")
+	c.Request.URL.RawQuery = "latitude =41.2995&longitude=69.2401"
 
 	handler.GetAvailableRideTypes(c)
 
@@ -163,8 +163,8 @@ func TestHandler_GetAvailableRideTypes_MissingLat(t *testing.T) {
 	mockRepo := new(MockRepoHandler)
 	handler := createMobileTestHandler(mockRepo)
 
-	c, w := setupHandlerTestContext("GET", "/api/v1/ride-types/available?lng=69.2401")
-	c.Request.URL.RawQuery = "lng=69.2401"
+	c, w := setupHandlerTestContext("GET", "/api/v1/ride-types/available?longitude=69.2401")
+	c.Request.URL.RawQuery = "longitude =69.2401"
 
 	handler.GetAvailableRideTypes(c)
 
@@ -179,8 +179,8 @@ func TestHandler_GetAvailableRideTypes_MissingLng(t *testing.T) {
 	mockRepo := new(MockRepoHandler)
 	handler := createMobileTestHandler(mockRepo)
 
-	c, w := setupHandlerTestContext("GET", "/api/v1/ride-types/available?lat=41.2995")
-	c.Request.URL.RawQuery = "lat=41.2995"
+	c, w := setupHandlerTestContext("GET", "/api/v1/ride-types/available?latitude=41.2995")
+	c.Request.URL.RawQuery = "latitude =41.2995"
 
 	handler.GetAvailableRideTypes(c)
 
@@ -200,28 +200,28 @@ func TestHandler_GetAvailableRideTypes_MissingBoth(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestHandler_GetAvailableRideTypes_InvalidLat(t *testing.T) {
+func TestHandler_GetAvailableRideTypes_InvalidLatitude(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockRepo := new(MockRepoHandler)
 	handler := createMobileTestHandler(mockRepo)
 
-	c, w := setupHandlerTestContext("GET", "/api/v1/ride-types/available?lat=abc&lng=69.2401")
-	c.Request.URL.RawQuery = "lat=abc&lng=69.2401"
+	c, w := setupHandlerTestContext("GET", "/api/v1/ride-types/available?latitude=abc&longitude=69.2401")
+	c.Request.URL.RawQuery = "latitude =abc&longitude=69.2401"
 
 	handler.GetAvailableRideTypes(c)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestHandler_GetAvailableRideTypes_InvalidLng(t *testing.T) {
+func TestHandler_GetAvailableRideTypes_InvalidLongitude(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	mockRepo := new(MockRepoHandler)
 	handler := createMobileTestHandler(mockRepo)
 
-	c, w := setupHandlerTestContext("GET", "/api/v1/ride-types/available?lat=41.2995&lng=xyz")
-	c.Request.URL.RawQuery = "lat=41.2995&lng=xyz"
+	c, w := setupHandlerTestContext("GET", "/api/v1/ride-types/available?latitude=41.2995&longitude=xyz")
+	c.Request.URL.RawQuery = "latitude =41.2995&longitude=xyz"
 
 	handler.GetAvailableRideTypes(c)
 
@@ -237,8 +237,8 @@ func TestHandler_GetAvailableRideTypes_ServiceError(t *testing.T) {
 	mockRepo.On("GetAvailableRideTypes", mock.Anything, (*uuid.UUID)(nil), (*uuid.UUID)(nil)).
 		Return(nil, errors.New("db error"))
 
-	c, w := setupHandlerTestContext("GET", "/api/v1/ride-types/available?lat=41.2995&lng=69.2401")
-	c.Request.URL.RawQuery = "lat=41.2995&lng=69.2401"
+	c, w := setupHandlerTestContext("GET", "/api/v1/ride-types/available?latitude=41.2995&longitude=69.2401")
+	c.Request.URL.RawQuery = "latitude =41.2995&longitude=69.2401"
 
 	handler.GetAvailableRideTypes(c)
 
@@ -257,8 +257,8 @@ func TestHandler_GetAvailableRideTypes_EmptyResult(t *testing.T) {
 	mockRepo.On("GetAvailableRideTypes", mock.Anything, (*uuid.UUID)(nil), (*uuid.UUID)(nil)).
 		Return([]*RideType{}, nil)
 
-	c, w := setupHandlerTestContext("GET", "/api/v1/ride-types/available?lat=41.2995&lng=69.2401")
-	c.Request.URL.RawQuery = "lat=41.2995&lng=69.2401"
+	c, w := setupHandlerTestContext("GET", "/api/v1/ride-types/available?latitude=41.2995&longitude=69.2401")
+	c.Request.URL.RawQuery = "latitude =41.2995&longitude=69.2401"
 
 	handler.GetAvailableRideTypes(c)
 

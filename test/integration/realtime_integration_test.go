@@ -314,8 +314,8 @@ func (s *RealtimeTestSuite) TestDriverLocation_MultipleUpdates() {
 
 	// Simulate multiple location updates
 	locations := []struct {
-		lat float64
-		lon float64
+		latitude float64
+		longitude float64
 	}{
 		{37.7749, -122.4194},
 		{37.7750, -122.4190},
@@ -325,8 +325,8 @@ func (s *RealtimeTestSuite) TestDriverLocation_MultipleUpdates() {
 
 	for _, loc := range locations {
 		locationData := map[string]interface{}{
-			"latitude":  loc.lat,
-			"longitude": loc.lon,
+			"latitude":  loc.latitude,
+			"longitude": loc.longitude,
 			"timestamp": time.Now().Unix(),
 		}
 

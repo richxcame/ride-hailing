@@ -78,7 +78,7 @@ echo -e "${GREEN}✓ Ride type: ${RIDE_TYPE_ID}${NC}"
 echo ""
 
 echo -e "${YELLOW}Step 2: Check Surge Pricing${NC}"
-SURGE_RESPONSE=$(curl -s -X GET "${RIDES_URL}/api/v1/rides/surge-info?lat=37.7749&lon=-122.4194" \
+SURGE_RESPONSE=$(curl -s -X GET "${RIDES_URL}/api/v1/rides/surge-info?latitude=37.7749&longitude=-122.4194" \
   -H "Authorization: Bearer ${RIDER_TOKEN}")
 
 echo "$SURGE_RESPONSE" | jq '.'
@@ -91,11 +91,11 @@ REQUEST_RESPONSE=$(curl -s -X POST "${RIDES_URL}/api/v1/rides" \
   -H "Authorization: Bearer ${RIDER_TOKEN}" \
   -H "Content-Type: application/json" \
   -d "{
-    \"pickup_lat\": 37.7749,
-    \"pickup_lon\": -122.4194,
+    \"pickup_latitude\": 37.7749,
+    \"pickup_longitude\": -122.4194,
     \"pickup_address\": \"123 Market St, San Francisco, CA\",
-    \"dropoff_lat\": 37.7849,
-    \"dropoff_lon\": -122.4094,
+    \"dropoff_latitude\": 37.7849,
+    \"dropoff_longitude\": -122.4094,
     \"dropoff_address\": \"456 Mission St, San Francisco, CA\",
     \"ride_type_id\": \"${RIDE_TYPE_ID}\",
     \"promo_code\": \"\"

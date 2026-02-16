@@ -10,61 +10,61 @@ import (
 
 func TestHaversineDistance(t *testing.T) {
 	tests := []struct {
-		name     string
-		lat1     float64
-		lon1     float64
-		lat2     float64
-		lon2     float64
-		expected float64
-		delta    float64 // acceptable tolerance in km
+		name       string
+		latitude1  float64
+		longitude1 float64
+		latitude2  float64
+		longitude2 float64
+		expected   float64
+		delta      float64 // acceptable tolerance in km
 	}{
 		{
-			name:     "same point returns zero",
-			lat1:     40.7128, lon1: -74.0060,
-			lat2:     40.7128, lon2: -74.0060,
-			expected: 0.0,
-			delta:    0.001,
+			name:       "same point returns zero",
+			latitude1:  40.7128, longitude1: -74.0060,
+			latitude2:  40.7128, longitude2: -74.0060,
+			expected:   0.0,
+			delta:      0.001,
 		},
 		{
-			name:     "New York to Los Angeles approximately 3944 km",
-			lat1:     40.7128, lon1: -74.0060,
-			lat2:     34.0522, lon2: -118.2437,
-			expected: 3944.0,
-			delta:    50.0,
+			name:       "New York to Los Angeles approximately 3944 km",
+			latitude1:  40.7128, longitude1: -74.0060,
+			latitude2:  34.0522, longitude2: -118.2437,
+			expected:   3944.0,
+			delta:      50.0,
 		},
 		{
-			name:     "London to Paris approximately 344 km",
-			lat1:     51.5074, lon1: -0.1278,
-			lat2:     48.8566, lon2: 2.3522,
-			expected: 344.0,
-			delta:    10.0,
+			name:       "London to Paris approximately 344 km",
+			latitude1:  51.5074, longitude1: -0.1278,
+			latitude2:  48.8566, longitude2: 2.3522,
+			expected:   344.0,
+			delta:      10.0,
 		},
 		{
-			name:     "short distance within a city (about 1 km)",
-			lat1:     40.7128, lon1: -74.0060,
-			lat2:     40.7218, lon2: -74.0060,
-			expected: 1.0,
-			delta:    0.1,
+			name:       "short distance within a city (about 1 km)",
+			latitude1:  40.7128, longitude1: -74.0060,
+			latitude2:  40.7218, longitude2: -74.0060,
+			expected:   1.0,
+			delta:      0.1,
 		},
 		{
-			name:     "antipodal points approximately 20000 km",
-			lat1:     0, lon1: 0,
-			lat2:     0, lon2: 180,
-			expected: 20015.0,
-			delta:    100.0,
+			name:       "antipodal points approximately 20000 km",
+			latitude1:  0, longitude1: 0,
+			latitude2:  0, longitude2: 180,
+			expected:   20015.0,
+			delta:      100.0,
 		},
 		{
-			name:     "equator 90 degrees apart",
-			lat1:     0, lon1: 0,
-			lat2:     0, lon2: 90,
-			expected: 10008.0,
-			delta:    50.0,
+			name:       "equator 90 degrees apart",
+			latitude1:  0, longitude1: 0,
+			latitude2:  0, longitude2: 90,
+			expected:   10008.0,
+			delta:      50.0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := haversineDistance(tt.lat1, tt.lon1, tt.lat2, tt.lon2)
+			result := haversineDistance(tt.latitude1, tt.longitude1, tt.latitude2, tt.longitude2)
 			assert.InDelta(t, tt.expected, result, tt.delta)
 		})
 	}

@@ -46,9 +46,9 @@ type geoAPIResponse struct {
 
 // GetNearbyDriverCandidates fetches nearby available drivers from geo service,
 // then enriches them with DB stats (rating, acceptance rate, idle time).
-func (p *GeoMatchingProvider) GetNearbyDriverCandidates(ctx context.Context, lat, lng float64, maxDistance float64, limit int) ([]*DriverCandidate, error) {
+func (p *GeoMatchingProvider) GetNearbyDriverCandidates(ctx context.Context, latitude, longitude float64, maxDistance float64, limit int) ([]*DriverCandidate, error) {
 	// Call geo service for nearby drivers (with circuit breaker if configured)
-	path := fmt.Sprintf("/api/v1/geo/drivers/nearby?latitude=%f&longitude=%f&limit=%d", lat, lng, limit)
+	path := fmt.Sprintf("/api/v1/geo/drivers/nearby?latitude=%f&longitude=%f&limit=%d", latitude, longitude, limit)
 
 	var body []byte
 	var err error
@@ -95,7 +95,7 @@ func (p *GeoMatchingProvider) GetNearbyDriverCandidates(ctx context.Context, lat
 	// Build candidates
 	candidates := make([]*DriverCandidate, 0, len(resp.Data.Drivers))
 	for _, d := range resp.Data.Drivers {
-		dist := haversine(lat, lng, d.Latitude, d.Longitude)
+		dist := haversine(latitude, longitude, d.Latitude, d.Longitude)
 		if dist > maxDistance {
 			continue
 		}
@@ -118,6 +118,6 @@ func (p *GeoMatchingProvider) GetNearbyDriverCandidates(ctx context.Context, lat
 }
 
 // haversine calculates distance between two coordinates in km.
-func haversine(lat1, lon1, lat2, lon2 float64) float64 {
-	return calculateDistance(lat1, lon1, lat2, lon2)
+func haversine(latitude1, longitude1, latitude2, longitude2 float64) float64 {
+	return calculateDistance(latitude1, longitude1, latitude2, longitude2)
 }

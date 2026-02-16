@@ -325,9 +325,9 @@ func (f *FareCalculation) roundValues() {
 }
 
 // QuickEstimate performs a quick fare estimate without zone fees or event multipliers
-func (c *Calculator) QuickEstimate(ctx context.Context, distanceKm float64, durationMin int, pickupLat, pickupLng float64, rideTypeID *uuid.UUID) (float64, error) {
+func (c *Calculator) QuickEstimate(ctx context.Context, distanceKm float64, durationMin int, pickupLatitude, pickupLongitude float64, rideTypeID *uuid.UUID) (float64, error) {
 	// Resolve location
-	resolved, _ := c.geoSvc.ResolveLocation(ctx, pickupLat, pickupLng)
+	resolved, _ := c.geoSvc.ResolveLocation(ctx, pickupLatitude, pickupLongitude)
 
 	var countryID, regionID, cityID *uuid.UUID
 	if resolved != nil {
@@ -364,8 +364,8 @@ func (c *Calculator) QuickEstimate(ctx context.Context, distanceKm float64, dura
 }
 
 // GetPricingForLocation returns resolved pricing for a location (for API)
-func (c *Calculator) GetPricingForLocation(ctx context.Context, lat, lng float64, rideTypeID *uuid.UUID) (*ResolvedPricing, error) {
-	resolved, _ := c.geoSvc.ResolveLocation(ctx, lat, lng)
+func (c *Calculator) GetPricingForLocation(ctx context.Context, latitude, longitude float64, rideTypeID *uuid.UUID) (*ResolvedPricing, error) {
+	resolved, _ := c.geoSvc.ResolveLocation(ctx, latitude, longitude)
 
 	var countryID, regionID, cityID, zoneID *uuid.UUID
 	if resolved != nil {

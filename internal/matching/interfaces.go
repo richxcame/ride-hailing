@@ -8,8 +8,8 @@ import (
 
 // GeoServiceInterface provides driver location lookups
 type GeoServiceInterface interface {
-	FindAvailableDrivers(ctx context.Context, lat, lng float64, maxDrivers int) ([]*GeoDriverLocation, error)
-	CalculateDistance(lat1, lon1, lat2, lon2 float64) float64
+	FindAvailableDrivers(ctx context.Context, latitude, longitude float64, maxDrivers int) ([]*GeoDriverLocation, error)
+	CalculateDistance(latitude1, longitude1, latitude2, longitude2 float64) float64
 }
 
 // RidesRepositoryInterface provides ride data access

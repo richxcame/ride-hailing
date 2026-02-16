@@ -51,11 +51,11 @@ func TestNewEvent_ComplexData(t *testing.T) {
 		RiderID:           uuid.New(),
 		RiderName:         "John Doe",
 		RiderRating:       4.8,
-		PickupLat:         40.7128,
-		PickupLng:         -74.0060,
+		PickupLatitude:         40.7128,
+		PickupLongitude:         -74.0060,
 		PickupAddress:     "123 Main St, New York, NY",
-		DropoffLat:        40.7580,
-		DropoffLng:        -73.9855,
+		DropoffLatitude:        40.7580,
+		DropoffLongitude:        -73.9855,
 		DropoffAddress:    "456 Park Ave, New York, NY",
 		RideTypeID:        rideTypeID,
 		RideTypeName:      "Economy",
@@ -76,7 +76,7 @@ func TestNewEvent_ComplexData(t *testing.T) {
 	assert.Equal(t, data.RideID, decoded.RideID)
 	assert.Equal(t, data.RiderName, decoded.RiderName)
 	assert.Equal(t, data.RiderRating, decoded.RiderRating)
-	assert.Equal(t, data.PickupLat, decoded.PickupLat)
+	assert.Equal(t, data.PickupLatitude, decoded.PickupLatitude)
 	assert.Equal(t, data.PickupAddress, decoded.PickupAddress)
 	assert.Equal(t, data.RideTypeID, decoded.RideTypeID)
 	assert.Equal(t, data.RideTypeName, decoded.RideTypeName)
@@ -230,11 +230,11 @@ func TestRideRequestedData_Serialization(t *testing.T) {
 		RiderID:           uuid.New(),
 		RiderName:         "Alice Smith",
 		RiderRating:       4.9,
-		PickupLat:         37.7749,
-		PickupLng:         -122.4194,
+		PickupLatitude:         37.7749,
+		PickupLongitude:         -122.4194,
 		PickupAddress:     "789 Market St, San Francisco, CA",
-		DropoffLat:        37.3382,
-		DropoffLng:        -121.8863,
+		DropoffLatitude:        37.3382,
+		DropoffLongitude:        -121.8863,
 		DropoffAddress:    "1 Apple Park Way, Cupertino, CA",
 		RideTypeID:        rideTypeID,
 		RideTypeName:      "Premium",
@@ -256,11 +256,11 @@ func TestRideRequestedData_Serialization(t *testing.T) {
 	assert.Equal(t, data.RiderID, decoded.RiderID)
 	assert.Equal(t, data.RiderName, decoded.RiderName)
 	assert.Equal(t, data.RiderRating, decoded.RiderRating)
-	assert.Equal(t, data.PickupLat, decoded.PickupLat)
-	assert.Equal(t, data.PickupLng, decoded.PickupLng)
+	assert.Equal(t, data.PickupLatitude, decoded.PickupLatitude)
+	assert.Equal(t, data.PickupLongitude, decoded.PickupLongitude)
 	assert.Equal(t, data.PickupAddress, decoded.PickupAddress)
-	assert.Equal(t, data.DropoffLat, decoded.DropoffLat)
-	assert.Equal(t, data.DropoffLng, decoded.DropoffLng)
+	assert.Equal(t, data.DropoffLatitude, decoded.DropoffLatitude)
+	assert.Equal(t, data.DropoffLongitude, decoded.DropoffLongitude)
 	assert.Equal(t, data.DropoffAddress, decoded.DropoffAddress)
 	assert.Equal(t, data.RideTypeID, decoded.RideTypeID)
 	assert.Equal(t, data.RideTypeName, decoded.RideTypeName)
@@ -276,10 +276,10 @@ func TestRideAcceptedData_Serialization(t *testing.T) {
 		RideID:     uuid.New(),
 		RiderID:    uuid.New(),
 		DriverID:   uuid.New(),
-		PickupLat:  40.7128,
-		PickupLng:  -74.0060,
-		DropoffLat: 40.7580,
-		DropoffLng: -73.9855,
+		PickupLatitude:  40.7128,
+		PickupLongitude:  -74.0060,
+		DropoffLatitude: 40.7580,
+		DropoffLongitude: -73.9855,
 		AcceptedAt: time.Now().UTC().Truncate(time.Millisecond),
 	}
 
@@ -437,10 +437,10 @@ func TestNegotiationStartedData_Serialization(t *testing.T) {
 	data := NegotiationStartedData{
 		SessionID:         uuid.New(),
 		RiderID:           uuid.New(),
-		PickupLat:         40.7128,
-		PickupLng:         -74.0060,
-		DropoffLat:        40.7580,
-		DropoffLng:        -73.9855,
+		PickupLatitude:         40.7128,
+		PickupLongitude:         -74.0060,
+		DropoffLatitude:        40.7580,
+		DropoffLongitude:        -73.9855,
 		PickupAddress:     "123 Main St",
 		DropoffAddress:    "456 Broadway",
 		CityID:            &cityID,
@@ -580,8 +580,8 @@ func TestDriverInviteData_Serialization(t *testing.T) {
 	data := DriverInviteData{
 		SessionID:     uuid.New(),
 		DriverIDs:     []uuid.UUID{uuid.New(), uuid.New(), uuid.New()},
-		PickupLat:     40.7128,
-		PickupLng:     -74.0060,
+		PickupLatitude:     40.7128,
+		PickupLongitude:     -74.0060,
 		EstimatedFare: 18.00,
 		FairPriceMin:  14.00,
 		FairPriceMax:  22.00,

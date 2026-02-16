@@ -366,11 +366,11 @@ func (s *Service) CreateShareLink(ctx context.Context, userID uuid.UUID, req *Cr
 
 // rideDataResponse represents the response from the rides service
 type rideDataResponse struct {
-	ID              string  `json:"id"`
-	Status          string  `json:"status"`
-	CurrentLat      float64 `json:"current_lat"`
-	CurrentLng      float64 `json:"current_lng"`
-	DriverFirstName string  `json:"driver_first_name"`
+	ID                string  `json:"id"`
+	Status            string  `json:"status"`
+	CurrentLatitude   float64 `json:"current_latitude"`
+	CurrentLongitude  float64 `json:"current_longitude"`
+	DriverFirstName   string  `json:"driver_first_name"`
 	DriverPhoto     string  `json:"driver_photo"`
 	VehicleMake     string  `json:"vehicle_make"`
 	VehicleModel    string  `json:"vehicle_model"`
@@ -418,10 +418,10 @@ func (s *Service) GetSharedRide(ctx context.Context, token string) (*SharedRideV
 			view.Status = rideData.Status
 
 			// Conditionally include data based on link permissions
-			if link.ShareLocation && rideData.CurrentLat != 0 && rideData.CurrentLng != 0 {
+			if link.ShareLocation && rideData.CurrentLatitude != 0 && rideData.CurrentLongitude != 0 {
 				view.CurrentLocation = &Coordinate{
-					Latitude:  rideData.CurrentLat,
-					Longitude: rideData.CurrentLng,
+					Latitude:  rideData.CurrentLatitude,
+					Longitude: rideData.CurrentLongitude,
 				}
 			}
 
@@ -699,9 +699,9 @@ func (s *Service) ReportIncident(ctx context.Context, userID uuid.UUID, req *Rep
 // ========================================
 
 // CheckRouteDeviation checks if driver deviated from route
-func (s *Service) CheckRouteDeviation(ctx context.Context, rideID, driverID uuid.UUID, actualLat, actualLng, expectedLat, expectedLng float64) (*RouteDeviationAlert, error) {
+func (s *Service) CheckRouteDeviation(ctx context.Context, rideID, driverID uuid.UUID, actualLatitude, actualLongitude, expectedLatitude, expectedLongitude float64) (*RouteDeviationAlert, error) {
 	// Calculate deviation distance
-	deviation := haversineDistance(actualLat, actualLng, expectedLat, expectedLng)
+	deviation := haversineDistance(actualLatitude, actualLongitude, expectedLatitude, expectedLongitude)
 	deviationMeters := int(deviation * 1000)
 
 	// Only alert if deviation is significant (> 500 meters)
@@ -713,10 +713,10 @@ func (s *Service) CheckRouteDeviation(ctx context.Context, rideID, driverID uuid
 		ID:              uuid.New(),
 		RideID:          rideID,
 		DriverID:        driverID,
-		ExpectedLat:     expectedLat,
-		ExpectedLng:     expectedLng,
-		ActualLat:       actualLat,
-		ActualLng:       actualLng,
+		ExpectedLatitude:  expectedLatitude,
+		ExpectedLongitude: expectedLongitude,
+		ActualLatitude:    actualLatitude,
+		ActualLongitude:   actualLongitude,
 		DeviationMeters: deviationMeters,
 		RiderNotified:   false,
 		Acknowledged:    false,
@@ -745,7 +745,7 @@ func generateSecureToken(length int) (string, error) {
 	return hex.EncodeToString(bytes), nil
 }
 
-func (s *Service) enrichAlertWithAddress(ctx context.Context, alertID uuid.UUID, lat, lng float64) {
+func (s *Service) enrichAlertWithAddress(ctx context.Context, alertID uuid.UUID, latitude, longitude float64) {
 	// Call maps service to reverse geocode
 	// Update alert with address
 }
@@ -932,13 +932,13 @@ func (s *Service) notifyRiderOfDeviation(ctx context.Context, alert *RouteDeviat
 }
 
 // haversineDistance calculates the distance between two points in km
-func haversineDistance(lat1, lon1, lat2, lon2 float64) float64 {
+func haversineDistance(latitude1, longitude1, latitude2, longitude2 float64) float64 {
 	const earthRadius = 6371.0
 
-	dLat := (lat2 - lat1) * 3.141592653589793 / 180.0
-	dLon := (lon2 - lon1) * 3.141592653589793 / 180.0
+	deltaLatitude := (latitude2 - latitude1) * 3.141592653589793 / 180.0
+	deltaLongitude := (longitude2 - longitude1) * 3.141592653589793 / 180.0
 
-	a := (dLat/2)*(dLat/2) + (lat1*3.141592653589793/180.0)*(lat2*3.141592653589793/180.0)*(dLon/2)*(dLon/2)
+	a := (deltaLatitude/2)*(deltaLatitude/2) + (latitude1*3.141592653589793/180.0)*(latitude2*3.141592653589793/180.0)*(deltaLongitude/2)*(deltaLongitude/2)
 	c := 2 * (a)
 
 	return earthRadius * c

@@ -1519,55 +1519,55 @@ func TestFallbackETA_Calculation(t *testing.T) {
 
 func TestHaversineDistance(t *testing.T) {
 	tests := []struct {
-		name     string
-		lat1     float64
-		lon1     float64
-		lat2     float64
-		lon2     float64
-		minKm    float64
-		maxKm    float64
+		name       string
+		latitude1  float64
+		longitude1 float64
+		latitude2  float64
+		longitude2 float64
+		minKm      float64
+		maxKm      float64
 	}{
 		{
-			name:  "same point returns zero",
-			lat1:  37.7749,
-			lon1:  -122.4194,
-			lat2:  37.7749,
-			lon2:  -122.4194,
-			minKm: 0.0,
-			maxKm: 0.001,
+			name:       "same point returns zero",
+			latitude1:  37.7749,
+			longitude1: -122.4194,
+			latitude2:  37.7749,
+			longitude2: -122.4194,
+			minKm:      0.0,
+			maxKm:      0.001,
 		},
 		{
-			name:  "SF to San Jose ~60km",
-			lat1:  37.7749,
-			lon1:  -122.4194,
-			lat2:  37.3382,
-			lon2:  -121.8863,
-			minKm: 55.0,
-			maxKm: 70.0,
+			name:       "SF to San Jose ~60km",
+			latitude1:  37.7749,
+			longitude1: -122.4194,
+			latitude2:  37.3382,
+			longitude2: -121.8863,
+			minKm:      55.0,
+			maxKm:      70.0,
 		},
 		{
-			name:  "SF to LA ~550km",
-			lat1:  37.7749,
-			lon1:  -122.4194,
-			lat2:  34.0522,
-			lon2:  -118.2437,
-			minKm: 530.0,
-			maxKm: 580.0,
+			name:       "SF to LA ~550km",
+			latitude1:  37.7749,
+			longitude1: -122.4194,
+			latitude2:  34.0522,
+			longitude2: -118.2437,
+			minKm:      530.0,
+			maxKm:      580.0,
 		},
 		{
-			name:  "NYC to London ~5500km",
-			lat1:  40.7128,
-			lon1:  -74.0060,
-			lat2:  51.5074,
-			lon2:  -0.1278,
-			minKm: 5500.0,
-			maxKm: 5700.0,
+			name:       "NYC to London ~5500km",
+			latitude1:  40.7128,
+			longitude1: -74.0060,
+			latitude2:  51.5074,
+			longitude2: -0.1278,
+			minKm:      5500.0,
+			maxKm:      5700.0,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			distance := haversineDistance(tt.lat1, tt.lon1, tt.lat2, tt.lon2)
+			distance := haversineDistance(tt.latitude1, tt.longitude1, tt.latitude2, tt.longitude2)
 
 			assert.GreaterOrEqual(t, distance, tt.minKm)
 			assert.LessOrEqual(t, distance, tt.maxKm)

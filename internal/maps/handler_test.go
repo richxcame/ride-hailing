@@ -2190,10 +2190,10 @@ func TestHandler_IsValidCoordinate_ValidCases(t *testing.T) {
 		{"valid extreme east", Coordinate{Latitude: 0, Longitude: 179.99}, true},
 		{"valid extreme west", Coordinate{Latitude: 0, Longitude: -179.99}, true},
 		{"null island valid", Coordinate{Latitude: 0, Longitude: 0}, true},
-		{"boundary lat 90", Coordinate{Latitude: 90, Longitude: 0}, true},
-		{"boundary lat -90", Coordinate{Latitude: -90, Longitude: 0}, true},
-		{"boundary lng 180", Coordinate{Latitude: 0, Longitude: 180}, true},
-		{"boundary lng -180", Coordinate{Latitude: 0, Longitude: -180}, true},
+		{"boundary latitude 90", Coordinate{Latitude: 90, Longitude: 0}, true},
+		{"boundary latitude -90", Coordinate{Latitude: -90, Longitude: 0}, true},
+		{"boundary longitude 180", Coordinate{Latitude: 0, Longitude: 180}, true},
+		{"boundary longitude -180", Coordinate{Latitude: 0, Longitude: -180}, true},
 	}
 
 	for _, tt := range tests {
@@ -2438,8 +2438,8 @@ func TestHandler_GetRoute_ExtremeCoordinates(t *testing.T) {
 
 	tests := []struct {
 		name string
-		lat  float64
-		lng  float64
+		latitude  float64
+		longitude  float64
 	}{
 		{"North Pole", 90.0, 0.0},
 		{"South Pole", -90.0, 0.0},
@@ -2458,7 +2458,7 @@ func TestHandler_GetRoute_ExtremeCoordinates(t *testing.T) {
 			mockService.On("GetRoute", mock.Anything, mock.AnythingOfType("*maps.RouteRequest")).Return(expectedResp, nil)
 
 			reqBody := map[string]interface{}{
-				"origin":      map[string]float64{"latitude": tt.lat, "longitude": tt.lng},
+				"origin":      map[string]float64{"latitude": tt.latitude, "longitude": tt.longitude},
 				"destination": map[string]float64{"latitude": 37.3382, "longitude": -121.8863},
 			}
 

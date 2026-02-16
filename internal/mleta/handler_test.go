@@ -24,8 +24,8 @@ type MockETARepository struct {
 	mock.Mock
 }
 
-func (m *MockETARepository) GetHistoricalETAForRoute(ctx context.Context, pickupLat, pickupLng, dropoffLat, dropoffLng float64) (float64, error) {
-	args := m.Called(ctx, pickupLat, pickupLng, dropoffLat, dropoffLng)
+func (m *MockETARepository) GetHistoricalETAForRoute(ctx context.Context, pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude float64) (float64, error) {
+	args := m.Called(ctx, pickupLatitude, pickupLongitude, dropoffLatitude, dropoffLongitude)
 	return args.Get(0).(float64), args.Error(1)
 }
 
@@ -198,10 +198,10 @@ func createTestHandler(mockRepo *MockETARepository, mockRedis *MockRedisClient) 
 
 func createTestETAPredictionRequest() *ETAPredictionRequest {
 	return &ETAPredictionRequest{
-		PickupLat:    40.7128,
-		PickupLng:    -74.0060,
-		DropoffLat:   40.7580,
-		DropoffLng:   -73.9855,
+		PickupLatitude:    40.7128,
+		PickupLongitude:    -74.0060,
+		DropoffLatitude:   40.7580,
+		DropoffLongitude:   -73.9855,
 		TrafficLevel: "medium",
 		Weather:      "clear",
 		DriverID:     "driver-123",
@@ -212,10 +212,10 @@ func createTestETAPredictionRequest() *ETAPredictionRequest {
 func createTestPrediction() *ETAPrediction {
 	return &ETAPrediction{
 		ID:               1,
-		PickupLat:        40.7128,
-		PickupLng:        -74.0060,
-		DropoffLat:       40.7580,
-		DropoffLng:       -73.9855,
+		PickupLatitude:        40.7128,
+		PickupLongitude:        -74.0060,
+		DropoffLatitude:       40.7580,
+		DropoffLongitude:       -73.9855,
 		PredictedMinutes: 15.5,
 		Distance:         8.2,
 		TrafficLevel:     "medium",
@@ -285,10 +285,10 @@ func TestHandler_PredictETA_InvalidCoordinates(t *testing.T) {
 
 	// Missing coordinates
 	req := &ETAPredictionRequest{
-		PickupLat:  0,
-		PickupLng:  0,
-		DropoffLat: 0,
-		DropoffLng: 0,
+		PickupLatitude:  0,
+		PickupLongitude:  0,
+		DropoffLatitude: 0,
+		DropoffLongitude: 0,
 	}
 
 	c, w := setupTestContext("POST", "/api/v1/eta/predict", req)
@@ -309,10 +309,10 @@ func TestHandler_PredictETA_PartialCoordinates(t *testing.T) {
 
 	// Only pickup coordinates
 	req := &ETAPredictionRequest{
-		PickupLat:  40.7128,
-		PickupLng:  -74.0060,
-		DropoffLat: 0,
-		DropoffLng: 0,
+		PickupLatitude:  40.7128,
+		PickupLongitude:  -74.0060,
+		DropoffLatitude: 0,
+		DropoffLongitude: 0,
 	}
 
 	c, w := setupTestContext("POST", "/api/v1/eta/predict", req)
@@ -338,10 +338,10 @@ func TestHandler_BatchPredictETA_Success(t *testing.T) {
 	requests := []*ETAPredictionRequest{
 		createTestETAPredictionRequest(),
 		{
-			PickupLat:    40.7580,
-			PickupLng:    -73.9855,
-			DropoffLat:   40.6892,
-			DropoffLng:   -74.0445,
+			PickupLatitude:    40.7580,
+			PickupLongitude:    -73.9855,
+			DropoffLatitude:   40.6892,
+			DropoffLongitude:   -74.0445,
 			TrafficLevel: "low",
 			Weather:      "cloudy",
 		},
@@ -821,10 +821,10 @@ func TestHandler_PredictETA_TableDriven(t *testing.T) {
 		{
 			name: "valid request with all fields",
 			request: ETAPredictionRequest{
-				PickupLat:    40.7128,
-				PickupLng:    -74.0060,
-				DropoffLat:   40.7580,
-				DropoffLng:   -73.9855,
+				PickupLatitude:    40.7128,
+				PickupLongitude:    -74.0060,
+				DropoffLatitude:   40.7580,
+				DropoffLongitude:   -73.9855,
 				TrafficLevel: "medium",
 				Weather:      "clear",
 			},
@@ -833,20 +833,20 @@ func TestHandler_PredictETA_TableDriven(t *testing.T) {
 		{
 			name: "valid request without optional fields",
 			request: ETAPredictionRequest{
-				PickupLat:  40.7128,
-				PickupLng:  -74.0060,
-				DropoffLat: 40.7580,
-				DropoffLng: -73.9855,
+				PickupLatitude:  40.7128,
+				PickupLongitude:  -74.0060,
+				DropoffLatitude: 40.7580,
+				DropoffLongitude: -73.9855,
 			},
 			expectedStatus: http.StatusOK,
 		},
 		{
-			name: "invalid - zero pickup lat",
+			name: "invalid - zero pickup latitude",
 			request: ETAPredictionRequest{
-				PickupLat:  0,
-				PickupLng:  -74.0060,
-				DropoffLat: 40.7580,
-				DropoffLng: -73.9855,
+				PickupLatitude:  0,
+				PickupLongitude:  -74.0060,
+				DropoffLatitude: 40.7580,
+				DropoffLongitude: -73.9855,
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectedError:  "Invalid coordinates",
@@ -854,10 +854,10 @@ func TestHandler_PredictETA_TableDriven(t *testing.T) {
 		{
 			name: "invalid - zero dropoff coordinates",
 			request: ETAPredictionRequest{
-				PickupLat:  40.7128,
-				PickupLng:  -74.0060,
-				DropoffLat: 0,
-				DropoffLng: 0,
+				PickupLatitude:  40.7128,
+				PickupLongitude:  -74.0060,
+				DropoffLatitude: 0,
+				DropoffLongitude: 0,
 			},
 			expectedStatus: http.StatusBadRequest,
 			expectedError:  "Invalid coordinates",

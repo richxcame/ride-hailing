@@ -109,8 +109,8 @@ func (m *MockRepository) GetUpcomingEvents(ctx context.Context, startTime, endTi
 	return args.Get(0).([]*SpecialEvent), args.Error(1)
 }
 
-func (m *MockRepository) GetEventsNearLocation(ctx context.Context, lat, lng, radiusKm float64, timeWindow time.Duration) ([]*SpecialEvent, error) {
-	args := m.Called(ctx, lat, lng, radiusKm, timeWindow)
+func (m *MockRepository) GetEventsNearLocation(ctx context.Context, latitude, longitude, radiusKm float64, timeWindow time.Duration) ([]*SpecialEvent, error) {
+	args := m.Called(ctx, latitude, longitude, radiusKm, timeWindow)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -140,16 +140,16 @@ type MockWeatherService struct {
 	mock.Mock
 }
 
-func (m *MockWeatherService) GetCurrentWeather(ctx context.Context, lat, lng float64) (*WeatherData, error) {
-	args := m.Called(ctx, lat, lng)
+func (m *MockWeatherService) GetCurrentWeather(ctx context.Context, latitude, longitude float64) (*WeatherData, error) {
+	args := m.Called(ctx, latitude, longitude)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*WeatherData), args.Error(1)
 }
 
-func (m *MockWeatherService) GetForecast(ctx context.Context, lat, lng float64, hours int) ([]WeatherData, error) {
-	args := m.Called(ctx, lat, lng, hours)
+func (m *MockWeatherService) GetForecast(ctx context.Context, latitude, longitude float64, hours int) ([]WeatherData, error) {
+	args := m.Called(ctx, latitude, longitude, hours)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -166,8 +166,8 @@ func (m *MockDriverLocationService) GetDriverCountInCell(ctx context.Context, h3
 	return args.Int(0), args.Error(1)
 }
 
-func (m *MockDriverLocationService) GetNearbyDriverCount(ctx context.Context, lat, lng, radiusKm float64) (int, error) {
-	args := m.Called(ctx, lat, lng, radiusKm)
+func (m *MockDriverLocationService) GetNearbyDriverCount(ctx context.Context, latitude, longitude, radiusKm float64) (int, error) {
+	args := m.Called(ctx, latitude, longitude, radiusKm)
 	return args.Int(0), args.Error(1)
 }
 

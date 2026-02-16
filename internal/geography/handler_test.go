@@ -81,16 +81,16 @@ func (m *MockRepoHandler) GetCityByID(ctx context.Context, id uuid.UUID) (*City,
 	return args.Get(0).(*City), args.Error(1)
 }
 
-func (m *MockRepoHandler) ResolveLocation(ctx context.Context, lat, lng float64) (*ResolvedLocation, error) {
-	args := m.Called(ctx, lat, lng)
+func (m *MockRepoHandler) ResolveLocation(ctx context.Context, latitude, longitude float64) (*ResolvedLocation, error) {
+	args := m.Called(ctx, latitude, longitude)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
 	return args.Get(0).(*ResolvedLocation), args.Error(1)
 }
 
-func (m *MockRepoHandler) FindNearestCity(ctx context.Context, lat, lng float64, maxDistanceKm float64) (*City, error) {
-	args := m.Called(ctx, lat, lng, maxDistanceKm)
+func (m *MockRepoHandler) FindNearestCity(ctx context.Context, latitude, longitude float64, maxDistanceKm float64) (*City, error) {
+	args := m.Called(ctx, latitude, longitude, maxDistanceKm)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
@@ -895,21 +895,21 @@ func TestHandler_CheckServiceability_NotServiceable(t *testing.T) {
 	handler := createTestHandler(mockRepo)
 
 	// Use remote location (middle of Pacific ocean) - not serviceable
-	lat, lng := 0.001, 0.001 // Non-zero to pass required validation
+	latitude, longitude := 0.001, 0.001 // Non-zero to pass required validation
 
 	resolved := &ResolvedLocation{
-		Location: Location{Latitude: lat, Longitude: lng},
+		Location: Location{Latitude: latitude, Longitude: longitude},
 		City:     nil, // No city found
 		Timezone: "",
 	}
 
 	// Service calls repo.ResolveLocation then repo.FindNearestCity if City is nil
-	mockRepo.On("ResolveLocation", mock.Anything, lat, lng).Return(resolved, nil)
-	mockRepo.On("FindNearestCity", mock.Anything, lat, lng, 50.0).Return(nil, nil) // No nearby city
+	mockRepo.On("ResolveLocation", mock.Anything, latitude, longitude).Return(resolved, nil)
+	mockRepo.On("FindNearestCity", mock.Anything, latitude, longitude, 50.0).Return(nil, nil) // No nearby city
 
 	reqBody := ResolveLocationRequest{
-		Latitude:  lat,
-		Longitude: lng,
+		Latitude: latitude,
+		Longitude: longitude,
 	}
 
 	c, w := setupTestContext("POST", "/api/v1/geography/location/serviceable", reqBody)

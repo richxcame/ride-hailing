@@ -190,10 +190,10 @@ CREATE TABLE IF NOT EXISTS route_deviation_alerts (
     driver_id UUID NOT NULL REFERENCES users(id),
 
     -- Expected vs actual location
-    expected_lat DOUBLE PRECISION NOT NULL,
-    expected_lng DOUBLE PRECISION NOT NULL,
-    actual_lat DOUBLE PRECISION NOT NULL,
-    actual_lng DOUBLE PRECISION NOT NULL,
+    expected_latitude DOUBLE PRECISION NOT NULL,
+    expected_longitude DOUBLE PRECISION NOT NULL,
+    actual_latitude DOUBLE PRECISION NOT NULL,
+    actual_longitude DOUBLE PRECISION NOT NULL,
     deviation_meters INT NOT NULL,
 
     -- Route data

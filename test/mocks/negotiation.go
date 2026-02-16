@@ -111,8 +111,8 @@ type MockGeographyService struct {
 	mock.Mock
 }
 
-func (m *MockGeographyService) ResolveLocation(ctx context.Context, lat, lng float64) (*geography.ResolvedLocation, error) {
-	args := m.Called(ctx, lat, lng)
+func (m *MockGeographyService) ResolveLocation(ctx context.Context, latitude, longitude float64) (*geography.ResolvedLocation, error) {
+	args := m.Called(ctx, latitude, longitude)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}

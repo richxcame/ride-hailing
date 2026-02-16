@@ -22,15 +22,15 @@ const (
 
 // ActiveRideInfo tracks an in-progress ride for ETA updates.
 type ActiveRideInfo struct {
-	RideID         uuid.UUID `json:"ride_id"`
-	RiderID        uuid.UUID `json:"rider_id"`
-	DriverID       uuid.UUID `json:"driver_id"`
-	DropoffLat     float64   `json:"dropoff_lat"`
-	DropoffLng     float64   `json:"dropoff_lng"`
-	Status         string    `json:"status"` // "accepted" (en route to pickup) or "started" (en route to dropoff)
-	PickupLat      float64   `json:"pickup_lat"`
-	PickupLng      float64   `json:"pickup_lng"`
-	LastETAUpdate  time.Time `json:"last_eta_update"`
+	RideID           uuid.UUID `json:"ride_id"`
+	RiderID          uuid.UUID `json:"rider_id"`
+	DriverID         uuid.UUID `json:"driver_id"`
+	DropoffLatitude  float64   `json:"dropoff_latitude"`
+	DropoffLongitude float64   `json:"dropoff_longitude"`
+	Status           string    `json:"status"` // "accepted" (en route to pickup) or "started" (en route to dropoff)
+	PickupLatitude   float64   `json:"pickup_latitude"`
+	PickupLongitude  float64   `json:"pickup_longitude"`
+	LastETAUpdate    time.Time `json:"last_eta_update"`
 }
 
 // ETAUpdate is the payload broadcast to riders via WebSocket.
@@ -86,7 +86,7 @@ func (t *ETATracker) UnregisterActiveRide(ctx context.Context, driverID uuid.UUI
 
 // OnDriverLocationUpdate is called when a driver's location changes.
 // If the driver has an active ride, it recalculates and broadcasts the ETA.
-func (t *ETATracker) OnDriverLocationUpdate(ctx context.Context, driverID uuid.UUID, lat, lng, heading, speed float64) {
+func (t *ETATracker) OnDriverLocationUpdate(ctx context.Context, driverID uuid.UUID, latitude, longitude, heading, speed float64) {
 	// Rate limit: skip if we recently sent an update for this driver
 	driverIDStr := driverID.String()
 	t.mu.Lock()
@@ -109,14 +109,14 @@ func (t *ETATracker) OnDriverLocationUpdate(ctx context.Context, driverID uuid.U
 	}
 
 	// Determine destination based on ride status
-	destLat, destLng := rideInfo.DropoffLat, rideInfo.DropoffLng
+	destLatitude, destLongitude := rideInfo.DropoffLatitude, rideInfo.DropoffLongitude
 	if rideInfo.Status == "accepted" {
 		// Driver is heading to pickup
-		destLat, destLng = rideInfo.PickupLat, rideInfo.PickupLng
+		destLatitude, destLongitude = rideInfo.PickupLatitude, rideInfo.PickupLongitude
 	}
 
 	// Calculate distance and ETA
-	distance := haversineDistance(lat, lng, destLat, destLng)
+	distance := haversineDistance(latitude, longitude, destLatitude, destLongitude)
 	etaMinutes := estimateETAMinutes(distance, speed)
 
 	// Record update time
@@ -129,8 +129,8 @@ func (t *ETATracker) OnDriverLocationUpdate(ctx context.Context, driverID uuid.U
 		RideID:          rideInfo.RideID.String(),
 		ETAMinutes:      etaMinutes,
 		DistanceKm:      math.Round(distance*100) / 100,
-		DriverLatitude:  lat,
-		DriverLongitude: lng,
+		DriverLatitude: latitude,
+		DriverLongitude: longitude,
 		DriverHeading:   heading,
 		DriverSpeed:     speed,
 		UpdatedAt:       time.Now().UTC().Format(time.RFC3339),
@@ -164,13 +164,13 @@ func (t *ETATracker) broadcastETAUpdate(ctx context.Context, riderID, rideID str
 }
 
 // haversineDistance calculates great-circle distance in km.
-func haversineDistance(lat1, lon1, lat2, lon2 float64) float64 {
+func haversineDistance(latitude1, longitude1, latitude2, longitude2 float64) float64 {
 	const earthRadius = 6371.0
-	dLat := (lat2 - lat1) * math.Pi / 180.0
-	dLon := (lon2 - lon1) * math.Pi / 180.0
-	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
-		math.Cos(lat1*math.Pi/180.0)*math.Cos(lat2*math.Pi/180.0)*
-			math.Sin(dLon/2)*math.Sin(dLon/2)
+	deltaLatitude := (latitude2 - latitude1) * math.Pi / 180.0
+	deltaLongitude := (longitude2 - longitude1) * math.Pi / 180.0
+	a := math.Sin(deltaLatitude/2)*math.Sin(deltaLatitude/2) +
+		math.Cos(latitude1*math.Pi/180.0)*math.Cos(latitude2*math.Pi/180.0)*
+			math.Sin(deltaLongitude/2)*math.Sin(deltaLongitude/2)
 	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
 	return earthRadius * c
 }

@@ -145,7 +145,7 @@ func CorrelationID() gin.HandlerFunc {
 func (h *Handler) FindNearbyDrivers(c *gin.Context) {
     // ... parameter validation ...
 
-    drivers, err := h.service.FindAvailableDrivers(c.Request.Context(), lat, lng, limit)
+    drivers, err := h.service.FindAvailableDrivers(c.Request.Context(), latitude, longitude, limit)
     if err != nil {
         if appErr, ok := err.(*common.AppError); ok {
             common.AppErrorResponse(c, appErr)

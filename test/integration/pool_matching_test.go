@@ -99,38 +99,38 @@ func (s *PoolMatchingTestSuite) TestPool_MultipleRidersRequestSimilarRoutes() {
 	// Multiple riders request rides going in similar directions (SF to Oakland area)
 	rideRequests := []struct {
 		rider         authSession
-		pickupLat     float64
-		pickupLon     float64
+		pickupLatitude     float64
+		pickupLongitude     float64
 		pickupAddr    string
-		dropoffLat    float64
-		dropoffLon    float64
+		dropoffLatitude    float64
+		dropoffLongitude    float64
 		dropoffAddr   string
 	}{
 		{
 			rider:       s.riders[0],
-			pickupLat:   37.7749,
-			pickupLon:   -122.4194,
+			pickupLatitude:   37.7749,
+			pickupLongitude:   -122.4194,
 			pickupAddr:  "100 Market St, SF",
-			dropoffLat:  37.8044,
-			dropoffLon:  -122.2712,
+			dropoffLatitude:  37.8044,
+			dropoffLongitude:  -122.2712,
 			dropoffAddr: "100 Broadway, Oakland",
 		},
 		{
 			rider:       s.riders[1],
-			pickupLat:   37.7755,
-			pickupLon:   -122.4180, // Nearby pickup
+			pickupLatitude:   37.7755,
+			pickupLongitude:   -122.4180, // Nearby pickup
 			pickupAddr:  "150 Market St, SF",
-			dropoffLat:  37.8040,
-			dropoffLon:  -122.2720, // Nearby dropoff
+			dropoffLatitude:  37.8040,
+			dropoffLongitude:  -122.2720, // Nearby dropoff
 			dropoffAddr: "150 Broadway, Oakland",
 		},
 		{
 			rider:       s.riders[2],
-			pickupLat:   37.7760,
-			pickupLon:   -122.4170, // Nearby pickup
+			pickupLatitude:   37.7760,
+			pickupLongitude:   -122.4170, // Nearby pickup
 			pickupAddr:  "200 Market St, SF",
-			dropoffLat:  37.8050,
-			dropoffLon:  -122.2700, // Nearby dropoff
+			dropoffLatitude:  37.8050,
+			dropoffLongitude:  -122.2700, // Nearby dropoff
 			dropoffAddr: "200 Broadway, Oakland",
 		},
 	}
@@ -139,11 +139,11 @@ func (s *PoolMatchingTestSuite) TestPool_MultipleRidersRequestSimilarRoutes() {
 
 	for i, req := range rideRequests {
 		rideReq := &models.RideRequest{
-			PickupLatitude:   req.pickupLat,
-			PickupLongitude:  req.pickupLon,
+			PickupLatitude:   req.pickupLatitude,
+			PickupLongitude:  req.pickupLongitude,
 			PickupAddress:    req.pickupAddr,
-			DropoffLatitude:  req.dropoffLat,
-			DropoffLongitude: req.dropoffLon,
+			DropoffLatitude:  req.dropoffLatitude,
+			DropoffLongitude: req.dropoffLongitude,
 			DropoffAddress:   req.dropoffAddr,
 			RideTypeID:       &poolRideTypeID,
 		}
@@ -292,35 +292,35 @@ func (s *PoolMatchingTestSuite) TestPool_MatchWithinRadius() {
 	poolRideTypeID := s.createPoolRideType(t, ctx)
 
 	// Base location: SF Downtown
-	baseLat := 37.7749
-	baseLon := -122.4194
+	baseLatitudeitude := 37.7749
+	baseLongitudegitude := -122.4194
 
 	// Create rides at various distances from base
 	testCases := []struct {
 		name         string
-		pickupLat    float64
-		pickupLon    float64
+		pickupLatitude    float64
+		pickupLongitude    float64
 		shouldMatch  bool
 		description  string
 	}{
 		{
 			name:        "within_500m",
-			pickupLat:   37.7754,   // ~500m away
-			pickupLon:   -122.4189,
+			pickupLatitude:   37.7754,   // ~500m away
+			pickupLongitude:   -122.4189,
 			shouldMatch: true,
 			description: "Pickup within 500m should be matchable",
 		},
 		{
 			name:        "within_1km",
-			pickupLat:   37.7780,   // ~1km away
-			pickupLon:   -122.4150,
+			pickupLatitude:   37.7780,   // ~1km away
+			pickupLongitude:   -122.4150,
 			shouldMatch: true,
 			description: "Pickup within 1km should be matchable",
 		},
 		{
 			name:        "far_away",
-			pickupLat:   37.8500,   // ~10km away
-			pickupLon:   -122.2500,
+			pickupLatitude:   37.8500,   // ~10km away
+			pickupLongitude:   -122.2500,
 			shouldMatch: false,
 			description: "Pickup 10km+ away should not match",
 		},
@@ -328,8 +328,8 @@ func (s *PoolMatchingTestSuite) TestPool_MatchWithinRadius() {
 
 	// Create base ride
 	baseRideReq := &models.RideRequest{
-		PickupLatitude:   baseLat,
-		PickupLongitude:  baseLon,
+		PickupLatitude:   baseLatitude,
+		PickupLongitude:  baseLongitude,
 		PickupAddress:    "Base Location, SF",
 		DropoffLatitude:  37.8044,
 		DropoffLongitude: -122.2712,
@@ -348,8 +348,8 @@ func (s *PoolMatchingTestSuite) TestPool_MatchWithinRadius() {
 
 		s.Run(tc.name, func() {
 			rideReq := &models.RideRequest{
-				PickupLatitude:   tc.pickupLat,
-				PickupLongitude:  tc.pickupLon,
+				PickupLatitude:   tc.pickupLatitude,
+				PickupLongitude:  tc.pickupLongitude,
 				PickupAddress:    fmt.Sprintf("Test Location %d", i),
 				DropoffLatitude:  37.8044,
 				DropoffLongitude: -122.2712,
@@ -361,7 +361,7 @@ func (s *PoolMatchingTestSuite) TestPool_MatchWithinRadius() {
 			require.True(t, rideResp.Success)
 
 			// Calculate distance between pickups using Haversine formula
-			distance := s.haversineDistance(baseLat, baseLon, tc.pickupLat, tc.pickupLon)
+			distance := s.haversineDistance(baseLatitude, baseLongitude, tc.pickupLatitude, tc.pickupLongitude)
 			t.Logf("%s: Distance from base = %.2f km", tc.name, distance)
 
 			// Verify ride was created
@@ -884,37 +884,37 @@ func (s *PoolMatchingTestSuite) TestPool_PoolRideWithMultipleStops() {
 
 	rideConfigs := []struct {
 		rider       authSession
-		pickupLat   float64
-		pickupLon   float64
-		dropoffLat  float64
-		dropoffLon  float64
+		pickupLatitude   float64
+		pickupLongitude   float64
+		dropoffLatitude  float64
+		dropoffLongitude  float64
 		pickupAddr  string
 		dropoffAddr string
 	}{
 		{
 			rider:       s.riders[0],
-			pickupLat:   37.7749,
-			pickupLon:   -122.4194,
-			dropoffLat:  37.8044,
-			dropoffLon:  -122.2712,
+			pickupLatitude:   37.7749,
+			pickupLongitude:   -122.4194,
+			dropoffLatitude:  37.8044,
+			dropoffLongitude:  -122.2712,
 			pickupAddr:  "Stop A - Pickup Rider 1",
 			dropoffAddr: "Stop D - Dropoff Rider 1",
 		},
 		{
 			rider:       s.riders[1],
-			pickupLat:   37.7770,
-			pickupLon:   -122.4100,
-			dropoffLat:  37.7950,
-			dropoffLon:  -122.3000,
+			pickupLatitude:   37.7770,
+			pickupLongitude:   -122.4100,
+			dropoffLatitude:  37.7950,
+			dropoffLongitude:  -122.3000,
 			pickupAddr:  "Stop B - Pickup Rider 2",
 			dropoffAddr: "Stop C - Dropoff Rider 2",
 		},
 		{
 			rider:       s.riders[2],
-			pickupLat:   37.7790,
-			pickupLon:   -122.4000,
-			dropoffLat:  37.8100,
-			dropoffLon:  -122.2600,
+			pickupLatitude:   37.7790,
+			pickupLongitude:   -122.4000,
+			dropoffLatitude:  37.8100,
+			dropoffLongitude:  -122.2600,
 			pickupAddr:  "Stop C - Pickup Rider 3",
 			dropoffAddr: "Stop E - Dropoff Rider 3",
 		},
@@ -925,11 +925,11 @@ func (s *PoolMatchingTestSuite) TestPool_PoolRideWithMultipleStops() {
 	// Create all pool ride requests
 	for i, cfg := range rideConfigs {
 		rideReq := &models.RideRequest{
-			PickupLatitude:   cfg.pickupLat,
-			PickupLongitude:  cfg.pickupLon,
+			PickupLatitude:   cfg.pickupLatitude,
+			PickupLongitude:  cfg.pickupLongitude,
 			PickupAddress:    cfg.pickupAddr,
-			DropoffLatitude:  cfg.dropoffLat,
-			DropoffLongitude: cfg.dropoffLon,
+			DropoffLatitude:  cfg.dropoffLatitude,
+			DropoffLongitude: cfg.dropoffLongitude,
 			DropoffAddress:   cfg.dropoffAddr,
 			RideTypeID:       &poolRideTypeID,
 		}
@@ -1304,17 +1304,17 @@ func (s *PoolMatchingTestSuite) createPoolRideType(t *testing.T, ctx context.Con
 }
 
 // haversineDistance calculates the distance between two points in kilometers
-func (s *PoolMatchingTestSuite) haversineDistance(lat1, lon1, lat2, lon2 float64) float64 {
+func (s *PoolMatchingTestSuite) haversineDistance(latitude1, longitude1, latitude2, longitude2 float64) float64 {
 	const earthRadius = 6371.0 // km
 
 	// Convert to radians
-	lat1Rad := lat1 * (3.14159265358979323846 / 180.0)
-	lat2Rad := lat2 * (3.14159265358979323846 / 180.0)
-	deltaLat := (lat2 - lat1) * (3.14159265358979323846 / 180.0)
-	deltaLon := (lon2 - lon1) * (3.14159265358979323846 / 180.0)
+	latitude1Rad := latitude1 * (3.14159265358979323846 / 180.0)
+	latitude2Rad := latitude2 * (3.14159265358979323846 / 180.0)
+	deltaLatitude := (latitude2 - latitude1) * (3.14159265358979323846 / 180.0)
+	deltaLongitude := (longitude2 - longitude1) * (3.14159265358979323846 / 180.0)
 
 	// Haversine formula
-	a := (1-cos(deltaLat))/2 + cos(lat1Rad)*cos(lat2Rad)*(1-cos(deltaLon))/2
+	a := (1-cos(deltaLatitude))/2 + cos(latitude1Rad)*cos(latitude2Rad)*(1-cos(deltaLongitude))/2
 	c := 2 * asin(sqrt(a))
 
 	return earthRadius * c
