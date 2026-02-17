@@ -884,8 +884,8 @@ func (r *Repository) GetRideByID(ctx context.Context, rideID uuid.UUID) (*AdminR
 		       d.vehicle_model, d.vehicle_plate, d.vehicle_color, d.rating
 		FROM rides r
 		JOIN users ru ON r.rider_id = ru.id
-		LEFT JOIN drivers d ON r.driver_id = d.id
-		LEFT JOIN users du ON d.user_id = du.id
+		LEFT JOIN drivers d ON r.driver_id = d.user_id
+		LEFT JOIN users du ON r.driver_id = du.id
 		WHERE r.id = $1
 	`
 
@@ -958,8 +958,8 @@ func (r *Repository) GetRecentRidesWithDetails(ctx context.Context, limit, offse
 		       d.vehicle_model, d.vehicle_plate, d.vehicle_color, d.rating
 		FROM rides r
 		JOIN users ru ON r.rider_id = ru.id
-		LEFT JOIN drivers d ON r.driver_id = d.id
-		LEFT JOIN users du ON d.user_id = du.id
+		LEFT JOIN drivers d ON r.driver_id = d.user_id
+		LEFT JOIN users du ON r.driver_id = du.id
 		ORDER BY r.created_at DESC
 		LIMIT $1 OFFSET $2
 	`
@@ -1517,8 +1517,8 @@ func (r *Repository) GetActionItems(ctx context.Context) (*ActionItems, error) {
 		SELECT r.id, r.driver_id, CONCAT(u.first_name, ' ', u.last_name) as driver_name,
 		       r.rating, r.feedback, r.created_at
 		FROM rides r
-		LEFT JOIN drivers d ON r.driver_id = d.id
-		LEFT JOIN users u ON d.user_id = u.id
+		LEFT JOIN drivers d ON r.driver_id = d.user_id
+		LEFT JOIN users u ON r.driver_id = u.id
 		WHERE r.rating IS NOT NULL AND r.rating <= 2
 		ORDER BY r.created_at DESC
 		LIMIT 5
