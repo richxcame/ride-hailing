@@ -313,62 +313,6 @@ func (h *Handler) GetAvailableRides(c *gin.Context) {
 	common.SuccessResponse(c, rides)
 }
 
-// GetRideReceipt generates a receipt for a completed ride
-func (h *Handler) GetRideReceipt(c *gin.Context) {
-	userID, err := middleware.GetUserID(c)
-	if err != nil {
-		common.ErrorResponse(c, http.StatusUnauthorized, "unauthorized")
-		return
-	}
-
-	rideID, err := uuid.Parse(c.Param("id"))
-	if err != nil {
-		common.ErrorResponse(c, http.StatusBadRequest, "invalid ride ID")
-		return
-	}
-
-	ride, err := h.service.repo.GetRideByID(c.Request.Context(), rideID)
-	if err != nil {
-		common.ErrorResponse(c, http.StatusNotFound, "ride not found")
-		return
-	}
-
-	// Verify user is part of this ride
-	if ride.RiderID != userID && (ride.DriverID == nil || *ride.DriverID != userID) {
-		common.ErrorResponse(c, http.StatusForbidden, "unauthorized")
-		return
-	}
-
-	// Only completed rides have receipts
-	if ride.Status != models.RideStatusCompleted {
-		common.ErrorResponse(c, http.StatusBadRequest, "ride is not completed")
-		return
-	}
-
-	// Get payment method from payments table
-	paymentMethod, err := h.service.repo.GetPaymentByRideID(c.Request.Context(), rideID)
-	if err != nil {
-		// If payment not found, default to "unknown"
-		paymentMethod = "unknown"
-	}
-
-	receipt := gin.H{
-		"ride_id":          ride.ID,
-		"date":             ride.CompletedAt,
-		"pickup_address":   ride.PickupAddress,
-		"dropoff_address":  ride.DropoffAddress,
-		"distance":         ride.ActualDistance,
-		"duration":         ride.ActualDuration,
-		"base_fare":        ride.EstimatedFare,
-		"surge_multiplier": ride.SurgeMultiplier,
-		"final_fare":       ride.FinalFare,
-		"payment_method":   paymentMethod,
-		"rider_id":         ride.RiderID,
-		"driver_id":        ride.DriverID,
-	}
-
-	common.SuccessResponse(c, receipt)
-}
 
 // GetUserProfile retrieves user profile data
 func (h *Handler) GetUserProfile(c *gin.Context) {

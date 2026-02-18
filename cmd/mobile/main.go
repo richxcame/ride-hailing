@@ -385,12 +385,6 @@ func main() {
 	api := router.Group("/api/v1")
 	api.Use(middleware.AuthMiddlewareWithProvider(jwtProvider))
 	{
-		// Ride receipt endpoint (ride history handled by ridehistoryHandler)
-		rides := api.Group("/rides")
-		{
-			rides.GET("/:id/receipt", ridesHandler.GetRideReceipt)
-		}
-
 		// Favorite locations endpoints
 		favs := api.Group("/favorites")
 		{
