@@ -540,3 +540,18 @@ func (r *Repository) ProcessPaymentWithWallet(ctx context.Context, payment *mode
 
 	return nil
 }
+
+// RecordRideEarning inserts a ride_fare row into driver_earnings.
+// Uses ON CONFLICT DO NOTHING so re-delivered NATS events are safe.
+func (r *Repository) RecordRideEarning(ctx context.Context, driverID, rideID uuid.UUID, grossAmount, commission, netAmount float64, description string) error {
+	_, err := r.db.Exec(ctx, `
+		INSERT INTO driver_earnings (
+			id, driver_id, ride_id, type,
+			gross_amount, commission, net_amount,
+			currency, description, is_paid_out, created_at
+		) VALUES ($1, $2, $3, 'ride_fare', $4, $5, $6, 'USD', $7, false, NOW())
+		ON CONFLICT (ride_id, type) WHERE ride_id IS NOT NULL DO NOTHING`,
+		uuid.New(), driverID, rideID, grossAmount, commission, netAmount, description,
+	)
+	return err
+}

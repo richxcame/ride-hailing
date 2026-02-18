@@ -53,6 +53,14 @@ func (s *Service) GetRideDriverID(ctx context.Context, rideID uuid.UUID) (*uuid.
 	return s.repo.GetRideDriverID(ctx, rideID)
 }
 
+// RecordRideEarning records a ride_fare earning for a driver on ride completion.
+func (s *Service) RecordRideEarning(ctx context.Context, driverID, rideID uuid.UUID, fareAmount float64) error {
+	commission := fareAmount * s.commissionRate
+	netAmount := fareAmount - commission
+	description := fmt.Sprintf("Earnings from ride %s (%.0f%% commission)", rideID, s.commissionRate*100)
+	return s.repo.RecordRideEarning(ctx, driverID, rideID, fareAmount, commission, netAmount, description)
+}
+
 // ProcessRidePayment processes payment for a completed ride
 func (s *Service) ProcessRidePayment(ctx context.Context, rideID, riderID, driverID uuid.UUID, amount float64, paymentMethod string) (*models.Payment, error) {
 	payment := &models.Payment{

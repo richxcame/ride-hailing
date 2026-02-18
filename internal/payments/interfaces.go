@@ -22,6 +22,7 @@ type RepositoryInterface interface {
 	GetWalletTransactionsWithTotal(ctx context.Context, walletID uuid.UUID, limit, offset int) ([]*models.WalletTransaction, int64, error)
 	GetRideDriverID(ctx context.Context, rideID uuid.UUID) (*uuid.UUID, error)
 	GetPaymentsByRideID(ctx context.Context, rideID uuid.UUID) ([]*models.Payment, error)
+	RecordRideEarning(ctx context.Context, driverID, rideID uuid.UUID, grossAmount, commission, netAmount float64, description string) error
 }
 
 // AdminRepositoryInterface extends RepositoryInterface with admin-only methods
