@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/pkg/common"
+	pkggeo "github.com/richxcame/ride-hailing/pkg/geo"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	redisClient "github.com/richxcame/ride-hailing/pkg/redis"
 	"go.uber.org/zap"
@@ -495,28 +496,14 @@ func (s *Service) GetDemandHeatmap(ctx context.Context, latitude, longitude floa
 	return heatmap, nil
 }
 
-// CalculateDistance calculates distance between two coordinates in kilometers
-func (s *Service) CalculateDistance(latitude1, longitude1, latitude2, longitude2 float64) float64 {
-	const earthRadius = 6371.0 // km
-
-	deltaLatitude := (latitude2 - latitude1) * math.Pi / 180.0
-	deltaLongitude := (longitude2 - longitude1) * math.Pi / 180.0
-
-	a := math.Sin(deltaLatitude/2)*math.Sin(deltaLatitude/2) +
-		math.Cos(latitude1*math.Pi/180.0)*math.Cos(latitude2*math.Pi/180.0)*
-			math.Sin(deltaLongitude/2)*math.Sin(deltaLongitude/2)
-
-	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
-	distance := earthRadius * c
-
-	return math.Round(distance*100) / 100
+// CalculateDistance calculates distance between two coordinates in kilometers.
+func (s *Service) CalculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
+	return pkggeo.Haversine(lat1, lon1, lat2, lon2)
 }
 
-// CalculateETA calculates estimated time of arrival in minutes
-func (s *Service) CalculateETA(distance float64) int {
-	const averageSpeed = 40.0 // km/h in city traffic
-	eta := (distance / averageSpeed) * 60
-	return int(math.Round(eta))
+// CalculateETA calculates estimated time of arrival in minutes.
+func (s *Service) CalculateETA(distanceKm float64) int {
+	return pkggeo.EstimateDuration(distanceKm)
 }
 
 // parseDriverLocation parses driver location JSON that may have been written

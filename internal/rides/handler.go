@@ -233,6 +233,7 @@ func (h *Handler) RateRide(c *gin.Context) {
 }
 
 // GetMyRides returns paginated rides for the authenticated rider or driver.
+// Optional query params: status, start_date (YYYY-MM-DD), end_date (YYYY-MM-DD).
 func (h *Handler) GetMyRides(c *gin.Context) {
 	userID, err := middleware.GetUserID(c)
 	if err != nil {
@@ -248,13 +249,28 @@ func (h *Handler) GetMyRides(c *gin.Context) {
 
 	params := pagination.ParseParams(c)
 
+	filters := &RideFilters{}
+	if s := c.Query("status"); s != "" {
+		filters.Status = &s
+	}
+	if s := c.Query("start_date"); s != "" {
+		if t, parseErr := time.Parse("2006-01-02", s); parseErr == nil {
+			filters.StartDate = &t
+		}
+	}
+	if s := c.Query("end_date"); s != "" {
+		if t, parseErr := time.Parse("2006-01-02", s); parseErr == nil {
+			filters.EndDate = &t
+		}
+	}
+
 	var rides []*models.Ride
 	var total int64
 
 	if role == models.RoleRider {
-		rides, total, err = h.service.GetRiderRides(c.Request.Context(), userID, params.Limit, params.Offset)
+		rides, total, err = h.service.GetRiderRides(c.Request.Context(), userID, filters, params.Limit, params.Offset)
 	} else if role == models.RoleDriver {
-		rides, total, err = h.service.GetDriverRides(c.Request.Context(), userID, params.Limit, params.Offset)
+		rides, total, err = h.service.GetDriverRides(c.Request.Context(), userID, filters, params.Limit, params.Offset)
 	} else {
 		common.ErrorResponse(c, http.StatusForbidden, "invalid role")
 		return
@@ -269,7 +285,6 @@ func (h *Handler) GetMyRides(c *gin.Context) {
 		return
 	}
 
-	// Ensure empty array instead of null when no rides
 	if rides == nil {
 		rides = []*models.Ride{}
 	}
@@ -296,74 +311,6 @@ func (h *Handler) GetAvailableRides(c *gin.Context) {
 	}
 
 	common.SuccessResponse(c, rides)
-}
-
-// GetRideHistory retrieves ride history with filters
-func (h *Handler) GetRideHistory(c *gin.Context) {
-	userID, _ := c.Get("user_id")
-	role, _ := c.Get("role")
-
-	// Parse query parameters
-	status := c.Query("status")
-	startDate := c.Query("start_date")
-	endDate := c.Query("end_date")
-	params := pagination.ParseParams(c)
-
-	// Build filters
-	filters := &RideFilters{}
-	if status != "" {
-		filters.Status = &status
-	}
-	if startDate != "" {
-		t, err := time.Parse("2006-01-02", startDate)
-		if err == nil {
-			filters.StartDate = &t
-		}
-	}
-	if endDate != "" {
-		t, err := time.Parse("2006-01-02", endDate)
-		if err == nil {
-			filters.EndDate = &t
-		}
-	}
-
-	var ridesList []*models.Ride
-	var total int
-	var err error
-
-	// Get rides based on role
-	if role == models.RoleDriver {
-		ridesList, total, err = h.service.repo.GetRidesByRiderWithFilters(
-			c.Request.Context(),
-			userID.(uuid.UUID),
-			filters,
-			params.Limit,
-			params.Offset,
-		)
-	} else {
-		ridesList, total, err = h.service.repo.GetRidesByRiderWithFilters(
-			c.Request.Context(),
-			userID.(uuid.UUID),
-			filters,
-			params.Limit,
-			params.Offset,
-		)
-	}
-
-	if err != nil {
-		common.ErrorResponse(c, http.StatusInternalServerError, "Failed to fetch ride history")
-		return
-	}
-
-	// Ensure empty array instead of null when no rides
-	if ridesList == nil {
-		ridesList = []*models.Ride{}
-	}
-
-	meta := pagination.BuildMeta(params.Limit, params.Offset, int64(total))
-	common.SuccessResponseWithMeta(c, gin.H{
-		"rides": ridesList,
-	}, meta)
 }
 
 // GetRideReceipt generates a receipt for a completed ride

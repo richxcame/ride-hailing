@@ -197,7 +197,7 @@ func (m *mockRepo) GetAuditLogs(ctx context.Context, limit, offset int, filter *
 // ========================================
 
 func newTestService(repo RepositoryInterface) *Service {
-	return NewService(repo, nil)
+	return NewService(repo, nil, nil)
 }
 
 // ========================================
@@ -246,7 +246,7 @@ func TestSuspendUser(t *testing.T) {
 			tt.setupMocks(m)
 			svc := newTestService(m)
 
-			err := svc.SuspendUser(context.Background(), adminID, userID)
+			err := svc.SuspendUser(context.Background(), adminID, userID, "")
 
 			if tt.wantErr {
 				require.Error(t, err)

@@ -117,6 +117,11 @@ func getAdminID(c *gin.Context) uuid.UUID {
 	return uuid.Nil
 }
 
+// SuspendUserRequest holds the optional reason for a suspension.
+type SuspendUserRequest struct {
+	Reason string `json:"reason"`
+}
+
 // SuspendUser suspends a user account
 func (h *Handler) SuspendUser(c *gin.Context) {
 	userID, err := uuid.Parse(c.Param("id"))
@@ -125,7 +130,10 @@ func (h *Handler) SuspendUser(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.SuspendUser(c.Request.Context(), getAdminID(c), userID); err != nil {
+	var req SuspendUserRequest
+	_ = c.ShouldBindJSON(&req) // reason is optional
+
+	if err := h.service.SuspendUser(c.Request.Context(), getAdminID(c), userID, req.Reason); err != nil {
 		if appErr, ok := err.(*common.AppError); ok {
 			common.AppErrorResponse(c, appErr)
 			return

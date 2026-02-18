@@ -651,6 +651,90 @@ func (r *Repository) GetRidesByRiderWithFilters(ctx context.Context, riderID uui
 	return rides, total, nil
 }
 
+// GetRidesByDriverWithFilters retrieves filtered rides for a driver
+func (r *Repository) GetRidesByDriverWithFilters(ctx context.Context, driverID uuid.UUID, filters *RideFilters, limit, offset int) ([]*models.Ride, int, error) {
+	baseQuery := `
+		SELECT id, rider_id, driver_id, status, pickup_latitude, pickup_longitude,
+			   pickup_address, dropoff_latitude, dropoff_longitude, dropoff_address,
+			   estimated_distance, estimated_duration, estimated_fare, actual_distance,
+			   actual_duration, final_fare, surge_multiplier, requested_at, accepted_at,
+			   started_at, completed_at, cancelled_at, cancellation_reason, rating,
+			   feedback, created_at, updated_at, ride_type_id, promo_code_id,
+			   discount_amount, scheduled_at, is_scheduled, scheduled_notification_sent,
+			   country_id, region_id, city_id, pickup_zone_id, dropoff_zone_id,
+			   currency_code, pricing_version_id, was_negotiated, negotiation_session_id
+		FROM rides
+		WHERE driver_id = $1
+	`
+
+	countQuery := `SELECT COUNT(*) FROM rides WHERE driver_id = $1`
+
+	args := []interface{}{driverID}
+	argCount := 2
+
+	if filters.Status != nil {
+		baseQuery += fmt.Sprintf(" AND status = $%d", argCount)
+		countQuery += fmt.Sprintf(" AND status = $%d", argCount)
+		args = append(args, *filters.Status)
+		argCount++
+	}
+
+	if filters.StartDate != nil {
+		baseQuery += fmt.Sprintf(" AND created_at >= $%d", argCount)
+		countQuery += fmt.Sprintf(" AND created_at >= $%d", argCount)
+		args = append(args, *filters.StartDate)
+		argCount++
+	}
+
+	if filters.EndDate != nil {
+		baseQuery += fmt.Sprintf(" AND created_at <= $%d", argCount)
+		countQuery += fmt.Sprintf(" AND created_at <= $%d", argCount)
+		args = append(args, *filters.EndDate)
+		argCount++
+	}
+
+	baseQuery += fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d OFFSET $%d", argCount, argCount+1)
+	args = append(args, limit, offset)
+
+	var total int
+	err := r.db.QueryRow(ctx, countQuery, args[:argCount-2]...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get total count: %w", err)
+	}
+
+	rows, err := r.db.Query(ctx, baseQuery, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get filtered rides: %w", err)
+	}
+	defer rows.Close()
+
+	rides := make([]*models.Ride, 0)
+	for rows.Next() {
+		ride := &models.Ride{}
+		err := rows.Scan(
+			&ride.ID, &ride.RiderID, &ride.DriverID, &ride.Status,
+			&ride.PickupLatitude, &ride.PickupLongitude, &ride.PickupAddress,
+			&ride.DropoffLatitude, &ride.DropoffLongitude, &ride.DropoffAddress,
+			&ride.EstimatedDistance, &ride.EstimatedDuration, &ride.EstimatedFare,
+			&ride.ActualDistance, &ride.ActualDuration, &ride.FinalFare,
+			&ride.SurgeMultiplier, &ride.RequestedAt, &ride.AcceptedAt,
+			&ride.StartedAt, &ride.CompletedAt, &ride.CancelledAt, &ride.CancellationReason,
+			&ride.Rating, &ride.Feedback, &ride.CreatedAt, &ride.UpdatedAt,
+			&ride.RideTypeID, &ride.PromoCodeID, &ride.DiscountAmount,
+			&ride.ScheduledAt, &ride.IsScheduled, &ride.ScheduledNotificationSent,
+			&ride.CountryID, &ride.RegionID, &ride.CityID,
+			&ride.PickupZoneID, &ride.DropoffZoneID, &ride.CurrencyCode,
+			&ride.PricingVersionID, &ride.WasNegotiated, &ride.NegotiationSessionID,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan ride: %w", err)
+		}
+		rides = append(rides, ride)
+	}
+
+	return rides, total, nil
+}
+
 // GetUserProfile retrieves a user's profile information
 func (r *Repository) GetUserProfile(ctx context.Context, userID uuid.UUID) (*models.User, error) {
 	query := `

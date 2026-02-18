@@ -67,24 +67,9 @@ func (s *Service) handleLocationUpdate(client *ws.Client, msg *ws.Message) {
 	heading, _ := msg.Data["heading"].(float64)
 	speed, _ := msg.Data["speed"].(float64)
 
-	// Cache latest location for real-time broadcasting
 	ctx := context.Background()
-	key := "driver:ws_location:" + client.ID
-	locationData := map[string]interface{}{
-		"latitude":  latitude,
-		"longitude": longitude,
-		"timestamp": time.Now().Unix(),
-		"heading":   heading,
-		"speed":     speed,
-	}
 
-	data, _ := json.Marshal(locationData)
-	if err := s.redis.Set(ctx, key, string(data), 5*time.Minute).Err(); err != nil {
-		s.logger.Error("failed to cache location", zap.Error(err))
-	}
-
-	// Sync location to geo service (geo index + driver:location: key)
-	// so the matching system can find this driver
+	// Forward to the geo service — it owns driver:location: and the geo index.
 	if s.geoService != nil {
 		driverID, err := uuid.Parse(client.ID)
 		if err == nil {

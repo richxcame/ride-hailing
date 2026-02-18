@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/internal/currency"
 	"github.com/richxcame/ride-hailing/internal/geography"
+	pkggeo "github.com/richxcame/ride-hailing/pkg/geo"
 )
 
 // Service handles pricing business logic
@@ -276,20 +277,6 @@ func (s *Service) CalculateDriverEarnings(ctx context.Context, latitude, longitu
 	return fare - commission, nil
 }
 
-// haversineDistance calculates the distance between two points in km
-func haversineDistance(latitude1, longitude1, latitude2, longitude2 float64) float64 {
-	const R = 6371 // Earth's radius in km
-
-	latitude1Rad := latitude1 * math.Pi / 180
-	latitude2Rad := latitude2 * math.Pi / 180
-	deltaLatitude := (latitude2 - latitude1) * math.Pi / 180
-	deltaLongitude := (longitude2 - longitude1) * math.Pi / 180
-
-	a := math.Sin(deltaLatitude/2)*math.Sin(deltaLatitude/2) +
-		math.Cos(latitude1Rad)*math.Cos(latitude2Rad)*
-			math.Sin(deltaLongitude/2)*math.Sin(deltaLongitude/2)
-
-	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
-
-	return R * c
+func haversineDistance(lat1, lon1, lat2, lon2 float64) float64 {
+	return pkggeo.Haversine(lat1, lon1, lat2, lon2)
 }

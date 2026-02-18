@@ -155,9 +155,14 @@ func main() {
 		logger.Info("Connected to Redis")
 	}
 
+	// Initialize fraud early so it can be injected into admin service
+	fraudRepo := fraud.NewRepository(db)
+	fraudSvc := fraud.NewService(fraudRepo)
+	fraudHandler := fraud.NewHandler(fraudSvc)
+
 	// Initialize repository, service, and handler
 	repo := admin.NewRepository(db)
-	service := admin.NewService(repo, redisClient)
+	service := admin.NewService(repo, redisClient, fraudSvc)
 	handler := admin.NewHandler(service)
 
 	// Initialize geography admin
@@ -199,11 +204,6 @@ func main() {
 	analyticsRepo := analytics.NewRepository(db)
 	analyticsSvc := analytics.NewService(analyticsRepo)
 	analyticsHandler := analytics.NewHandler(analyticsSvc)
-
-	// Initialize fraud
-	fraudRepo := fraud.NewRepository(db)
-	fraudSvc := fraud.NewService(fraudRepo)
-	fraudHandler := fraud.NewHandler(fraudSvc)
 
 	// Initialize earnings
 	earningsRepo := earnings.NewRepository(db)

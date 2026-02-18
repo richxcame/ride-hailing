@@ -76,10 +76,9 @@ func TestNewService(t *testing.T) {
 // TestHandleLocationUpdate tests driver location updates
 func TestHandleLocationUpdate(t *testing.T) {
 	tests := []struct {
-		name          string
-		client        *ws.Client
-		message       *ws.Message
-		expectRedis   bool
+		name            string
+		client          *ws.Client
+		message         *ws.Message
 		expectBroadcast bool
 	}{
 		{
@@ -97,7 +96,6 @@ func TestHandleLocationUpdate(t *testing.T) {
 					"speed":     50.0,
 				},
 			},
-			expectRedis:   true,
 			expectBroadcast: false, // No ride associated
 		},
 		{
@@ -113,7 +111,6 @@ func TestHandleLocationUpdate(t *testing.T) {
 					"longitude": -122.4194,
 				},
 			},
-			expectRedis:   false,
 			expectBroadcast: false,
 		},
 		{
@@ -128,7 +125,6 @@ func TestHandleLocationUpdate(t *testing.T) {
 					"latitude": "invalid",
 				},
 			},
-			expectRedis:   false,
 			expectBroadcast: false,
 		},
 	}
@@ -145,11 +141,6 @@ func TestHandleLocationUpdate(t *testing.T) {
 
 			hub := ws.NewHub()
 			service := NewService(hub, db, redisClient, nil, zap.NewNop())
-
-			// Set expectations - skip checking since actual implementation adds timestamp
-			if tt.expectRedis {
-				redisMock.Regexp().ExpectSet("driver:ws_location:"+tt.client.ID, `.*`, 5*time.Minute).SetVal("OK")
-			}
 
 			// Execute
 			service.handleLocationUpdate(tt.client, tt.message)
@@ -191,9 +182,6 @@ func TestHandleLocationUpdateWithRide(t *testing.T) {
 	rideID := "ride-789"
 	hub.AddClientToRide(driver.ID, rideID)
 	hub.AddClientToRide(rider.ID, rideID)
-
-	// Expect Redis set (use regex to match any JSON value since timestamp is added)
-	redisMock.Regexp().ExpectSet("driver:ws_location:driver-123", `.*`, 5*time.Minute).SetVal("OK")
 
 	// Send location update
 	msg := &ws.Message{
@@ -770,19 +758,13 @@ func TestConcurrentClientOperations(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	redisDB, redisMock := redismock.NewClientMock()
+	redisDB, _ := redismock.NewClientMock()
 	redisClient := &redis.Client{Client: redisDB}
 
 	hub := ws.NewHub()
 	go hub.Run()
 
 	service := NewService(hub, db, redisClient, nil, zap.NewNop())
-
-	// Expect multiple Redis operations (use regex to match any value)
-	redisMock.MatchExpectationsInOrder(false)
-	for i := 0; i < 10; i++ {
-		redisMock.Regexp().ExpectSet("driver:ws_location:driver-"+string(rune(i)), `.*`, 5*time.Minute).SetVal("OK")
-	}
 
 	// Create multiple clients concurrently
 	done := make(chan bool)

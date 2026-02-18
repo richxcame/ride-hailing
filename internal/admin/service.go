@@ -11,16 +11,23 @@ import (
 	redisclient "github.com/richxcame/ride-hailing/pkg/redis"
 )
 
+// FraudSuspender is the subset of the fraud service used by the admin service.
+// Using a narrow interface avoids an import cycle.
+type FraudSuspender interface {
+	SuspendUser(ctx context.Context, userID, adminID uuid.UUID, reason string) error
+}
+
 // Service handles business logic for admin operations
 type Service struct {
-	repo  RepositoryInterface
-	redis *redisclient.Client
+	repo         RepositoryInterface
+	redis        *redisclient.Client
+	fraudService FraudSuspender
 }
 
 // NewService creates a new admin service.
-// redis may be nil — driver status enrichment will be skipped.
-func NewService(repo RepositoryInterface, redis *redisclient.Client) *Service {
-	return &Service{repo: repo, redis: redis}
+// redis and fraudService may be nil.
+func NewService(repo RepositoryInterface, redis *redisclient.Client, fraudService FraudSuspender) *Service {
+	return &Service{repo: repo, redis: redis, fraudService: fraudService}
 }
 
 // GetAllUsers retrieves all users with pagination and filters
@@ -53,12 +60,17 @@ func (s *Service) GetUser(ctx context.Context, userID uuid.UUID) (*models.User, 
 	return s.repo.GetUserByID(ctx, userID)
 }
 
-// SuspendUser suspends a user account
-func (s *Service) SuspendUser(ctx context.Context, adminID, userID uuid.UUID) error {
+// SuspendUser suspends a user account. When a fraud service is wired in it
+// also updates the risk profile and creates a fraud alert for the suspension.
+func (s *Service) SuspendUser(ctx context.Context, adminID, userID uuid.UUID, reason string) error {
 	if err := s.repo.UpdateUserStatus(ctx, userID, false); err != nil {
 		return err
 	}
 	s.repo.InsertAuditLog(ctx, adminID, "suspend_user", "user", userID, nil)
+	if s.fraudService != nil {
+		// Best-effort — don't fail the suspension if fraud tracking errors.
+		_ = s.fraudService.SuspendUser(ctx, userID, adminID, reason)
+	}
 	return nil
 }
 

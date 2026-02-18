@@ -1,7 +1,6 @@
 package realtime
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -177,26 +176,6 @@ func (h *Handler) BroadcastToUser(c *gin.Context) {
 func (h *Handler) GetStats(c *gin.Context) {
 	stats := h.service.GetStats()
 	common.SuccessResponse(c, stats)
-}
-
-// GetDriverLocation gets a driver's current location from Redis
-func (h *Handler) GetDriverLocation(c *gin.Context) {
-	driverID := c.Param("driver_id")
-	if driverID == "" {
-		common.ErrorResponse(c, http.StatusBadRequest, "driver_id is required")
-		return
-	}
-
-	ctx := context.Background()
-	key := "driver:ws_location:" + driverID
-	location, err := h.service.redis.Get(ctx, key).Result()
-	if err != nil {
-		common.ErrorResponse(c, http.StatusNotFound, "Driver location not found")
-		return
-	}
-
-	c.Header("Content-Type", "application/json")
-	c.String(http.StatusOK, location)
 }
 
 // HealthCheck returns service health status

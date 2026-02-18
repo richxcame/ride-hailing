@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/internal/pricing"
 	"github.com/richxcame/ride-hailing/pkg/common"
+	pkggeo "github.com/richxcame/ride-hailing/pkg/geo"
 	"github.com/richxcame/ride-hailing/pkg/eventbus"
 	"github.com/richxcame/ride-hailing/pkg/httpclient"
 	"github.com/richxcame/ride-hailing/pkg/logger"
@@ -569,24 +570,28 @@ func (s *Service) RateRide(ctx context.Context, rideID, riderID uuid.UUID, req *
 	return nil
 }
 
-// GetRiderRides retrieves rides for a rider
-func (s *Service) GetRiderRides(ctx context.Context, riderID uuid.UUID, limit, offset int) ([]*models.Ride, int64, error) {
-	rides, total, err := s.repo.GetRidesByRiderWithTotal(ctx, riderID, limit, offset)
+// GetRiderRides retrieves rides for a rider with optional filters.
+func (s *Service) GetRiderRides(ctx context.Context, riderID uuid.UUID, filters *RideFilters, limit, offset int) ([]*models.Ride, int64, error) {
+	if filters == nil {
+		filters = &RideFilters{}
+	}
+	rides, total, err := s.repo.GetRidesByRiderWithFilters(ctx, riderID, filters, limit, offset)
 	if err != nil {
 		return nil, 0, common.NewInternalServerError("failed to get rides")
 	}
-
-	return rides, total, nil
+	return rides, int64(total), nil
 }
 
-// GetDriverRides retrieves rides for a driver
-func (s *Service) GetDriverRides(ctx context.Context, driverID uuid.UUID, limit, offset int) ([]*models.Ride, int64, error) {
-	rides, total, err := s.repo.GetRidesByDriverWithTotal(ctx, driverID, limit, offset)
+// GetDriverRides retrieves rides for a driver with optional filters.
+func (s *Service) GetDriverRides(ctx context.Context, driverID uuid.UUID, filters *RideFilters, limit, offset int) ([]*models.Ride, int64, error) {
+	if filters == nil {
+		filters = &RideFilters{}
+	}
+	rides, total, err := s.repo.GetRidesByDriverWithFilters(ctx, driverID, filters, limit, offset)
 	if err != nil {
 		return nil, 0, common.NewInternalServerError("failed to get rides")
 	}
-
-	return rides, total, nil
+	return rides, int64(total), nil
 }
 
 // GetAvailableRides retrieves all available ride requests
@@ -601,30 +606,12 @@ func (s *Service) GetAvailableRides(ctx context.Context) ([]*models.Ride, error)
 
 // Helper functions
 
-// calculateDistance calculates distance between two coordinates in kilometers
-// Using Haversine formula
-func calculateDistance(latitude1, longitude1, latitude2, longitude2 float64) float64 {
-	const earthRadius = 6371.0 // km
-
-	deltaLatitude := (latitude2 - latitude1) * math.Pi / 180.0
-	deltaLongitude := (longitude2 - longitude1) * math.Pi / 180.0
-
-	a := math.Sin(deltaLatitude/2)*math.Sin(deltaLatitude/2) +
-		math.Cos(latitude1*math.Pi/180.0)*math.Cos(latitude2*math.Pi/180.0)*
-			math.Sin(deltaLongitude/2)*math.Sin(deltaLongitude/2)
-
-	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
-	distance := earthRadius * c
-
-	return math.Round(distance*100) / 100 // Round to 2 decimal places
+func calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {
+	return pkggeo.Haversine(lat1, lon1, lat2, lon2)
 }
 
-// estimateDuration estimates trip duration in minutes based on distance
-// Assumes average speed of 40 km/h in city traffic
 func estimateDuration(distance float64) int {
-	const averageSpeed = 40.0 // km/h
-	duration := (distance / averageSpeed) * 60
-	return int(math.Round(duration))
+	return pkggeo.EstimateDuration(distance)
 }
 
 // calculateFare calculates ride fare using service pricing config
