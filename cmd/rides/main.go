@@ -12,8 +12,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/internal/pricing"
 	"github.com/richxcame/ride-hailing/internal/rides"
+	"github.com/richxcame/ride-hailing/internal/ridetypes"
 	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/eventbus"
@@ -201,6 +203,17 @@ func main() {
 	matcher := rides.NewMatcher(rides.DefaultMatchingConfig(), matchingProvider)
 	service.SetMatcher(matcher)
 	logger.Info("Driver-rider matching engine enabled")
+
+	// Wire ride type name fetcher so events carry the real ride type name
+	rideTypesRepo := ridetypes.NewRepository(db)
+	rideTypesSvc := ridetypes.NewService(rideTypesRepo, nil)
+	service.SetRideTypeNameFetcher(func(ctx context.Context, id uuid.UUID) (string, error) {
+		rt, err := rideTypesSvc.GetRideTypeByID(ctx, id)
+		if err != nil {
+			return "", err
+		}
+		return rt.Name, nil
+	})
 
 	// Initialize NATS event bus for async ride lifecycle events
 	if cfg.NATS.Enabled {

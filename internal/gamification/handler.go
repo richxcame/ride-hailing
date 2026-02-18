@@ -227,7 +227,7 @@ func (h *Handler) GetDriverStats(c *gin.Context) {
 // ResetWeeklyStats resets weekly stats (admin - scheduled job)
 // POST /api/v1/admin/gamification/reset/weekly
 func (h *Handler) ResetWeeklyStats(c *gin.Context) {
-	if err := h.service.repo.ResetWeeklyStats(c.Request.Context()); err != nil {
+	if err := h.service.ResetWeeklyStats(c.Request.Context()); err != nil {
 		common.ErrorResponse(c, http.StatusInternalServerError, "failed to reset weekly stats")
 		return
 	}
@@ -240,7 +240,7 @@ func (h *Handler) ResetWeeklyStats(c *gin.Context) {
 // ResetMonthlyStats resets monthly stats (admin - scheduled job)
 // POST /api/v1/admin/gamification/reset/monthly
 func (h *Handler) ResetMonthlyStats(c *gin.Context) {
-	if err := h.service.repo.ResetMonthlyStats(c.Request.Context()); err != nil {
+	if err := h.service.ResetMonthlyStats(c.Request.Context()); err != nil {
 		common.ErrorResponse(c, http.StatusInternalServerError, "failed to reset monthly stats")
 		return
 	}

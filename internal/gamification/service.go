@@ -517,6 +517,16 @@ func (s *Service) ProcessStreak(ctx context.Context, driverID uuid.UUID) error {
 	return nil
 }
 
+// ResetWeeklyStats resets weekly stats for all drivers (admin/scheduled job)
+func (s *Service) ResetWeeklyStats(ctx context.Context) error {
+	return s.repo.ResetWeeklyStats(ctx)
+}
+
+// ResetMonthlyStats resets monthly stats for all drivers (admin/scheduled job)
+func (s *Service) ResetMonthlyStats(ctx context.Context) error {
+	return s.repo.ResetMonthlyStats(ctx)
+}
+
 // Helper function to convert pointer slice to value slice
 func toAchievementSlice(achievements []*DriverAchievement) []DriverAchievement {
 	result := make([]DriverAchievement, len(achievements))

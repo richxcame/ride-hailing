@@ -7,7 +7,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/models"
+	"go.uber.org/zap"
 )
 
 // Repository handles database operations for admin functions
@@ -140,7 +142,7 @@ func (r *Repository) InsertAuditLog(ctx context.Context, adminID uuid.UUID, acti
 	_, err := r.db.Exec(ctx, query, uuid.New(), adminID, action, targetType, targetID, metadata)
 	if err != nil {
 		// Audit log failure should not block the operation
-		fmt.Printf("WARN: failed to insert audit log: %v\n", err)
+		logger.Warn("failed to insert audit log", zap.Error(err))
 	}
 }
 

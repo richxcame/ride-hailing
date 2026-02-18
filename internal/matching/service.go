@@ -146,7 +146,7 @@ func (s *Service) onRideRequested(ctx context.Context, event *RideRequestedEvent
 		logger.Warn("No drivers available for ride",
 			zap.String("ride_id", event.RideID.String()),
 			zap.Float64("radius_km", s.config.MaxSearchRadiusKm))
-		// TODO: Notify rider that no drivers are available
+		s.notifyRiderNoDrivers(event.RiderID, event.RideID)
 		return
 	}
 
@@ -316,7 +316,7 @@ func (s *Service) sendOfferToDriver(ctx context.Context, event *RideRequestedEve
 		zap.Float64("distance_km", driver.Distance))
 }
 
-// trackOffer stores offer tracking data in Redis
+// trackOffer stores offer tracking data in Redis and records the driver in the ride's offer set.
 func (s *Service) trackOffer(ctx context.Context, rideID, driverID uuid.UUID, expiresAt time.Time) error {
 	tracking := OfferTracking{
 		DriverID:  driverID,
@@ -329,10 +329,40 @@ func (s *Service) trackOffer(ctx context.Context, rideID, driverID uuid.UUID, ex
 		return fmt.Errorf("failed to marshal tracking data: %w", err)
 	}
 
-	key := fmt.Sprintf("ride_offer:%s:%s", rideID.String(), driverID.String())
 	ttl := time.Until(expiresAt)
+	offerKey := fmt.Sprintf("ride_offer:%s:%s", rideID.String(), driverID.String())
+	if err := s.redis.SetWithExpiration(ctx, offerKey, string(data), ttl); err != nil {
+		return err
+	}
 
-	return s.redis.SetWithExpiration(ctx, key, string(data), ttl)
+	// Track driver ID in a set so we can cancel all offers on ride acceptance/cancellation
+	driversKey := fmt.Sprintf("ride_offer_drivers:%s", rideID.String())
+	existing, _ := s.redis.GetString(ctx, driversKey)
+	var ids []string
+	if existing != "" {
+		_ = json.Unmarshal([]byte(existing), &ids)
+	}
+	ids = append(ids, driverID.String())
+	encoded, _ := json.Marshal(ids)
+	return s.redis.SetWithExpiration(ctx, driversKey, string(encoded), ttl+30*time.Second)
+}
+
+// notifyRiderNoDrivers sends a WebSocket message to the rider when no drivers are available.
+func (s *Service) notifyRiderNoDrivers(riderID, rideID uuid.UUID) {
+	msg := &websocket.Message{
+		Type:      "ride.no_drivers",
+		RideID:    rideID.String(),
+		UserID:    riderID.String(),
+		Timestamp: time.Now(),
+		Data: map[string]interface{}{
+			"ride_id": rideID.String(),
+			"message": "No drivers are available in your area. Please try again shortly.",
+		},
+	}
+	s.wsHub.SendToUser(riderID.String(), msg)
+	logger.Info("Notified rider of no available drivers",
+		zap.String("ride_id", rideID.String()),
+		zap.String("rider_id", riderID.String()))
 }
 
 // onRideAccepted handles ride acceptance by cleaning up pending offers
@@ -361,21 +391,51 @@ func (s *Service) onRideCancelled(ctx context.Context, event *RideCancelledEvent
 
 // cancelPendingOffers notifies drivers that the ride is no longer available
 func (s *Service) cancelPendingOffers(ctx context.Context, rideID, acceptedDriverID uuid.UUID) error {
-	// Note: We store each offer individually, and we sent offers to specific drivers
-	// For proper cleanup, we would need to track which drivers received offers
-	// For now, we'll just log that offers should be cleaned up
-	// The offers will auto-expire based on TTL
+	driversKey := fmt.Sprintf("ride_offer_drivers:%s", rideID.String())
+	existing, err := s.redis.GetString(ctx, driversKey)
+	if err != nil || existing == "" {
+		logger.Info("No tracked offer drivers found for ride", zap.String("ride_id", rideID.String()))
+		return nil
+	}
 
-	logger.Info("Ride accepted/cancelled, pending offers will auto-expire",
-		zap.String("ride_id", rideID.String()))
+	var driverIDs []string
+	if err := json.Unmarshal([]byte(existing), &driverIDs); err != nil {
+		return fmt.Errorf("failed to unmarshal driver IDs: %w", err)
+	}
 
-	// If we had tracked driver IDs who received offers, we would:
-	// 1. Iterate through those driver IDs
-	// 2. Send WebSocket cancellation message to each
-	// 3. Delete their offer tracking keys
+	for _, driverIDStr := range driverIDs {
+		driverID, err := uuid.Parse(driverIDStr)
+		if err != nil {
+			continue
+		}
+		// Don't notify the accepted driver
+		if acceptedDriverID != uuid.Nil && driverID == acceptedDriverID {
+			continue
+		}
 
-	// For MVP, rely on offer timeout on driver side
-	// TODO: Implement proper offer tracking and cancellation in future iteration
+		msg := &websocket.Message{
+			Type:      "ride.offer_cancelled",
+			RideID:    rideID.String(),
+			UserID:    driverIDStr,
+			Timestamp: time.Now(),
+			Data: map[string]interface{}{
+				"ride_id": rideID.String(),
+				"reason":  "ride_taken",
+			},
+		}
+		s.wsHub.SendToUser(driverIDStr, msg)
+
+		// Clean up individual offer tracking key
+		offerKey := fmt.Sprintf("ride_offer:%s:%s", rideID.String(), driverIDStr)
+		_ = s.redis.Delete(ctx, offerKey)
+	}
+
+	// Clean up the driver set key
+	_ = s.redis.Delete(ctx, driversKey)
+
+	logger.Info("Cancelled pending offers for ride",
+		zap.String("ride_id", rideID.String()),
+		zap.Int("drivers_notified", len(driverIDs)))
 
 	return nil
 }

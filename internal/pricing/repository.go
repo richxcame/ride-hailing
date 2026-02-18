@@ -8,6 +8,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/richxcame/ride-hailing/pkg/logger"
+	"go.uber.org/zap"
 )
 
 // Repository handles database operations for pricing
@@ -1391,7 +1393,7 @@ func (r *Repository) InsertPricingAuditLog(ctx context.Context, adminID uuid.UUI
 	}
 	_, err := r.db.Exec(ctx, query, uuid.New(), adminID, action, entityType, entityID, oldValues, newValues, reasonPtr)
 	if err != nil {
-		fmt.Printf("WARN: failed to insert pricing audit log: %v\n", err)
+		logger.Warn("failed to insert pricing audit log", zap.Error(err))
 	}
 }
 

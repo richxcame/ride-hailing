@@ -174,7 +174,7 @@ func (h *Handler) GetTiers(c *gin.Context) {
 // GetLoyaltyStats gets loyalty program statistics
 // GET /api/v1/admin/loyalty/stats
 func (h *Handler) GetLoyaltyStats(c *gin.Context) {
-	stats, err := h.service.repo.GetLoyaltyStats(c.Request.Context())
+	stats, err := h.service.GetLoyaltyStats(c.Request.Context())
 	if err != nil {
 		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get loyalty stats")
 		return

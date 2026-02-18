@@ -149,7 +149,7 @@ func (h *Handler) GetEmergency(c *gin.Context) {
 		return
 	}
 
-	alert, err := h.service.repo.GetEmergencyAlert(c.Request.Context(), alertID)
+	alert, err := h.service.GetEmergencyAlert(c.Request.Context(), alertID)
 	if err != nil {
 		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get alert")
 		return
@@ -401,7 +401,7 @@ func (h *Handler) GetShareLinks(c *gin.Context) {
 		return
 	}
 
-	links, err := h.service.repo.GetRideShareLinks(c.Request.Context(), rideID)
+	links, err := h.service.GetRideShareLinks(c.Request.Context(), rideID)
 	if err != nil {
 		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get share links")
 		return
@@ -569,7 +569,7 @@ func (h *Handler) GetPendingSafetyChecks(c *gin.Context) {
 		return
 	}
 
-	checks, err := h.service.repo.GetPendingSafetyChecks(c.Request.Context(), userID)
+	checks, err := h.service.GetPendingSafetyChecks(c.Request.Context(), userID)
 	if err != nil {
 		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get checks")
 		return
@@ -809,7 +809,7 @@ func (h *Handler) RespondToEmergency(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.repo.UpdateEmergencyAlertStatus(c.Request.Context(), alertID, EmergencyStatusResponded, &adminID, ""); err != nil {
+	if err := h.service.MarkEmergencyResponded(c.Request.Context(), alertID, adminID); err != nil {
 		common.ErrorResponse(c, http.StatusInternalServerError, "failed to update alert")
 		return
 	}
@@ -872,7 +872,7 @@ func (h *Handler) AdminUpdateIncident(c *gin.Context) {
 		return
 	}
 
-	if err := h.service.repo.UpdateSafetyIncidentStatus(c.Request.Context(), incidentID, req.Status, req.Resolution, req.ActionTaken); err != nil {
+	if err := h.service.UpdateIncidentStatus(c.Request.Context(), incidentID, req.Status, req.Resolution, req.ActionTaken); err != nil {
 		common.ErrorResponse(c, http.StatusInternalServerError, "failed to update incident")
 		return
 	}

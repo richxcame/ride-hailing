@@ -41,16 +41,17 @@ func DefaultPricingConfig() *PricingConfig {
 
 // Service handles ride business logic
 type Service struct {
-	repo            *Repository
-	promosClient    *httpclient.Client
-	promosBreaker   *resilience.CircuitBreaker
-	surgeCalculator SurgeCalculator
-	mlEtaClient     *httpclient.Client
-	mlEtaBreaker    *resilience.CircuitBreaker
-	matcher         *Matcher
-	eventBus        *eventbus.Bus
-	pricingConfig   *PricingConfig
-	pricingService  *pricing.Service
+	repo                *Repository
+	promosClient        *httpclient.Client
+	promosBreaker       *resilience.CircuitBreaker
+	surgeCalculator     SurgeCalculator
+	mlEtaClient         *httpclient.Client
+	mlEtaBreaker        *resilience.CircuitBreaker
+	matcher             *Matcher
+	eventBus            *eventbus.Bus
+	pricingConfig       *PricingConfig
+	pricingService      *pricing.Service
+	rideTypeNameFetcher func(ctx context.Context, id uuid.UUID) (string, error)
 }
 
 // SurgeCalculator defines the interface for surge pricing calculation
@@ -58,6 +59,7 @@ type SurgeCalculator interface {
 	CalculateSurgeMultiplier(ctx context.Context, latitude, longitude float64) (float64, error)
 	GetCurrentSurgeInfo(ctx context.Context, latitude, longitude float64) (map[string]interface{}, error)
 }
+
 
 // NewService creates a new rides service
 func NewService(repo *Repository, promosServiceURL string, breaker *resilience.CircuitBreaker, httpClientTimeout ...time.Duration) *Service {
@@ -98,6 +100,12 @@ func (s *Service) SetEventBus(bus *eventbus.Bus) {
 // SetPricingService sets the hierarchical pricing service for fare calculation.
 func (s *Service) SetPricingService(svc *pricing.Service) {
 	s.pricingService = svc
+}
+
+// SetRideTypeNameFetcher provides a function to resolve a ride type name by ID.
+// Call this during wiring (e.g. in cmd/rides/main.go) to enable real ride type names in events.
+func (s *Service) SetRideTypeNameFetcher(fn func(ctx context.Context, id uuid.UUID) (string, error)) {
+	s.rideTypeNameFetcher = fn
 }
 
 // publishEvent publishes an event asynchronously. Failures are logged but don't affect the caller.
@@ -290,8 +298,15 @@ func (s *Service) RequestRide(ctx context.Context, riderID uuid.UUID, req *model
 	resolvedRideTypeID := uuid.Nil
 	if rideTypeID != nil {
 		resolvedRideTypeID = *rideTypeID
-		// TODO: Add GetRideType to repository to fetch name
-		// For now, use a simple mapping or leave as default
+		if s.rideTypeNameFetcher != nil {
+			if name, err := s.rideTypeNameFetcher(ctx, *rideTypeID); err == nil {
+				rideTypeName = name
+			} else {
+				logger.WarnContext(ctx, "failed to fetch ride type name, using default",
+					zap.String("ride_type_id", rideTypeID.String()),
+					zap.Error(err))
+			}
+		}
 	}
 
 	// Publish comprehensive event for matching service

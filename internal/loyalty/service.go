@@ -484,6 +484,11 @@ func (s *Service) GetAllTiers(ctx context.Context) ([]*LoyaltyTier, error) {
 	return s.repo.GetAllTiers(ctx)
 }
 
+// GetLoyaltyStats gets loyalty program statistics (admin)
+func (s *Service) GetLoyaltyStats(ctx context.Context) (*LoyaltyStats, error) {
+	return s.repo.GetLoyaltyStats(ctx)
+}
+
 // ========================================
 // HELPER FUNCTIONS
 // ========================================

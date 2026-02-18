@@ -695,6 +695,35 @@ func (s *Service) ReportIncident(ctx context.Context, userID uuid.UUID, req *Rep
 }
 
 // ========================================
+// ADMIN OPERATIONS
+// ========================================
+
+// GetEmergencyAlert retrieves a specific emergency alert by ID
+func (s *Service) GetEmergencyAlert(ctx context.Context, alertID uuid.UUID) (*EmergencyAlert, error) {
+	return s.repo.GetEmergencyAlert(ctx, alertID)
+}
+
+// GetRideShareLinks retrieves share links for a ride
+func (s *Service) GetRideShareLinks(ctx context.Context, rideID uuid.UUID) ([]*RideShareLink, error) {
+	return s.repo.GetRideShareLinks(ctx, rideID)
+}
+
+// GetPendingSafetyChecks retrieves pending safety checks for a user
+func (s *Service) GetPendingSafetyChecks(ctx context.Context, userID uuid.UUID) ([]*SafetyCheck, error) {
+	return s.repo.GetPendingSafetyChecks(ctx, userID)
+}
+
+// MarkEmergencyResponded marks an emergency alert as responded (admin)
+func (s *Service) MarkEmergencyResponded(ctx context.Context, alertID, adminID uuid.UUID) error {
+	return s.repo.UpdateEmergencyAlertStatus(ctx, alertID, EmergencyStatusResponded, &adminID, "")
+}
+
+// UpdateIncidentStatus updates a safety incident's status (admin)
+func (s *Service) UpdateIncidentStatus(ctx context.Context, incidentID uuid.UUID, status, resolution, actionTaken string) error {
+	return s.repo.UpdateSafetyIncidentStatus(ctx, incidentID, status, resolution, actionTaken)
+}
+
+// ========================================
 // ROUTE DEVIATION
 // ========================================
 
