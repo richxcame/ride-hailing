@@ -128,6 +128,20 @@ func (r *Repository) CreateDriver(ctx context.Context, userID uuid.UUID) (uuid.U
 	return returnedID, nil
 }
 
+// HasApprovedVehicle returns true if the user has at least one approved, active vehicle.
+// Note: vehicles.driver_id is a FK to users.id (not drivers.id), so we query by user_id.
+func (r *Repository) HasApprovedVehicle(ctx context.Context, userID uuid.UUID) (bool, error) {
+	var count int
+	err := r.db.QueryRow(ctx,
+		`SELECT COUNT(*) FROM vehicles WHERE driver_id = $1 AND status = 'approved' AND is_active = true`,
+		userID,
+	).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
 // GetBackgroundCheck retrieves background check info for a driver
 func (r *Repository) GetBackgroundCheck(ctx context.Context, driverID uuid.UUID) (*BackgroundCheck, error) {
 	query := `

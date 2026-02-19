@@ -155,6 +155,12 @@ func (s *Service) GetOnboardingProgress(ctx context.Context, driverID uuid.UUID)
 		steps[0].Status = "in_progress"
 	}
 
+	// Check vehicle step.
+	// vehicles.driver_id is a FK to users.id (not drivers.id), so query by user_id.
+	if hasVehicle, err := s.repo.HasApprovedVehicle(ctx, driver.UserID); err == nil && hasVehicle {
+		steps[1].Status = "completed"
+	}
+
 	// Check document status
 	docStatus, err := s.documentService.GetDriverVerificationStatus(ctx, driverID)
 	if err == nil && docStatus != nil {

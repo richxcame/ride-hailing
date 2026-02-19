@@ -24,4 +24,7 @@ type RepositoryInterface interface {
 
 	// Statistics
 	GetOnboardingStats(ctx context.Context) (*OnboardingStats, error)
+
+	// Vehicle check — vehicles.driver_id is a FK to users.id, so we query by user_id
+	HasApprovedVehicle(ctx context.Context, userID uuid.UUID) (bool, error)
 }

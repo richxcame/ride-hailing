@@ -81,6 +81,11 @@ func (m *mockRepo) GetOnboardingStats(ctx context.Context) (*OnboardingStats, er
 	return args.Get(0).(*OnboardingStats), args.Error(1)
 }
 
+func (m *mockRepo) HasApprovedVehicle(ctx context.Context, userID uuid.UUID) (bool, error) {
+	args := m.Called(ctx, userID)
+	return args.Bool(0), args.Error(1)
+}
+
 // mockDocumentService is a mock for DocumentServiceInterface
 type mockDocumentService struct {
 	mock.Mock
@@ -121,7 +126,10 @@ func (m *mockNotificationService) SendOnboardingNotification(ctx context.Context
 }
 
 // newTestService creates a Service wired to the given mocks for testing.
+// It registers a default HasApprovedVehicle expectation (returns false) so tests that
+// don't care about the vehicle step don't need to set it up individually.
 func newTestService(repo *mockRepo, docSvc *mockDocumentService, notifSvc NotificationServiceInterface) *Service {
+	repo.On("HasApprovedVehicle", mock.Anything, mock.Anything).Return(false, nil).Maybe()
 	return &Service{
 		repo:            repo,
 		documentService: docSvc,
