@@ -20,19 +20,19 @@ func NewRepository(db *pgxpool.Pool) *Repository {
 
 // DriverInfo represents driver information needed for onboarding
 type DriverInfo struct {
-	ID            uuid.UUID  `json:"id"`
-	UserID        uuid.UUID  `json:"user_id"`
-	FirstName     string     `json:"first_name"`
-	LastName      string     `json:"last_name"`
-	PhoneNumber   string     `json:"phone_number"`
-	Email         string     `json:"email"`
-	LicenseNumber *string    `json:"license_number,omitempty"`
-	VehicleID     *uuid.UUID `json:"vehicle_id,omitempty"`
-	IsApproved    bool       `json:"is_approved"`
-	IsSuspended   bool       `json:"is_suspended"`
-	ApprovedAt    *time.Time `json:"approved_at,omitempty"`
-	CreatedAt     *time.Time `json:"created_at,omitempty"`
-	UpdatedAt     *time.Time `json:"updated_at,omitempty"`
+	ID             uuid.UUID  `json:"id"`
+	UserID         uuid.UUID  `json:"user_id"`
+	FirstName      string     `json:"first_name"`
+	LastName       string     `json:"last_name"`
+	PhoneNumber    string     `json:"phone_number"`
+	Email          string     `json:"email"`
+	LicenseNumber  *string    `json:"license_number,omitempty"`
+	ApprovalStatus string     `json:"approval_status"` // pending, approved, rejected
+	IsApproved     bool       `json:"is_approved"`
+	IsSuspended    bool       `json:"is_suspended"`
+	ApprovedAt     *time.Time `json:"approved_at,omitempty"`
+	CreatedAt      *time.Time `json:"created_at,omitempty"`
+	UpdatedAt      *time.Time `json:"updated_at,omitempty"`
 }
 
 // BackgroundCheck represents a background check record
@@ -52,8 +52,8 @@ type BackgroundCheck struct {
 func (r *Repository) GetDriver(ctx context.Context, driverID uuid.UUID) (*DriverInfo, error) {
 	query := `
 		SELECT d.id, d.user_id, u.first_name, u.last_name, u.phone_number, u.email,
-			   d.license_number, d.current_vehicle_id, d.is_approved,
-			   COALESCE(u.is_active = false, false) as is_suspended,
+			   d.license_number, d.approval_status,
+			   (u.is_active = false) as is_suspended,
 			   d.approved_at, d.created_at, d.updated_at
 		FROM drivers d
 		JOIN users u ON d.user_id = u.id
@@ -64,14 +64,14 @@ func (r *Repository) GetDriver(ctx context.Context, driverID uuid.UUID) (*Driver
 	err := r.db.QueryRow(ctx, query, driverID).Scan(
 		&driver.ID, &driver.UserID, &driver.FirstName, &driver.LastName,
 		&driver.PhoneNumber, &driver.Email, &driver.LicenseNumber,
-		&driver.VehicleID, &driver.IsApproved, &driver.IsSuspended,
+		&driver.ApprovalStatus, &driver.IsSuspended,
 		&driver.ApprovedAt, &driver.CreatedAt, &driver.UpdatedAt,
 	)
-
 	if err != nil {
 		return nil, err
 	}
 
+	driver.IsApproved = driver.ApprovalStatus == "approved"
 	return driver, nil
 }
 
@@ -79,8 +79,8 @@ func (r *Repository) GetDriver(ctx context.Context, driverID uuid.UUID) (*Driver
 func (r *Repository) GetDriverByUserID(ctx context.Context, userID uuid.UUID) (*DriverInfo, error) {
 	query := `
 		SELECT d.id, d.user_id, u.first_name, u.last_name, u.phone_number, u.email,
-			   d.license_number, d.current_vehicle_id, d.is_approved,
-			   COALESCE(u.is_active = false, false) as is_suspended,
+			   d.license_number, d.approval_status,
+			   (u.is_active = false) as is_suspended,
 			   d.approved_at, d.created_at, d.updated_at
 		FROM drivers d
 		JOIN users u ON d.user_id = u.id
@@ -91,24 +91,30 @@ func (r *Repository) GetDriverByUserID(ctx context.Context, userID uuid.UUID) (*
 	err := r.db.QueryRow(ctx, query, userID).Scan(
 		&driver.ID, &driver.UserID, &driver.FirstName, &driver.LastName,
 		&driver.PhoneNumber, &driver.Email, &driver.LicenseNumber,
-		&driver.VehicleID, &driver.IsApproved, &driver.IsSuspended,
+		&driver.ApprovalStatus, &driver.IsSuspended,
 		&driver.ApprovedAt, &driver.CreatedAt, &driver.UpdatedAt,
 	)
-
 	if err != nil {
 		return nil, err
 	}
 
+	driver.IsApproved = driver.ApprovalStatus == "approved"
 	return driver, nil
 }
 
-// CreateDriver creates a new driver record
+// CreateDriver creates a new driver record with placeholder values for required fields.
+// Vehicle/license details are filled in during subsequent onboarding steps.
+// Uses userID as placeholder for unique fields to avoid conflicts on re-registration.
 func (r *Repository) CreateDriver(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
 	driverID := uuid.New()
 
+	// Use userID as placeholder for license_number and vehicle_plate (both unique).
+	// Truncate to 20 chars for vehicle_plate (VARCHAR(20)).
+	// ON CONFLICT (user_id) returns the existing driver id without error on retry.
 	query := `
-		INSERT INTO drivers (id, user_id, is_online, is_approved, created_at, updated_at)
-		VALUES ($1, $2, false, false, NOW(), NOW())
+		INSERT INTO drivers (id, user_id, license_number, vehicle_model, vehicle_plate, vehicle_color, vehicle_year,
+		                     is_online, is_available, approval_status, created_at, updated_at)
+		VALUES ($1, $2, $2::text, '', LEFT($2::text, 20), '', 0, false, false, 'pending', NOW(), NOW())
 		ON CONFLICT (user_id) DO UPDATE SET updated_at = NOW()
 		RETURNING id
 	`
@@ -187,7 +193,7 @@ func (r *Repository) UpdateBackgroundCheckStatus(ctx context.Context, checkID uu
 func (r *Repository) ApproveDriver(ctx context.Context, driverID uuid.UUID, approvedBy uuid.UUID) error {
 	query := `
 		UPDATE drivers
-		SET is_approved = true, approved_at = NOW(), approved_by = $1, updated_at = NOW()
+		SET approval_status = 'approved', approved_at = NOW(), approved_by = $1, updated_at = NOW()
 		WHERE id = $2
 	`
 
@@ -199,11 +205,11 @@ func (r *Repository) ApproveDriver(ctx context.Context, driverID uuid.UUID, appr
 func (r *Repository) RejectDriver(ctx context.Context, driverID uuid.UUID, rejectedBy uuid.UUID, reason string) error {
 	query := `
 		UPDATE drivers
-		SET is_approved = false, rejection_reason = $1, rejected_at = NOW(), rejected_by = $2, updated_at = NOW()
-		WHERE id = $3
+		SET approval_status = 'rejected', rejection_reason = $1, rejected_at = NOW(), updated_at = NOW()
+		WHERE id = $2
 	`
 
-	_, err := r.db.Exec(ctx, query, reason, rejectedBy, driverID)
+	_, err := r.db.Exec(ctx, query, reason, driverID)
 	return err
 }
 
@@ -211,9 +217,9 @@ func (r *Repository) RejectDriver(ctx context.Context, driverID uuid.UUID, rejec
 func (r *Repository) GetOnboardingStats(ctx context.Context) (*OnboardingStats, error) {
 	query := `
 		SELECT
-			COUNT(*) FILTER (WHERE is_approved = false AND rejected_at IS NULL) as pending_count,
-			COUNT(*) FILTER (WHERE is_approved = true) as approved_count,
-			COUNT(*) FILTER (WHERE rejected_at IS NOT NULL) as rejected_count,
+			COUNT(*) FILTER (WHERE approval_status = 'pending') as pending_count,
+			COUNT(*) FILTER (WHERE approval_status = 'approved') as approved_count,
+			COUNT(*) FILTER (WHERE approval_status = 'rejected') as rejected_count,
 			COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') as new_this_week,
 			AVG(EXTRACT(EPOCH FROM (approved_at - created_at))/3600) FILTER (WHERE approved_at IS NOT NULL) as avg_approval_hours
 		FROM drivers
