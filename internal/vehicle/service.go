@@ -246,8 +246,8 @@ func (s *Service) RetireVehicle(ctx context.Context, vehicleID uuid.UUID, driver
 // ADMIN
 // ========================================
 
-// GetAllVehicles returns all vehicles for admin with filters
-func (s *Service) GetAllVehicles(ctx context.Context, filter *AdminVehicleFilter, limit, offset int) ([]Vehicle, int64, error) {
+// GetAllVehicles returns all vehicles for admin with filters and embedded driver details.
+func (s *Service) GetAllVehicles(ctx context.Context, filter *AdminVehicleFilter, limit, offset int) ([]VehicleWithDriver, int64, error) {
 	if limit < 1 || limit > 100 {
 		limit = 20
 	}
@@ -282,8 +282,8 @@ func (s *Service) ReviewVehicle(ctx context.Context, vehicleID uuid.UUID, req *A
 	return s.repo.UpdateVehicleStatus(ctx, vehicleID, VehicleStatusRejected, req.RejectionReason)
 }
 
-// GetPendingReviews returns vehicles awaiting review
-func (s *Service) GetPendingReviews(ctx context.Context, limit, offset int) ([]Vehicle, int, error) {
+// GetPendingReviews returns vehicles awaiting review with embedded driver details.
+func (s *Service) GetPendingReviews(ctx context.Context, limit, offset int) ([]VehicleWithDriver, int, error) {
 	if limit < 1 || limit > 50 {
 		limit = 20
 	}

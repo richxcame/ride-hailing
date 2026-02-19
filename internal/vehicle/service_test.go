@@ -75,20 +75,20 @@ func (m *mockRepo) RetireVehicle(ctx context.Context, vehicleID uuid.UUID) error
 	return args.Error(0)
 }
 
-func (m *mockRepo) GetAllVehicles(ctx context.Context, filter *AdminVehicleFilter, limit, offset int) ([]Vehicle, int64, error) {
+func (m *mockRepo) GetAllVehicles(ctx context.Context, filter *AdminVehicleFilter, limit, offset int) ([]VehicleWithDriver, int64, error) {
 	args := m.Called(ctx, filter, limit, offset)
 	if args.Get(0) == nil {
 		return nil, args.Get(1).(int64), args.Error(2)
 	}
-	return args.Get(0).([]Vehicle), args.Get(1).(int64), args.Error(2)
+	return args.Get(0).([]VehicleWithDriver), args.Get(1).(int64), args.Error(2)
 }
 
-func (m *mockRepo) GetPendingReviewVehicles(ctx context.Context, limit, offset int) ([]Vehicle, int, error) {
+func (m *mockRepo) GetPendingReviewVehicles(ctx context.Context, limit, offset int) ([]VehicleWithDriver, int, error) {
 	args := m.Called(ctx, limit, offset)
 	if args.Get(0) == nil {
 		return nil, args.Int(1), args.Error(2)
 	}
-	return args.Get(0).([]Vehicle), args.Int(1), args.Error(2)
+	return args.Get(0).([]VehicleWithDriver), args.Int(1), args.Error(2)
 }
 
 func (m *mockRepo) GetVehicleStats(ctx context.Context) (*VehicleStats, error) {
@@ -1215,21 +1215,21 @@ func TestGetPendingReviews(t *testing.T) {
 		offset     int
 		setupMocks func(m *mockRepo)
 		wantErr    bool
-		validate   func(t *testing.T, vehicles []Vehicle, total int)
+		validate   func(t *testing.T, vehicles []VehicleWithDriver, total int)
 	}{
 		{
 			name:   "success - returns pending vehicles",
 			limit:  10,
 			offset: 0,
 			setupMocks: func(m *mockRepo) {
-				vehicles := []Vehicle{
-					{ID: uuid.New(), Make: "Toyota", Status: VehicleStatusPending},
-					{ID: uuid.New(), Make: "Honda", Status: VehicleStatusPending},
+				vehicles := []VehicleWithDriver{
+					{Vehicle: Vehicle{ID: uuid.New(), Make: "Toyota", Status: VehicleStatusPending}},
+					{Vehicle: Vehicle{ID: uuid.New(), Make: "Honda", Status: VehicleStatusPending}},
 				}
 				m.On("GetPendingReviewVehicles", mock.Anything, 10, 0).Return(vehicles, 2, nil)
 			},
 			wantErr: false,
-			validate: func(t *testing.T, vehicles []Vehicle, total int) {
+			validate: func(t *testing.T, vehicles []VehicleWithDriver, total int) {
 				assert.Len(t, vehicles, 2)
 				assert.Equal(t, 2, total)
 			},
@@ -1239,7 +1239,7 @@ func TestGetPendingReviews(t *testing.T) {
 			limit:  0,
 			offset: 0,
 			setupMocks: func(m *mockRepo) {
-				m.On("GetPendingReviewVehicles", mock.Anything, 20, 0).Return([]Vehicle{}, 0, nil)
+				m.On("GetPendingReviewVehicles", mock.Anything, 20, 0).Return([]VehicleWithDriver{}, 0, nil)
 			},
 			wantErr: false,
 		},
@@ -1248,7 +1248,7 @@ func TestGetPendingReviews(t *testing.T) {
 			limit:  -5,
 			offset: 0,
 			setupMocks: func(m *mockRepo) {
-				m.On("GetPendingReviewVehicles", mock.Anything, 20, 0).Return([]Vehicle{}, 0, nil)
+				m.On("GetPendingReviewVehicles", mock.Anything, 20, 0).Return([]VehicleWithDriver{}, 0, nil)
 			},
 			wantErr: false,
 		},
@@ -1257,7 +1257,7 @@ func TestGetPendingReviews(t *testing.T) {
 			limit:  100,
 			offset: 0,
 			setupMocks: func(m *mockRepo) {
-				m.On("GetPendingReviewVehicles", mock.Anything, 20, 0).Return([]Vehicle{}, 0, nil)
+				m.On("GetPendingReviewVehicles", mock.Anything, 20, 0).Return([]VehicleWithDriver{}, 0, nil)
 			},
 			wantErr: false,
 		},
@@ -1266,7 +1266,7 @@ func TestGetPendingReviews(t *testing.T) {
 			limit:  10,
 			offset: -5,
 			setupMocks: func(m *mockRepo) {
-				m.On("GetPendingReviewVehicles", mock.Anything, 10, 0).Return([]Vehicle{}, 0, nil)
+				m.On("GetPendingReviewVehicles", mock.Anything, 10, 0).Return([]VehicleWithDriver{}, 0, nil)
 			},
 			wantErr: false,
 		},
@@ -1275,7 +1275,7 @@ func TestGetPendingReviews(t *testing.T) {
 			limit:  10,
 			offset: 20,
 			setupMocks: func(m *mockRepo) {
-				m.On("GetPendingReviewVehicles", mock.Anything, 10, 20).Return([]Vehicle{}, 50, nil)
+				m.On("GetPendingReviewVehicles", mock.Anything, 10, 20).Return([]VehicleWithDriver{}, 50, nil)
 			},
 			wantErr: false,
 		},

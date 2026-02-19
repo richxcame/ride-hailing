@@ -359,7 +359,7 @@ func (h *Handler) AdminGetPending(c *gin.Context) {
 		return
 	}
 	if vehicles == nil {
-		vehicles = []Vehicle{}
+		vehicles = []VehicleWithDriver{}
 	}
 
 	meta := pagination.BuildMeta(params.Limit, params.Offset, int64(total))

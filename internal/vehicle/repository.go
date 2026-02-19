@@ -227,18 +227,71 @@ func (r *Repository) RetireVehicle(ctx context.Context, vehicleID uuid.UUID) err
 // ADMIN QUERIES
 // ========================================
 
-// GetPendingReviewVehicles returns vehicles awaiting admin review
-func (r *Repository) GetPendingReviewVehicles(ctx context.Context, limit, offset int) ([]Vehicle, int, error) {
-	var total int
-	err := r.db.QueryRow(ctx, `
-		SELECT COUNT(*) FROM vehicles WHERE status = 'pending'`,
-	).Scan(&total)
+// adminVehicleSelectCols selects all vehicle columns plus joined driver/user fields.
+// vehicles.driver_id is a FK to users.id; drivers is joined via drivers.user_id = users.id.
+const adminVehicleSelectCols = `
+	v.id, v.driver_id, v.status, v.category,
+	v.make, v.model, v.year, v.color, v.license_plate, v.vin,
+	v.fuel_type, v.max_passengers, v.has_child_seat,
+	v.has_wheelchair_access, v.has_wifi, v.has_charger,
+	v.pet_friendly, v.luggage_capacity,
+	v.registration_photo_url, v.insurance_photo_url,
+	v.front_photo_url, v.back_photo_url, v.side_photo_url, v.interior_photo_url,
+	v.insurance_expiry, v.registration_expiry, v.inspection_expiry,
+	v.rejection_reason, v.is_active, v.is_primary,
+	v.created_at, v.updated_at,
+	u.id, u.first_name, u.last_name, u.phone_number, u.email,
+	d.id, d.rating, COALESCE(d.total_rides, 0)`
+
+const adminVehicleJoin = `
+	FROM vehicles v
+	JOIN users u ON u.id = v.driver_id
+	LEFT JOIN drivers d ON d.user_id = u.id`
+
+func scanVehicleWithDriver(row interface {
+	Scan(dest ...any) error
+}) (VehicleWithDriver, error) {
+	var vd VehicleWithDriver
+	var driverID *uuid.UUID
+	var rating *float64
+	var totalRides int
+	err := row.Scan(
+		&vd.ID, &vd.DriverID, &vd.Status, &vd.Category,
+		&vd.Make, &vd.Model, &vd.Year, &vd.Color, &vd.LicensePlate, &vd.VIN,
+		&vd.FuelType, &vd.MaxPassengers, &vd.HasChildSeat,
+		&vd.HasWheelchairAccess, &vd.HasWifi, &vd.HasCharger,
+		&vd.PetFriendly, &vd.LuggageCapacity,
+		&vd.RegistrationPhotoURL, &vd.InsurancePhotoURL,
+		&vd.FrontPhotoURL, &vd.BackPhotoURL, &vd.SidePhotoURL, &vd.InteriorPhotoURL,
+		&vd.InsuranceExpiry, &vd.RegistrationExpiry, &vd.InspectionExpiry,
+		&vd.RejectionReason, &vd.IsActive, &vd.IsPrimary,
+		&vd.CreatedAt, &vd.UpdatedAt,
+		&vd.Driver.UserID, &vd.Driver.FirstName, &vd.Driver.LastName,
+		&vd.Driver.PhoneNumber, &vd.Driver.Email,
+		&driverID, &rating, &totalRides,
+	)
 	if err != nil {
+		return vd, err
+	}
+	vd.Driver.DriverID = driverID
+	vd.Driver.Rating = rating
+	vd.Driver.TotalRides = totalRides
+	return vd, nil
+}
+
+// GetPendingReviewVehicles returns vehicles awaiting admin review with driver details.
+func (r *Repository) GetPendingReviewVehicles(ctx context.Context, limit, offset int) ([]VehicleWithDriver, int, error) {
+	var total int
+	if err := r.db.QueryRow(ctx,
+		`SELECT COUNT(*) FROM vehicles WHERE status = 'pending'`,
+	).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 
 	rows, err := r.db.Query(ctx,
-		`SELECT `+vehicleSelectCols+` FROM vehicles WHERE status = 'pending' ORDER BY created_at ASC LIMIT $1 OFFSET $2`,
+		`SELECT `+adminVehicleSelectCols+adminVehicleJoin+`
+		WHERE v.status = 'pending'
+		ORDER BY v.created_at ASC LIMIT $1 OFFSET $2`,
 		limit, offset,
 	)
 	if err != nil {
@@ -246,61 +299,53 @@ func (r *Repository) GetPendingReviewVehicles(ctx context.Context, limit, offset
 	}
 	defer rows.Close()
 
-	var vehicles []Vehicle
+	var vehicles []VehicleWithDriver
 	for rows.Next() {
-		v := Vehicle{}
-		if err := rows.Scan(
-			&v.ID, &v.DriverID, &v.Status, &v.Category,
-			&v.Make, &v.Model, &v.Year, &v.Color, &v.LicensePlate, &v.VIN,
-			&v.FuelType, &v.MaxPassengers, &v.HasChildSeat,
-			&v.HasWheelchairAccess, &v.HasWifi, &v.HasCharger,
-			&v.PetFriendly, &v.LuggageCapacity,
-			&v.RegistrationPhotoURL, &v.InsurancePhotoURL,
-			&v.FrontPhotoURL, &v.BackPhotoURL, &v.SidePhotoURL, &v.InteriorPhotoURL,
-			&v.InsuranceExpiry, &v.RegistrationExpiry, &v.InspectionExpiry,
-			&v.RejectionReason, &v.IsActive, &v.IsPrimary,
-			&v.CreatedAt, &v.UpdatedAt,
-		); err != nil {
+		vd, err := scanVehicleWithDriver(rows)
+		if err != nil {
 			return nil, 0, err
 		}
-		vehicles = append(vehicles, v)
+		vehicles = append(vehicles, vd)
 	}
 	return vehicles, total, nil
 }
 
-// GetAllVehicles returns vehicles for admin with filters and pagination
-func (r *Repository) GetAllVehicles(ctx context.Context, filter *AdminVehicleFilter, limit, offset int) ([]Vehicle, int64, error) {
+// GetAllVehicles returns vehicles for admin with filters, pagination, and driver details.
+func (r *Repository) GetAllVehicles(ctx context.Context, filter *AdminVehicleFilter, limit, offset int) ([]VehicleWithDriver, int64, error) {
 	args := []interface{}{}
 	where := []string{}
 	i := 1
 
 	if filter.Status != "" {
-		where = append(where, fmt.Sprintf("status = $%d", i))
+		where = append(where, fmt.Sprintf("v.status = $%d", i))
 		args = append(args, filter.Status)
 		i++
 	}
 	if filter.Category != "" {
-		where = append(where, fmt.Sprintf("category = $%d", i))
+		where = append(where, fmt.Sprintf("v.category = $%d", i))
 		args = append(args, filter.Category)
 		i++
 	}
 	if filter.DriverID != nil {
-		where = append(where, fmt.Sprintf("driver_id = $%d", i))
+		where = append(where, fmt.Sprintf("v.driver_id = $%d", i))
 		args = append(args, *filter.DriverID)
 		i++
 	}
 	if filter.Search != "" {
-		where = append(where, fmt.Sprintf("(make ILIKE $%d OR model ILIKE $%d OR license_plate ILIKE $%d)", i, i, i))
+		where = append(where, fmt.Sprintf(
+			"(v.make ILIKE $%d OR v.model ILIKE $%d OR v.license_plate ILIKE $%d OR u.first_name ILIKE $%d OR u.last_name ILIKE $%d OR u.phone_number ILIKE $%d)",
+			i, i, i, i, i, i,
+		))
 		args = append(args, "%"+filter.Search+"%")
 		i++
 	}
 	if filter.YearFrom != nil {
-		where = append(where, fmt.Sprintf("year >= $%d", i))
+		where = append(where, fmt.Sprintf("v.year >= $%d", i))
 		args = append(args, *filter.YearFrom)
 		i++
 	}
 	if filter.YearTo != nil {
-		where = append(where, fmt.Sprintf("year <= $%d", i))
+		where = append(where, fmt.Sprintf("v.year <= $%d", i))
 		args = append(args, *filter.YearTo)
 		i++
 	}
@@ -310,9 +355,9 @@ func (r *Repository) GetAllVehicles(ctx context.Context, filter *AdminVehicleFil
 		whereClause = "WHERE " + strings.Join(where, " AND ")
 	}
 
-	sortCol := "created_at"
+	sortCol := "v.created_at"
 	if filter.SortBy == "updated_at" {
-		sortCol = "updated_at"
+		sortCol = "v.updated_at"
 	}
 	sortDir := "DESC"
 	if strings.ToUpper(filter.SortDir) == "ASC" {
@@ -323,7 +368,7 @@ func (r *Repository) GetAllVehicles(ctx context.Context, filter *AdminVehicleFil
 	countArgs := make([]interface{}, len(args))
 	copy(countArgs, args)
 	if err := r.db.QueryRow(ctx,
-		fmt.Sprintf("SELECT COUNT(*) FROM vehicles %s", whereClause),
+		fmt.Sprintf("SELECT COUNT(*) %s %s", adminVehicleJoin, whereClause),
 		countArgs...,
 	).Scan(&total); err != nil {
 		return nil, 0, err
@@ -331,8 +376,8 @@ func (r *Repository) GetAllVehicles(ctx context.Context, filter *AdminVehicleFil
 
 	args = append(args, limit, offset)
 	query := fmt.Sprintf(
-		"SELECT %s FROM vehicles %s ORDER BY %s %s LIMIT $%d OFFSET $%d",
-		vehicleSelectCols, whereClause, sortCol, sortDir, i, i+1,
+		"SELECT %s %s %s ORDER BY %s %s LIMIT $%d OFFSET $%d",
+		adminVehicleSelectCols, adminVehicleJoin, whereClause, sortCol, sortDir, i, i+1,
 	)
 
 	rows, err := r.db.Query(ctx, query, args...)
@@ -341,24 +386,13 @@ func (r *Repository) GetAllVehicles(ctx context.Context, filter *AdminVehicleFil
 	}
 	defer rows.Close()
 
-	vehicles := make([]Vehicle, 0)
+	vehicles := make([]VehicleWithDriver, 0)
 	for rows.Next() {
-		v := Vehicle{}
-		if err := rows.Scan(
-			&v.ID, &v.DriverID, &v.Status, &v.Category,
-			&v.Make, &v.Model, &v.Year, &v.Color, &v.LicensePlate, &v.VIN,
-			&v.FuelType, &v.MaxPassengers, &v.HasChildSeat,
-			&v.HasWheelchairAccess, &v.HasWifi, &v.HasCharger,
-			&v.PetFriendly, &v.LuggageCapacity,
-			&v.RegistrationPhotoURL, &v.InsurancePhotoURL,
-			&v.FrontPhotoURL, &v.BackPhotoURL, &v.SidePhotoURL, &v.InteriorPhotoURL,
-			&v.InsuranceExpiry, &v.RegistrationExpiry, &v.InspectionExpiry,
-			&v.RejectionReason, &v.IsActive, &v.IsPrimary,
-			&v.CreatedAt, &v.UpdatedAt,
-		); err != nil {
+		vd, err := scanVehicleWithDriver(rows)
+		if err != nil {
 			return nil, 0, err
 		}
-		vehicles = append(vehicles, v)
+		vehicles = append(vehicles, vd)
 	}
 	return vehicles, total, nil
 }

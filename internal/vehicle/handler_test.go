@@ -82,20 +82,20 @@ func (m *MockRepository) RetireVehicle(ctx context.Context, vehicleID uuid.UUID)
 	return args.Error(0)
 }
 
-func (m *MockRepository) GetAllVehicles(ctx context.Context, filter *AdminVehicleFilter, limit, offset int) ([]Vehicle, int64, error) {
+func (m *MockRepository) GetAllVehicles(ctx context.Context, filter *AdminVehicleFilter, limit, offset int) ([]VehicleWithDriver, int64, error) {
 	args := m.Called(ctx, filter, limit, offset)
 	if args.Get(0) == nil {
 		return nil, args.Get(1).(int64), args.Error(2)
 	}
-	return args.Get(0).([]Vehicle), args.Get(1).(int64), args.Error(2)
+	return args.Get(0).([]VehicleWithDriver), args.Get(1).(int64), args.Error(2)
 }
 
-func (m *MockRepository) GetPendingReviewVehicles(ctx context.Context, limit, offset int) ([]Vehicle, int, error) {
+func (m *MockRepository) GetPendingReviewVehicles(ctx context.Context, limit, offset int) ([]VehicleWithDriver, int, error) {
 	args := m.Called(ctx, limit, offset)
 	if args.Get(0) == nil {
 		return nil, args.Int(1), args.Error(2)
 	}
-	return args.Get(0).([]Vehicle), args.Int(1), args.Error(2)
+	return args.Get(0).([]VehicleWithDriver), args.Int(1), args.Error(2)
 }
 
 func (m *MockRepository) GetVehicleStats(ctx context.Context) (*VehicleStats, error) {
@@ -1664,9 +1664,9 @@ func TestHandler_AdminGetPending_Success(t *testing.T) {
 	handler := createTestHandler(mockRepo)
 
 	adminID := uuid.New()
-	vehicles := []Vehicle{
-		*createTestVehicle(uuid.New()),
-		*createTestVehicle(uuid.New()),
+	vehicles := []VehicleWithDriver{
+		{Vehicle: *createTestVehicle(uuid.New())},
+		{Vehicle: *createTestVehicle(uuid.New())},
 	}
 
 	// Handler passes params.Limit and params.Offset directly to service.GetPendingReviews.
@@ -1692,7 +1692,7 @@ func TestHandler_AdminGetPending_EmptyList(t *testing.T) {
 
 	adminID := uuid.New()
 
-	mockRepo.On("GetPendingReviewVehicles", mock.Anything, 20, 0).Return([]Vehicle{}, 0, nil)
+	mockRepo.On("GetPendingReviewVehicles", mock.Anything, 20, 0).Return([]VehicleWithDriver{}, 0, nil)
 
 	c, w := setupTestContext("GET", "/api/v1/admin/vehicles/pending", nil)
 	setUserContext(c, adminID, models.RoleAdmin)
@@ -1710,8 +1710,8 @@ func TestHandler_AdminGetPending_WithPagination(t *testing.T) {
 	handler := createTestHandler(mockRepo)
 
 	adminID := uuid.New()
-	vehicles := []Vehicle{
-		*createTestVehicle(uuid.New()),
+	vehicles := []VehicleWithDriver{
+		{Vehicle: *createTestVehicle(uuid.New())},
 	}
 
 	mockRepo.On("GetPendingReviewVehicles", mock.Anything, 5, 10).Return(vehicles, 10, nil)
@@ -2421,7 +2421,7 @@ func TestHandler_AdminGetPending_NullVehicles(t *testing.T) {
 	adminID := uuid.New()
 
 	// Return nil instead of empty slice - handler should handle this gracefully
-	mockRepo.On("GetPendingReviewVehicles", mock.Anything, 20, 0).Return(([]Vehicle)(nil), 0, nil)
+	mockRepo.On("GetPendingReviewVehicles", mock.Anything, 20, 0).Return(([]VehicleWithDriver)(nil), 0, nil)
 
 	c, w := setupTestContext("GET", "/api/v1/admin/vehicles/pending", nil)
 	setUserContext(c, adminID, models.RoleAdmin)

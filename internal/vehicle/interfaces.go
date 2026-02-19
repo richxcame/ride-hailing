@@ -20,8 +20,8 @@ type RepositoryInterface interface {
 	RetireVehicle(ctx context.Context, vehicleID uuid.UUID) error
 
 	// Admin operations
-	GetAllVehicles(ctx context.Context, filter *AdminVehicleFilter, limit, offset int) ([]Vehicle, int64, error)
-	GetPendingReviewVehicles(ctx context.Context, limit, offset int) ([]Vehicle, int, error)
+	GetAllVehicles(ctx context.Context, filter *AdminVehicleFilter, limit, offset int) ([]VehicleWithDriver, int64, error)
+	GetPendingReviewVehicles(ctx context.Context, limit, offset int) ([]VehicleWithDriver, int, error)
 	GetVehicleStats(ctx context.Context) (*VehicleStats, error)
 	GetExpiringVehicles(ctx context.Context, daysAhead int) ([]Vehicle, error)
 

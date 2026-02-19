@@ -184,6 +184,24 @@ type AdminVehicleFilter struct {
 	SortDir  string    `form:"sort_dir"`  // desc (default), asc
 }
 
+// DriverSummary is the driver info embedded in admin vehicle responses.
+type DriverSummary struct {
+	UserID      uuid.UUID  `json:"user_id"`
+	DriverID    *uuid.UUID `json:"driver_id,omitempty"` // nil if driver record not yet created
+	FirstName   string     `json:"first_name"`
+	LastName    string     `json:"last_name"`
+	PhoneNumber string     `json:"phone_number"`
+	Email       string     `json:"email"`
+	Rating      *float64   `json:"rating,omitempty"`
+	TotalRides  int        `json:"total_rides"`
+}
+
+// VehicleWithDriver is the admin view of a vehicle — includes embedded driver details.
+type VehicleWithDriver struct {
+	Vehicle
+	Driver DriverSummary `json:"driver"`
+}
+
 // VehicleStats represents vehicle-related statistics
 type VehicleStats struct {
 	TotalVehicles     int `json:"total_vehicles"`
