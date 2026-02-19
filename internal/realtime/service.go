@@ -40,12 +40,22 @@ func NewService(hub *ws.Hub, db *sql.DB, redisClient *redis.Client, geoService *
 
 // registerHandlers registers all message type handlers
 func (s *Service) registerHandlers() {
+	s.hub.RegisterHandler("ping", s.handlePing)
 	s.hub.RegisterHandler("location_update", s.handleLocationUpdate)
 	s.hub.RegisterHandler("ride_status", s.handleRideStatus)
 	s.hub.RegisterHandler("chat_message", s.handleChatMessage)
 	s.hub.RegisterHandler("typing", s.handleTyping)
 	s.hub.RegisterHandler("join_ride", s.handleJoinRide)
 	s.hub.RegisterHandler("leave_ride", s.handleLeaveRide)
+}
+
+// handlePing responds to client ping messages with a pong to keep the connection alive
+func (s *Service) handlePing(client *ws.Client, msg *ws.Message) {
+	client.SendMessage(&ws.Message{
+		Type:      "pong",
+		Timestamp: time.Now(),
+		Data:      map[string]interface{}{},
+	})
 }
 
 // handleLocationUpdate handles driver location updates

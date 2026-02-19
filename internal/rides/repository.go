@@ -583,7 +583,7 @@ func (r *Repository) GetRidesByRiderWithFilters(ctx context.Context, riderID uui
 
 	// Get total count
 	var total int
-	err := r.db.QueryRow(ctx, countQuery, args[:argCount-2]...).Scan(&total)
+	err := r.db.QueryRow(ctx, countQuery, args[:len(args)-2]...).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get total count: %w", err)
 	}
@@ -697,7 +697,7 @@ func (r *Repository) GetRidesByDriverWithFilters(ctx context.Context, driverID u
 	args = append(args, limit, offset)
 
 	var total int
-	err := r.db.QueryRow(ctx, countQuery, args[:argCount-2]...).Scan(&total)
+	err := r.db.QueryRow(ctx, countQuery, args[:len(args)-2]...).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get total count: %w", err)
 	}
