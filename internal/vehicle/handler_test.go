@@ -41,12 +41,12 @@ func (m *MockRepository) GetVehicleByID(ctx context.Context, id uuid.UUID) (*Veh
 	return args.Get(0).(*Vehicle), args.Error(1)
 }
 
-func (m *MockRepository) GetVehiclesByDriver(ctx context.Context, driverID uuid.UUID) ([]Vehicle, error) {
-	args := m.Called(ctx, driverID)
+func (m *MockRepository) GetVehiclesByDriver(ctx context.Context, driverID uuid.UUID, limit, offset int) ([]Vehicle, int64, error) {
+	args := m.Called(ctx, driverID, limit, offset)
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return nil, args.Get(1).(int64), args.Error(2)
 	}
-	return args.Get(0).([]Vehicle), args.Error(1)
+	return args.Get(0).([]Vehicle), args.Get(1).(int64), args.Error(2)
 }
 
 func (m *MockRepository) GetPrimaryVehicle(ctx context.Context, driverID uuid.UUID) (*Vehicle, error) {
@@ -224,7 +224,7 @@ func TestHandler_Register_Success(t *testing.T) {
 		FuelType:     FuelTypeGasoline,
 	}
 
-	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID).Return([]Vehicle{}, nil)
+	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return([]Vehicle{}, int64(0), nil)
 	mockRepo.On("CreateVehicle", mock.Anything, mock.AnythingOfType("*vehicle.Vehicle")).Return(nil)
 
 	c, w := setupTestContext("POST", "/api/v1/driver/vehicles", reqBody)
@@ -382,7 +382,7 @@ func TestHandler_Register_MaxVehiclesReached(t *testing.T) {
 		{ID: uuid.New(), DriverID: driverID, IsActive: true},
 		{ID: uuid.New(), DriverID: driverID, IsActive: true},
 	}
-	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID).Return(existingVehicles, nil)
+	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return(existingVehicles, int64(len(existingVehicles)), nil)
 
 	c, w := setupTestContext("POST", "/api/v1/driver/vehicles", reqBody)
 	setUserContext(c, driverID, models.RoleDriver)
@@ -410,7 +410,7 @@ func TestHandler_Register_ServiceError(t *testing.T) {
 		FuelType:     FuelTypeGasoline,
 	}
 
-	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID).Return(nil, errors.New("database error"))
+	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return(nil, int64(0), errors.New("database error"))
 
 	c, w := setupTestContext("POST", "/api/v1/driver/vehicles", reqBody)
 	setUserContext(c, driverID, models.RoleDriver)
@@ -438,7 +438,7 @@ func TestHandler_Register_FirstVehicleIsPrimary(t *testing.T) {
 		FuelType:     FuelTypeGasoline,
 	}
 
-	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID).Return([]Vehicle{}, nil)
+	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return([]Vehicle{}, int64(0), nil)
 	mockRepo.On("CreateVehicle", mock.Anything, mock.MatchedBy(func(v *Vehicle) bool {
 		return v.IsPrimary == true // First vehicle should be primary
 	})).Return(nil)
@@ -481,7 +481,7 @@ func TestHandler_Register_WithAllCategories(t *testing.T) {
 				FuelType:     FuelTypeGasoline,
 			}
 
-			mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID).Return([]Vehicle{}, nil)
+			mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return([]Vehicle{}, int64(0), nil)
 			mockRepo.On("CreateVehicle", mock.Anything, mock.AnythingOfType("*vehicle.Vehicle")).Return(nil)
 
 			c, w := setupTestContext("POST", "/api/v1/driver/vehicles", reqBody)
@@ -511,7 +511,7 @@ func TestHandler_GetMyVehicles_Success(t *testing.T) {
 		*createTestVehicle(driverID),
 	}
 
-	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID).Return(vehicles, nil)
+	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return(vehicles, int64(len(vehicles)), nil)
 
 	c, w := setupTestContext("GET", "/api/v1/driver/vehicles", nil)
 	setUserContext(c, driverID, models.RoleDriver)
@@ -521,8 +521,8 @@ func TestHandler_GetMyVehicles_Success(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	response := parseResponse(w)
 	assert.True(t, response["success"].(bool))
-	data := response["data"].(map[string]interface{})
-	assert.Equal(t, float64(2), data["count"])
+	meta := response["meta"].(map[string]interface{})
+	assert.Equal(t, float64(2), meta["total"])
 	mockRepo.AssertExpectations(t)
 }
 
@@ -534,7 +534,7 @@ func TestHandler_GetMyVehicles_EmptyList(t *testing.T) {
 
 	driverID := uuid.New()
 
-	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID).Return([]Vehicle{}, nil)
+	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return([]Vehicle{}, int64(0), nil)
 
 	c, w := setupTestContext("GET", "/api/v1/driver/vehicles", nil)
 	setUserContext(c, driverID, models.RoleDriver)
@@ -544,8 +544,10 @@ func TestHandler_GetMyVehicles_EmptyList(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	response := parseResponse(w)
 	assert.True(t, response["success"].(bool))
+	assert.NotNil(t, response["meta"])
+	// total omitted when 0 (omitempty); vehicles key present and empty is the key check
 	data := response["data"].(map[string]interface{})
-	assert.Equal(t, float64(0), data["count"])
+	assert.NotNil(t, data["vehicles"])
 	mockRepo.AssertExpectations(t)
 }
 
@@ -570,7 +572,7 @@ func TestHandler_GetMyVehicles_ServiceError(t *testing.T) {
 
 	driverID := uuid.New()
 
-	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID).Return(nil, errors.New("database error"))
+	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return(nil, int64(0), errors.New("database error"))
 
 	c, w := setupTestContext("GET", "/api/v1/driver/vehicles", nil)
 	setUserContext(c, driverID, models.RoleDriver)
@@ -2003,7 +2005,7 @@ func TestHandler_Register_ValidationCases(t *testing.T) {
 				FuelType:     FuelTypeGasoline,
 			},
 			setupMock: func(m *MockRepository, driverID uuid.UUID) {
-				m.On("GetVehiclesByDriver", mock.Anything, driverID).Return([]Vehicle{}, nil)
+				m.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return([]Vehicle{}, int64(0), nil)
 				m.On("CreateVehicle", mock.Anything, mock.AnythingOfType("*vehicle.Vehicle")).Return(nil)
 			},
 			expectedStatus: http.StatusCreated,
@@ -2149,7 +2151,7 @@ func TestHandler_FuelTypes(t *testing.T) {
 				FuelType:     fuelType,
 			}
 
-			mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID).Return([]Vehicle{}, nil)
+			mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return([]Vehicle{}, int64(0), nil)
 			mockRepo.On("CreateVehicle", mock.Anything, mock.AnythingOfType("*vehicle.Vehicle")).Return(nil)
 
 			c, w := setupTestContext("POST", "/api/v1/driver/vehicles", reqBody)
@@ -2228,7 +2230,7 @@ func TestHandler_Register_ResponseFormat(t *testing.T) {
 		MaxPassengers: 4,
 	}
 
-	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID).Return([]Vehicle{}, nil)
+	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return([]Vehicle{}, int64(0), nil)
 	mockRepo.On("CreateVehicle", mock.Anything, mock.AnythingOfType("*vehicle.Vehicle")).Return(nil)
 
 	c, w := setupTestContext("POST", "/api/v1/driver/vehicles", reqBody)
@@ -2316,7 +2318,7 @@ func TestHandler_Register_WithOptionalFields(t *testing.T) {
 		LuggageCapacity:     3,
 	}
 
-	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID).Return([]Vehicle{}, nil)
+	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return([]Vehicle{}, int64(0), nil)
 	mockRepo.On("CreateVehicle", mock.Anything, mock.MatchedBy(func(v *Vehicle) bool {
 		return v.VIN != nil && *v.VIN == vin &&
 			v.HasChildSeat == true &&
@@ -2354,7 +2356,7 @@ func TestHandler_Register_DefaultMaxPassengers(t *testing.T) {
 		// MaxPassengers not set, should default to 4
 	}
 
-	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID).Return([]Vehicle{}, nil)
+	mockRepo.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return([]Vehicle{}, int64(0), nil)
 	mockRepo.On("CreateVehicle", mock.Anything, mock.MatchedBy(func(v *Vehicle) bool {
 		return v.MaxPassengers == 4 // Default value
 	})).Return(nil)

@@ -39,8 +39,8 @@ func (s *Service) RegisterVehicle(ctx context.Context, driverID uuid.UUID, req *
 		)
 	}
 
-	// Check vehicle count
-	existing, err := s.repo.GetVehiclesByDriver(ctx, driverID)
+	// Check vehicle count (fetch all without pagination for the limit check)
+	existing, _, err := s.repo.GetVehiclesByDriver(ctx, driverID, maxVehiclesPerDriver+1, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -96,20 +96,16 @@ func (s *Service) RegisterVehicle(ctx context.Context, driverID uuid.UUID, req *
 	return vehicle, nil
 }
 
-// GetMyVehicles returns all vehicles for the driver
-func (s *Service) GetMyVehicles(ctx context.Context, driverID uuid.UUID) (*VehicleListResponse, error) {
-	vehicles, err := s.repo.GetVehiclesByDriver(ctx, driverID)
+// GetMyVehicles returns vehicles for the driver with total count for pagination
+func (s *Service) GetMyVehicles(ctx context.Context, driverID uuid.UUID, limit, offset int) (*VehicleListResponse, int64, error) {
+	vehicles, total, err := s.repo.GetVehiclesByDriver(ctx, driverID, limit, offset)
 	if err != nil {
-		return nil, err
-	}
-	if vehicles == nil {
-		vehicles = []Vehicle{}
+		return nil, 0, err
 	}
 
 	return &VehicleListResponse{
 		Vehicles: vehicles,
-		Count:    len(vehicles),
-	}, nil
+	}, total, nil
 }
 
 // GetVehicle returns a specific vehicle

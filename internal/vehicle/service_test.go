@@ -34,12 +34,12 @@ func (m *mockRepo) GetVehicleByID(ctx context.Context, id uuid.UUID) (*Vehicle, 
 	return args.Get(0).(*Vehicle), args.Error(1)
 }
 
-func (m *mockRepo) GetVehiclesByDriver(ctx context.Context, driverID uuid.UUID) ([]Vehicle, error) {
-	args := m.Called(ctx, driverID)
+func (m *mockRepo) GetVehiclesByDriver(ctx context.Context, driverID uuid.UUID, limit, offset int) ([]Vehicle, int64, error) {
+	args := m.Called(ctx, driverID, limit, offset)
 	if args.Get(0) == nil {
-		return nil, args.Error(1)
+		return nil, args.Get(1).(int64), args.Error(2)
 	}
-	return args.Get(0).([]Vehicle), args.Error(1)
+	return args.Get(0).([]Vehicle), args.Get(1).(int64), args.Error(2)
 }
 
 func (m *mockRepo) GetPrimaryVehicle(ctx context.Context, driverID uuid.UUID) (*Vehicle, error) {
@@ -182,7 +182,7 @@ func TestRegisterVehicle(t *testing.T) {
 				FuelType:     FuelTypeGasoline,
 			},
 			setupMocks: func(m *mockRepo) {
-				m.On("GetVehiclesByDriver", mock.Anything, driverID).Return([]Vehicle{}, nil)
+				m.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return([]Vehicle{}, int64(0), nil)
 				m.On("CreateVehicle", mock.Anything, mock.AnythingOfType("*vehicle.Vehicle")).Return(nil)
 			},
 			wantErr: false,
@@ -214,7 +214,7 @@ func TestRegisterVehicle(t *testing.T) {
 					DriverID: driverID,
 					IsActive: true,
 				}
-				m.On("GetVehiclesByDriver", mock.Anything, driverID).Return([]Vehicle{existingVehicle}, nil)
+				m.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return([]Vehicle{existingVehicle}, int64(1), nil)
 				m.On("CreateVehicle", mock.Anything, mock.AnythingOfType("*vehicle.Vehicle")).Return(nil)
 			},
 			wantErr: false,
@@ -235,7 +235,7 @@ func TestRegisterVehicle(t *testing.T) {
 				MaxPassengers: 7,
 			},
 			setupMocks: func(m *mockRepo) {
-				m.On("GetVehiclesByDriver", mock.Anything, driverID).Return([]Vehicle{}, nil)
+				m.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return([]Vehicle{}, int64(0), nil)
 				m.On("CreateVehicle", mock.Anything, mock.AnythingOfType("*vehicle.Vehicle")).Return(nil)
 			},
 			wantErr: false,
@@ -290,7 +290,7 @@ func TestRegisterVehicle(t *testing.T) {
 					{ID: uuid.New(), DriverID: driverID, IsActive: true},
 					{ID: uuid.New(), DriverID: driverID, IsActive: true},
 				}
-				m.On("GetVehiclesByDriver", mock.Anything, driverID).Return(existingVehicles, nil)
+				m.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return(existingVehicles, int64(len(existingVehicles)), nil)
 			},
 			wantErr:    true,
 			errContain: "maximum 3 active vehicles allowed",
@@ -313,7 +313,7 @@ func TestRegisterVehicle(t *testing.T) {
 					{ID: uuid.New(), DriverID: driverID, IsActive: false}, // inactive
 					{ID: uuid.New(), DriverID: driverID, IsActive: false}, // inactive
 				}
-				m.On("GetVehiclesByDriver", mock.Anything, driverID).Return(existingVehicles, nil)
+				m.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return(existingVehicles, int64(len(existingVehicles)), nil)
 				m.On("CreateVehicle", mock.Anything, mock.AnythingOfType("*vehicle.Vehicle")).Return(nil)
 			},
 			wantErr: false,
@@ -330,7 +330,7 @@ func TestRegisterVehicle(t *testing.T) {
 				FuelType:     FuelTypeHybrid,
 			},
 			setupMocks: func(m *mockRepo) {
-				m.On("GetVehiclesByDriver", mock.Anything, driverID).Return(nil, errors.New("database error"))
+				m.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return(nil, int64(0), errors.New("database error"))
 			},
 			wantErr:    true,
 			errContain: "database error",
@@ -347,7 +347,7 @@ func TestRegisterVehicle(t *testing.T) {
 				FuelType:     FuelTypeGasoline,
 			},
 			setupMocks: func(m *mockRepo) {
-				m.On("GetVehiclesByDriver", mock.Anything, driverID).Return([]Vehicle{}, nil)
+				m.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return([]Vehicle{}, int64(0), nil)
 				m.On("CreateVehicle", mock.Anything, mock.AnythingOfType("*vehicle.Vehicle")).Return(errors.New("create failed"))
 			},
 			wantErr:    true,
@@ -373,7 +373,7 @@ func TestRegisterVehicle(t *testing.T) {
 				LuggageCapacity:     3,
 			},
 			setupMocks: func(m *mockRepo) {
-				m.On("GetVehiclesByDriver", mock.Anything, driverID).Return([]Vehicle{}, nil)
+				m.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return([]Vehicle{}, int64(0), nil)
 				m.On("CreateVehicle", mock.Anything, mock.AnythingOfType("*vehicle.Vehicle")).Return(nil)
 			},
 			wantErr: false,
@@ -426,6 +426,7 @@ func TestGetMyVehicles(t *testing.T) {
 		name       string
 		setupMocks func(m *mockRepo)
 		wantErr    bool
+		wantTotal  int64
 		validate   func(t *testing.T, resp *VehicleListResponse)
 	}{
 		{
@@ -435,22 +436,22 @@ func TestGetMyVehicles(t *testing.T) {
 					{ID: uuid.New(), Make: "Toyota", Model: "Camry", IsPrimary: true},
 					{ID: uuid.New(), Make: "Honda", Model: "Accord", IsPrimary: false},
 				}
-				m.On("GetVehiclesByDriver", mock.Anything, driverID).Return(vehicles, nil)
+				m.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return(vehicles, int64(2), nil)
 			},
-			wantErr: false,
+			wantErr:   false,
+			wantTotal: 2,
 			validate: func(t *testing.T, resp *VehicleListResponse) {
-				assert.Equal(t, 2, resp.Count)
 				assert.Len(t, resp.Vehicles, 2)
 			},
 		},
 		{
 			name: "success - empty list",
 			setupMocks: func(m *mockRepo) {
-				m.On("GetVehiclesByDriver", mock.Anything, driverID).Return(nil, nil)
+				m.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return([]Vehicle{}, int64(0), nil)
 			},
-			wantErr: false,
+			wantErr:   false,
+			wantTotal: 0,
 			validate: func(t *testing.T, resp *VehicleListResponse) {
-				assert.Equal(t, 0, resp.Count)
 				assert.NotNil(t, resp.Vehicles)
 				assert.Len(t, resp.Vehicles, 0)
 			},
@@ -458,7 +459,7 @@ func TestGetMyVehicles(t *testing.T) {
 		{
 			name: "error - database failure",
 			setupMocks: func(m *mockRepo) {
-				m.On("GetVehiclesByDriver", mock.Anything, driverID).Return(nil, errors.New("database error"))
+				m.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return(nil, int64(0), errors.New("database error"))
 			},
 			wantErr: true,
 		},
@@ -470,7 +471,7 @@ func TestGetMyVehicles(t *testing.T) {
 			tt.setupMocks(m)
 			svc := newTestService(m)
 
-			resp, err := svc.GetMyVehicles(context.Background(), driverID)
+			resp, total, err := svc.GetMyVehicles(context.Background(), driverID, 20, 0)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -478,6 +479,7 @@ func TestGetMyVehicles(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, resp)
+				assert.Equal(t, tt.wantTotal, total)
 				if tt.validate != nil {
 					tt.validate(t, resp)
 				}
@@ -1809,7 +1811,7 @@ func TestMaxVehicleLimitEdgeCases(t *testing.T) {
 			{ID: uuid.New(), IsActive: true},
 			{ID: uuid.New(), IsActive: true},
 		}
-		m.On("GetVehiclesByDriver", mock.Anything, driverID).Return(existingVehicles, nil)
+		m.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return(existingVehicles, int64(len(existingVehicles)), nil)
 
 		svc := newTestService(m)
 		_, err := svc.RegisterVehicle(context.Background(), driverID, &RegisterVehicleRequest{
@@ -1833,7 +1835,7 @@ func TestMaxVehicleLimitEdgeCases(t *testing.T) {
 			{ID: uuid.New(), IsActive: true},
 			{ID: uuid.New(), IsActive: true},
 		}
-		m.On("GetVehiclesByDriver", mock.Anything, driverID).Return(existingVehicles, nil)
+		m.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return(existingVehicles, int64(len(existingVehicles)), nil)
 		m.On("CreateVehicle", mock.Anything, mock.AnythingOfType("*vehicle.Vehicle")).Return(nil)
 
 		svc := newTestService(m)
@@ -1861,7 +1863,7 @@ func TestMaxVehicleLimitEdgeCases(t *testing.T) {
 			{ID: uuid.New(), IsActive: false}, // retired
 			{ID: uuid.New(), IsActive: false}, // retired
 		}
-		m.On("GetVehiclesByDriver", mock.Anything, driverID).Return(existingVehicles, nil)
+		m.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return(existingVehicles, int64(len(existingVehicles)), nil)
 		m.On("CreateVehicle", mock.Anything, mock.AnythingOfType("*vehicle.Vehicle")).Return(nil)
 
 		svc := newTestService(m)
@@ -1925,7 +1927,7 @@ func TestYearValidationBoundaries(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			m := new(mockRepo)
 			if !tt.wantErr {
-				m.On("GetVehiclesByDriver", mock.Anything, driverID).Return([]Vehicle{}, nil)
+				m.On("GetVehiclesByDriver", mock.Anything, driverID, mock.Anything, mock.Anything).Return([]Vehicle{}, int64(0), nil)
 				m.On("CreateVehicle", mock.Anything, mock.AnythingOfType("*vehicle.Vehicle")).Return(nil)
 			}
 

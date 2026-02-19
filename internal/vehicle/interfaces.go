@@ -11,7 +11,7 @@ type RepositoryInterface interface {
 	// Vehicle CRUD operations
 	CreateVehicle(ctx context.Context, v *Vehicle) error
 	GetVehicleByID(ctx context.Context, id uuid.UUID) (*Vehicle, error)
-	GetVehiclesByDriver(ctx context.Context, driverID uuid.UUID) ([]Vehicle, error)
+	GetVehiclesByDriver(ctx context.Context, driverID uuid.UUID, limit, offset int) ([]Vehicle, int64, error)
 	GetPrimaryVehicle(ctx context.Context, driverID uuid.UUID) (*Vehicle, error)
 	UpdateVehicle(ctx context.Context, v *Vehicle) error
 	UpdateVehiclePhotos(ctx context.Context, vehicleID uuid.UUID, photos *UploadVehiclePhotosRequest) error

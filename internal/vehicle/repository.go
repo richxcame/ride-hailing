@@ -34,7 +34,7 @@ func (r *Repository) CreateVehicle(ctx context.Context, v *Vehicle) error {
 			is_active, is_primary, created_at, updated_at
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-			$11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
+			$11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
 		)`,
 		v.ID, v.DriverID, v.Status, v.Category,
 		v.Make, v.Model, v.Year, v.Color, v.LicensePlate, v.VIN,
@@ -46,21 +46,23 @@ func (r *Repository) CreateVehicle(ctx context.Context, v *Vehicle) error {
 	return err
 }
 
+// vehicleSelectCols is the standard column list for vehicle SELECT queries.
+const vehicleSelectCols = `
+	id, driver_id, status, category,
+	make, model, year, color, license_plate, vin,
+	fuel_type, max_passengers, has_child_seat,
+	has_wheelchair_access, has_wifi, has_charger,
+	pet_friendly, luggage_capacity,
+	registration_photo_url, insurance_photo_url,
+	front_photo_url, back_photo_url, side_photo_url, interior_photo_url,
+	insurance_expiry, registration_expiry, inspection_expiry,
+	rejection_reason, is_active, is_primary,
+	created_at, updated_at`
+
 // GetVehicleByID retrieves a vehicle by ID
 func (r *Repository) GetVehicleByID(ctx context.Context, id uuid.UUID) (*Vehicle, error) {
 	v := &Vehicle{}
-	err := r.db.QueryRow(ctx, `
-		SELECT id, driver_id, status, category,
-			make, model, year, color, license_plate, vin,
-			fuel_type, max_passengers, has_child_seat,
-			has_wheelchair_access, has_wifi, has_charger,
-			pet_friendly, luggage_capacity,
-			registration_photo_url, insurance_photo_url,
-			front_photo_url, back_photo_url, side_photo_url, interior_photo_url,
-			insurance_expiry, registration_expiry, inspection_expiry,
-			rejection_reason, is_active, is_primary,
-			created_at, updated_at
-		FROM vehicles WHERE id = $1`, id,
+	err := r.db.QueryRow(ctx, `SELECT `+vehicleSelectCols+` FROM vehicles WHERE id = $1`, id,
 	).Scan(
 		&v.ID, &v.DriverID, &v.Status, &v.Category,
 		&v.Make, &v.Model, &v.Year, &v.Color, &v.LicensePlate, &v.VIN,
@@ -79,29 +81,25 @@ func (r *Repository) GetVehicleByID(ctx context.Context, id uuid.UUID) (*Vehicle
 	return v, nil
 }
 
-// GetVehiclesByDriver returns all vehicles for a driver
-func (r *Repository) GetVehiclesByDriver(ctx context.Context, driverID uuid.UUID) ([]Vehicle, error) {
-	rows, err := r.db.Query(ctx, `
-		SELECT id, driver_id, status, category,
-			make, model, year, color, license_plate, vin,
-			fuel_type, max_passengers, has_child_seat,
-			has_wheelchair_access, has_wifi, has_charger,
-			pet_friendly, luggage_capacity,
-			registration_photo_url, insurance_photo_url,
-			front_photo_url, back_photo_url, side_photo_url, interior_photo_url,
-			insurance_expiry, registration_expiry, inspection_expiry,
-			rejection_reason, is_active, is_primary,
-			created_at, updated_at
-		FROM vehicles
-		WHERE driver_id = $1
-		ORDER BY is_primary DESC, created_at DESC`, driverID,
+// GetVehiclesByDriver returns vehicles for a driver with total count
+func (r *Repository) GetVehiclesByDriver(ctx context.Context, driverID uuid.UUID, limit, offset int) ([]Vehicle, int64, error) {
+	var total int64
+	if err := r.db.QueryRow(ctx,
+		`SELECT COUNT(*) FROM vehicles WHERE driver_id = $1`, driverID,
+	).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := r.db.Query(ctx,
+		`SELECT `+vehicleSelectCols+` FROM vehicles WHERE driver_id = $1 ORDER BY is_primary DESC, created_at DESC LIMIT $2 OFFSET $3`,
+		driverID, limit, offset,
 	)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
-	var vehicles []Vehicle
+	vehicles := make([]Vehicle, 0)
 	for rows.Next() {
 		v := Vehicle{}
 		if err := rows.Scan(
@@ -116,29 +114,19 @@ func (r *Repository) GetVehiclesByDriver(ctx context.Context, driverID uuid.UUID
 			&v.RejectionReason, &v.IsActive, &v.IsPrimary,
 			&v.CreatedAt, &v.UpdatedAt,
 		); err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		vehicles = append(vehicles, v)
 	}
-	return vehicles, nil
+	return vehicles, total, nil
 }
 
 // GetPrimaryVehicle returns the driver's active primary vehicle
 func (r *Repository) GetPrimaryVehicle(ctx context.Context, driverID uuid.UUID) (*Vehicle, error) {
 	v := &Vehicle{}
-	err := r.db.QueryRow(ctx, `
-		SELECT id, driver_id, status, category,
-			make, model, year, color, license_plate, vin,
-			fuel_type, max_passengers, has_child_seat,
-			has_wheelchair_access, has_wifi, has_charger,
-			pet_friendly, luggage_capacity,
-			registration_photo_url, insurance_photo_url,
-			front_photo_url, back_photo_url, side_photo_url, interior_photo_url,
-			insurance_expiry, registration_expiry, inspection_expiry,
-			rejection_reason, is_active, is_primary,
-			created_at, updated_at
-		FROM vehicles
-		WHERE driver_id = $1 AND is_primary = true AND is_active = true`, driverID,
+	err := r.db.QueryRow(ctx,
+		`SELECT `+vehicleSelectCols+` FROM vehicles WHERE driver_id = $1 AND is_primary = true AND is_active = true`,
+		driverID,
 	).Scan(
 		&v.ID, &v.DriverID, &v.Status, &v.Category,
 		&v.Make, &v.Model, &v.Year, &v.Color, &v.LicensePlate, &v.VIN,
@@ -247,21 +235,9 @@ func (r *Repository) GetPendingReviewVehicles(ctx context.Context, limit, offset
 		return nil, 0, err
 	}
 
-	rows, err := r.db.Query(ctx, `
-		SELECT id, driver_id, status, category,
-			make, model, year, color, license_plate, vin,
-			fuel_type, max_passengers, has_child_seat,
-			has_wheelchair_access, has_wifi, has_charger,
-			pet_friendly, luggage_capacity,
-			registration_photo_url, insurance_photo_url,
-			front_photo_url, back_photo_url, side_photo_url, interior_photo_url,
-			insurance_expiry, registration_expiry, inspection_expiry,
-			rejection_reason, is_active, is_primary,
-			created_at, updated_at
-		FROM vehicles
-		WHERE status = 'pending'
-		ORDER BY created_at ASC
-		LIMIT $1 OFFSET $2`, limit, offset,
+	rows, err := r.db.Query(ctx,
+		`SELECT `+vehicleSelectCols+` FROM vehicles WHERE status = 'pending' ORDER BY created_at ASC LIMIT $1 OFFSET $2`,
+		limit, offset,
 	)
 	if err != nil {
 		return nil, 0, err
@@ -319,17 +295,8 @@ func (r *Repository) GetVehicleStats(ctx context.Context) (*VehicleStats, error)
 // GetExpiringVehicles returns vehicles with expiring documents
 func (r *Repository) GetExpiringVehicles(ctx context.Context, daysAhead int) ([]Vehicle, error) {
 	threshold := time.Now().AddDate(0, 0, daysAhead)
-	rows, err := r.db.Query(ctx, `
-		SELECT id, driver_id, status, category,
-			make, model, year, color, license_plate, vin,
-			fuel_type, max_passengers, has_child_seat,
-			has_wheelchair_access, has_wifi, has_charger,
-			pet_friendly, luggage_capacity,
-			registration_photo_url, insurance_photo_url,
-			front_photo_url, back_photo_url, side_photo_url, interior_photo_url,
-			insurance_expiry, registration_expiry, inspection_expiry,
-			rejection_reason, is_active, is_primary,
-			created_at, updated_at
+	rows, err := r.db.Query(ctx,
+		`SELECT `+vehicleSelectCols+`
 		FROM vehicles
 		WHERE is_active = true AND status = 'approved'
 			AND (

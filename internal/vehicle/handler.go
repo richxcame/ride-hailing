@@ -64,13 +64,15 @@ func (h *Handler) GetMyVehicles(c *gin.Context) {
 		return
 	}
 
-	resp, err := h.service.GetMyVehicles(c.Request.Context(), driverID)
+	params := pagination.ParseParams(c)
+	resp, total, err := h.service.GetMyVehicles(c.Request.Context(), driverID, params.Limit, params.Offset)
 	if err != nil {
 		common.ErrorResponse(c, http.StatusInternalServerError, "failed to get vehicles")
 		return
 	}
 
-	common.SuccessResponse(c, resp)
+	meta := pagination.BuildMeta(params.Limit, params.Offset, total)
+	common.SuccessResponseWithMeta(c, resp, meta)
 }
 
 // GetVehicle returns a specific vehicle

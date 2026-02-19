@@ -170,7 +170,6 @@ type AdminReviewRequest struct {
 // VehicleListResponse returns a list of vehicles
 type VehicleListResponse struct {
 	Vehicles []Vehicle `json:"vehicles"`
-	Count    int       `json:"count"`
 }
 
 // VehicleStats represents vehicle-related statistics
