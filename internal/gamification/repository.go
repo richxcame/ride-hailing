@@ -29,6 +29,35 @@ func (r *Repository) GetDriverIDByUserID(ctx context.Context, userID uuid.UUID) 
 	return driverID, err
 }
 
+// GetUserIDByDriverID looks up the users.id for a given drivers.id
+func (r *Repository) GetUserIDByDriverID(ctx context.Context, driverID uuid.UUID) (uuid.UUID, error) {
+	var userID uuid.UUID
+	err := r.db.QueryRow(ctx, `SELECT user_id FROM drivers WHERE id = $1`, driverID).Scan(&userID)
+	return userID, err
+}
+
+// GetWeeklyStats queries actual weekly ride stats for a driver.
+// rides.driver_id stores users.id, so userID is required.
+func (r *Repository) GetWeeklyStats(ctx context.Context, userID uuid.UUID) (*WeeklyStats, error) {
+	query := `
+		SELECT
+			COUNT(*)::int                                      AS rides,
+			COALESCE(SUM(final_fare * (1 - 0.20)), 0)::float8 AS earnings,
+			COALESCE(AVG(NULLIF(rating, 0)), 0)::float8        AS average_rating
+		FROM rides
+		WHERE driver_id = $1
+		  AND status    = 'completed'
+		  AND completed_at >= NOW() - INTERVAL '7 days'
+	`
+
+	stats := &WeeklyStats{}
+	err := r.db.QueryRow(ctx, query, userID).Scan(&stats.Rides, &stats.Earnings, &stats.AverageRating)
+	if err != nil {
+		return nil, err
+	}
+	return stats, nil
+}
+
 // GetDriverGamification gets a driver's gamification profile
 func (r *Repository) GetDriverGamification(ctx context.Context, driverID uuid.UUID) (*DriverGamification, error) {
 	query := `

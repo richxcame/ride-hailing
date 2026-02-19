@@ -102,10 +102,14 @@ func (s *Service) GetGamificationStatus(ctx context.Context, driverID uuid.UUID)
 		achievements = achievements[:5]
 	}
 
-	// Weekly stats sourced from points counters (rides/earnings tracked by drivers table)
-	weeklyStats := &WeeklyStats{
-		BonusEarned: profile.TotalBonusEarned,
+	// Weekly stats: query real ride data using users.id (rides.driver_id = users.id)
+	weeklyStats := &WeeklyStats{}
+	if userID, err := s.repo.GetUserIDByDriverID(ctx, driverID); err == nil {
+		if ws, err := s.repo.GetWeeklyStats(ctx, userID); err == nil {
+			weeklyStats = ws
+		}
 	}
+	weeklyStats.BonusEarned = profile.TotalBonusEarned
 
 	return &GamificationStatusResponse{
 		Profile:            profile,
