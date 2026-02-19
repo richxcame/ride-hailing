@@ -27,14 +27,14 @@ func (r *Repository) CreateBackgroundCheck(ctx context.Context, check *Backgroun
 	query := `
 		INSERT INTO driver_background_checks (
 			id, driver_id, provider, external_id, status, check_type,
-			report_url, notes, failure_reasons, expires_at, started_at, created_at, updated_at
-		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+			report_url, notes, expires_at, started_at, created_at, updated_at
+		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
 	`
 
 	_, err := r.db.Exec(ctx, query,
 		check.ID, check.DriverID, check.Provider, check.ExternalID,
 		check.Status, check.CheckType, check.ReportURL, check.Notes,
-		check.FailureReasons, check.ExpiresAt, check.StartedAt,
+		check.ExpiresAt, check.StartedAt,
 	)
 
 	return err
@@ -44,7 +44,7 @@ func (r *Repository) CreateBackgroundCheck(ctx context.Context, check *Backgroun
 func (r *Repository) GetBackgroundCheck(ctx context.Context, checkID uuid.UUID) (*BackgroundCheck, error) {
 	query := `
 		SELECT id, driver_id, provider, external_id, status, check_type,
-		       report_url, notes, failure_reasons, expires_at, started_at, completed_at, created_at, updated_at
+		       report_url, notes, expires_at, started_at, completed_at, created_at, updated_at
 		FROM driver_background_checks
 		WHERE id = $1
 	`
@@ -53,7 +53,7 @@ func (r *Repository) GetBackgroundCheck(ctx context.Context, checkID uuid.UUID) 
 	err := r.db.QueryRow(ctx, query, checkID).Scan(
 		&check.ID, &check.DriverID, &check.Provider, &check.ExternalID,
 		&check.Status, &check.CheckType, &check.ReportURL, &check.Notes,
-		&check.FailureReasons, &check.ExpiresAt, &check.StartedAt,
+		&check.ExpiresAt, &check.StartedAt,
 		&check.CompletedAt, &check.CreatedAt, &check.UpdatedAt,
 	)
 
@@ -68,7 +68,7 @@ func (r *Repository) GetBackgroundCheck(ctx context.Context, checkID uuid.UUID) 
 func (r *Repository) GetBackgroundCheckByExternalID(ctx context.Context, provider BackgroundCheckProvider, externalID string) (*BackgroundCheck, error) {
 	query := `
 		SELECT id, driver_id, provider, external_id, status, check_type,
-		       report_url, notes, failure_reasons, expires_at, started_at, completed_at, created_at, updated_at
+		       report_url, notes, expires_at, started_at, completed_at, created_at, updated_at
 		FROM driver_background_checks
 		WHERE provider = $1 AND external_id = $2
 	`
@@ -77,7 +77,7 @@ func (r *Repository) GetBackgroundCheckByExternalID(ctx context.Context, provide
 	err := r.db.QueryRow(ctx, query, provider, externalID).Scan(
 		&check.ID, &check.DriverID, &check.Provider, &check.ExternalID,
 		&check.Status, &check.CheckType, &check.ReportURL, &check.Notes,
-		&check.FailureReasons, &check.ExpiresAt, &check.StartedAt,
+		&check.ExpiresAt, &check.StartedAt,
 		&check.CompletedAt, &check.CreatedAt, &check.UpdatedAt,
 	)
 
@@ -92,7 +92,7 @@ func (r *Repository) GetBackgroundCheckByExternalID(ctx context.Context, provide
 func (r *Repository) GetLatestBackgroundCheck(ctx context.Context, driverID uuid.UUID) (*BackgroundCheck, error) {
 	query := `
 		SELECT id, driver_id, provider, external_id, status, check_type,
-		       report_url, notes, failure_reasons, expires_at, started_at, completed_at, created_at, updated_at
+		       report_url, notes, expires_at, started_at, completed_at, created_at, updated_at
 		FROM driver_background_checks
 		WHERE driver_id = $1
 		ORDER BY created_at DESC
@@ -103,7 +103,7 @@ func (r *Repository) GetLatestBackgroundCheck(ctx context.Context, driverID uuid
 	err := r.db.QueryRow(ctx, query, driverID).Scan(
 		&check.ID, &check.DriverID, &check.Provider, &check.ExternalID,
 		&check.Status, &check.CheckType, &check.ReportURL, &check.Notes,
-		&check.FailureReasons, &check.ExpiresAt, &check.StartedAt,
+		&check.ExpiresAt, &check.StartedAt,
 		&check.CompletedAt, &check.CreatedAt, &check.UpdatedAt,
 	)
 
@@ -114,7 +114,7 @@ func (r *Repository) GetLatestBackgroundCheck(ctx context.Context, driverID uuid
 	return check, nil
 }
 
-// UpdateBackgroundCheckStatus updates the status of a background check
+// UpdateBackgroundCheckStatus updates the status and notes of a background check
 func (r *Repository) UpdateBackgroundCheckStatus(ctx context.Context, checkID uuid.UUID, status BackgroundCheckStatus, notes *string, failureReasons []string) error {
 	var completedAt *time.Time
 	if status == BGCheckStatusPassed || status == BGCheckStatusFailed || status == BGCheckStatusCompleted {
@@ -124,12 +124,12 @@ func (r *Repository) UpdateBackgroundCheckStatus(ctx context.Context, checkID uu
 
 	query := `
 		UPDATE driver_background_checks
-		SET status = $1, notes = COALESCE($2, notes), failure_reasons = COALESCE($3, failure_reasons),
-		    completed_at = COALESCE($4, completed_at), updated_at = NOW()
-		WHERE id = $5
+		SET status = $1, notes = COALESCE($2, notes),
+		    completed_at = COALESCE($3, completed_at), updated_at = NOW()
+		WHERE id = $4
 	`
 
-	_, err := r.db.Exec(ctx, query, status, notes, failureReasons, completedAt, checkID)
+	_, err := r.db.Exec(ctx, query, status, notes, completedAt, checkID)
 	return err
 }
 
@@ -161,7 +161,7 @@ func (r *Repository) UpdateBackgroundCheckCompleted(ctx context.Context, checkID
 func (r *Repository) GetPendingBackgroundChecks(ctx context.Context, limit int) ([]*BackgroundCheck, error) {
 	query := `
 		SELECT id, driver_id, provider, external_id, status, check_type,
-		       report_url, notes, failure_reasons, expires_at, started_at, completed_at, created_at, updated_at
+		       report_url, notes, expires_at, started_at, completed_at, created_at, updated_at
 		FROM driver_background_checks
 		WHERE status IN ('pending', 'in_progress')
 		ORDER BY created_at ASC
@@ -180,7 +180,7 @@ func (r *Repository) GetPendingBackgroundChecks(ctx context.Context, limit int) 
 		err := rows.Scan(
 			&check.ID, &check.DriverID, &check.Provider, &check.ExternalID,
 			&check.Status, &check.CheckType, &check.ReportURL, &check.Notes,
-			&check.FailureReasons, &check.ExpiresAt, &check.StartedAt,
+			&check.ExpiresAt, &check.StartedAt,
 			&check.CompletedAt, &check.CreatedAt, &check.UpdatedAt,
 		)
 		if err != nil {
@@ -374,7 +374,7 @@ func (r *Repository) UpdateDriverApproval(ctx context.Context, driverID uuid.UUI
 	if approved {
 		query := `
 			UPDATE drivers
-			SET is_approved = true, approved_at = NOW(), approved_by = $1, updated_at = NOW()
+			SET approval_status = 'approved', approved_at = NOW(), approved_by = $1, updated_at = NOW()
 			WHERE id = $2
 		`
 		_, err := r.db.Exec(ctx, query, approvedBy, driverID)
@@ -383,9 +383,9 @@ func (r *Repository) UpdateDriverApproval(ctx context.Context, driverID uuid.UUI
 
 	query := `
 		UPDATE drivers
-		SET is_approved = false, rejection_reason = $1, rejected_at = NOW(), rejected_by = $2, updated_at = NOW()
-		WHERE id = $3
+		SET approval_status = 'rejected', rejection_reason = $1, updated_at = NOW()
+		WHERE id = $2
 	`
-	_, err := r.db.Exec(ctx, query, reason, approvedBy, driverID)
+	_, err := r.db.Exec(ctx, query, reason, driverID)
 	return err
 }

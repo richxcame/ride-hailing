@@ -107,26 +107,27 @@ type DriverVerificationStatus struct {
 // REQUEST/RESPONSE TYPES
 // ========================================
 
-// InitiateBackgroundCheckRequest represents a request to start a background check
+// InitiateBackgroundCheckRequest represents a request to start a background check.
+// Only driver_id is required. All PII fields are optional when provider is "mock".
 type InitiateBackgroundCheckRequest struct {
 	DriverID  uuid.UUID               `json:"driver_id" binding:"required"`
 	Provider  BackgroundCheckProvider `json:"provider,omitempty"`
 	CheckType string                  `json:"check_type,omitempty"`
-	// Driver info required for background check
-	FirstName   string `json:"first_name" binding:"required"`
-	LastName    string `json:"last_name" binding:"required"`
-	DateOfBirth string `json:"date_of_birth" binding:"required"` // YYYY-MM-DD
+	// Driver info — required for real providers (checkr, sterling, onfido), optional for mock
+	FirstName   string `json:"first_name,omitempty"`
+	LastName    string `json:"last_name,omitempty"`
+	DateOfBirth string `json:"date_of_birth,omitempty"` // YYYY-MM-DD
 	SSN         string `json:"ssn,omitempty"`
-	Email       string `json:"email" binding:"required"`
-	Phone       string `json:"phone" binding:"required"`
+	Email       string `json:"email,omitempty"`
+	Phone       string `json:"phone,omitempty"`
 	// Address
-	StreetAddress string `json:"street_address" binding:"required"`
-	City          string `json:"city" binding:"required"`
-	State         string `json:"state" binding:"required"`
-	ZipCode       string `json:"zip_code" binding:"required"`
+	StreetAddress string `json:"street_address,omitempty"`
+	City          string `json:"city,omitempty"`
+	State         string `json:"state,omitempty"`
+	ZipCode       string `json:"zip_code,omitempty"`
 	// Driver's license
-	LicenseNumber string `json:"license_number" binding:"required"`
-	LicenseState  string `json:"license_state" binding:"required"`
+	LicenseNumber string `json:"license_number,omitempty"`
+	LicenseState  string `json:"license_state,omitempty"`
 }
 
 // BackgroundCheckResponse represents the response after initiating a check

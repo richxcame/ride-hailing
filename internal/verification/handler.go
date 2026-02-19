@@ -167,6 +167,52 @@ func (h *Handler) InitiateBackgroundCheck(c *gin.Context) {
 		return
 	}
 
+	// Real providers need full PII; mock only needs driver_id
+	provider := req.Provider
+	if provider == "" {
+		provider = ProviderCheckr
+	}
+	if provider != ProviderMock {
+		missing := []string{}
+		if req.FirstName == "" {
+			missing = append(missing, "first_name")
+		}
+		if req.LastName == "" {
+			missing = append(missing, "last_name")
+		}
+		if req.DateOfBirth == "" {
+			missing = append(missing, "date_of_birth")
+		}
+		if req.Email == "" {
+			missing = append(missing, "email")
+		}
+		if req.Phone == "" {
+			missing = append(missing, "phone")
+		}
+		if req.StreetAddress == "" {
+			missing = append(missing, "street_address")
+		}
+		if req.City == "" {
+			missing = append(missing, "city")
+		}
+		if req.State == "" {
+			missing = append(missing, "state")
+		}
+		if req.ZipCode == "" {
+			missing = append(missing, "zip_code")
+		}
+		if req.LicenseNumber == "" {
+			missing = append(missing, "license_number")
+		}
+		if req.LicenseState == "" {
+			missing = append(missing, "license_state")
+		}
+		if len(missing) > 0 {
+			common.ErrorResponse(c, http.StatusBadRequest, "missing required fields for real provider: "+joinStrings(missing))
+			return
+		}
+	}
+
 	result, err := h.service.InitiateBackgroundCheck(c.Request.Context(), &req)
 	if err != nil {
 		if appErr, ok := err.(*common.AppError); ok {
@@ -356,6 +402,17 @@ func (h *Handler) HandleOnfidoWebhook(c *gin.Context) {
 // ========================================
 // HELPER FUNCTIONS
 // ========================================
+
+func joinStrings(parts []string) string {
+	result := ""
+	for i, p := range parts {
+		if i > 0 {
+			result += ", "
+		}
+		result += p
+	}
+	return result
+}
 
 // getDriverID gets the driver ID from context
 func (h *Handler) getDriverID(c *gin.Context) (uuid.UUID, error) {

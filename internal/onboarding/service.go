@@ -173,6 +173,12 @@ func (s *Service) GetOnboardingProgress(ctx context.Context, driverID uuid.UUID)
 		s.updateBackgroundCheckStep(steps, bgCheck)
 	}
 
+	// Check approval step
+	if driver.IsApproved {
+		steps[5].Status = "completed"
+		steps[5].CompletedAt = driver.ApprovedAt
+	}
+
 	// Calculate overall progress
 	progress := s.calculateProgress(steps)
 	progress.DriverID = driverID
