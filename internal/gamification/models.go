@@ -134,17 +134,19 @@ type DriverQuestProgress struct {
 
 // Achievement represents a driver achievement/badge
 type Achievement struct {
-	ID          uuid.UUID           `json:"id" db:"id"`
-	Name        string              `json:"name" db:"name"`
-	Description *string             `json:"description,omitempty" db:"description"`
-	Category    AchievementCategory `json:"category" db:"category"`
-	IconURL     *string             `json:"icon_url,omitempty" db:"icon_url"`
-	Points      int                 `json:"points" db:"points"`
-	Criteria    string              `json:"criteria" db:"criteria"` // JSON criteria
-	IsSecret    bool                `json:"is_secret" db:"is_secret"`
-	Rarity      string              `json:"rarity" db:"rarity"` // common, rare, epic, legendary
-	IsActive    bool                `json:"is_active" db:"is_active"`
-	CreatedAt   time.Time           `json:"created_at" db:"created_at"`
+	ID               uuid.UUID           `json:"id" db:"id"`
+	Code             string              `json:"code" db:"code"`
+	Name             string              `json:"name" db:"name"`
+	Description      *string             `json:"description,omitempty" db:"description"`
+	Category         AchievementCategory `json:"category" db:"category"`
+	IconURL          *string             `json:"icon_url,omitempty" db:"icon_url"`
+	RequirementType  string              `json:"requirement_type" db:"requirement_type"`
+	RequirementValue int                 `json:"requirement_value" db:"requirement_value"`
+	PointsReward     int                 `json:"points_reward" db:"points_reward"`
+	CashReward       float64             `json:"cash_reward" db:"cash_reward"`
+	IsSecret         bool                `json:"is_secret" db:"is_secret"`
+	IsActive         bool                `json:"is_active" db:"is_active"`
+	CreatedAt        time.Time           `json:"created_at" db:"created_at"`
 }
 
 // DriverAchievement represents an achievement earned by a driver
@@ -154,7 +156,7 @@ type DriverAchievement struct {
 	AchievementID uuid.UUID    `json:"achievement_id" db:"achievement_id"`
 	Achievement   *Achievement `json:"achievement,omitempty"`
 	EarnedAt      time.Time    `json:"earned_at" db:"earned_at"`
-	NotifiedAt    *time.Time   `json:"notified_at,omitempty" db:"notified_at"`
+	Notified      bool         `json:"notified" db:"notified"`
 }
 
 // LeaderboardEntry represents an entry in the leaderboard

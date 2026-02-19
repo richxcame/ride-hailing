@@ -360,7 +360,7 @@ func (s *Service) CheckAchievements(ctx context.Context, driverID uuid.UUID) err
 			}
 
 			// Add points
-			if err := s.repo.AddAchievementPoints(ctx, driverID, achievement.Points); err != nil {
+			if err := s.repo.AddAchievementPoints(ctx, driverID, achievement.PointsReward); err != nil {
 				logger.Error("failed to add achievement points", zap.Error(err))
 			}
 

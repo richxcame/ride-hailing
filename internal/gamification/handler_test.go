@@ -326,12 +326,11 @@ func createTestQuestProgress(driverID uuid.UUID, quest *DriverQuest, completed b
 
 func createTestAchievement() *Achievement {
 	return &Achievement{
-		ID:       uuid.New(),
-		Name:     "Century Rider",
-		Category: AchievementCategoryMilestone,
-		Points:   100,
-		Rarity:   "rare",
-		IsActive: true,
+		ID:           uuid.New(),
+		Name:         "Century Rider",
+		Category:     AchievementCategoryMilestone,
+		PointsReward: 100,
+		IsActive:     true,
 	}
 }
 

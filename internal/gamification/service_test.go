@@ -416,7 +416,7 @@ func TestCheckAchievements(t *testing.T) {
 						ID:       centuryRiderID,
 						Name:     "Century Rider",
 						Category: AchievementCategoryMilestone,
-						Points:   100,
+						PointsReward: 100,
 					},
 				}
 				m.On("GetDriverGamification", mock.Anything, driverID).Return(profile, nil)
@@ -439,13 +439,13 @@ func TestCheckAchievements(t *testing.T) {
 						ID:       centuryRiderID,
 						Name:     "Century Rider",
 						Category: AchievementCategoryMilestone,
-						Points:   100,
+						PointsReward: 100,
 					},
 					{
 						ID:       roadWarriorID,
 						Name:     "Road Warrior",
 						Category: AchievementCategoryMilestone,
-						Points:   250,
+						PointsReward: 250,
 					},
 				}
 				m.On("GetDriverGamification", mock.Anything, driverID).Return(profile, nil)

@@ -272,7 +272,7 @@ func (r *Repository) GetAllTiers(ctx context.Context) ([]*DriverTier, error) {
 	}
 	defer rows.Close()
 
-	var tiers []*DriverTier
+	tiers := make([]*DriverTier, 0)
 	for rows.Next() {
 		tier := &DriverTier{}
 		err := rows.Scan(
@@ -315,7 +315,7 @@ func (r *Repository) GetActiveQuests(ctx context.Context, tierID *uuid.UUID, cit
 	}
 	defer rows.Close()
 
-	var quests []*DriverQuest
+	quests := make([]*DriverQuest, 0)
 	for rows.Next() {
 		q := &DriverQuest{}
 		err := rows.Scan(
@@ -377,7 +377,7 @@ func (r *Repository) GetQuestsByType(ctx context.Context, questType QuestType) (
 	}
 	defer rows.Close()
 
-	var quests []*DriverQuest
+	quests := make([]*DriverQuest, 0)
 	for rows.Next() {
 		q := &DriverQuest{}
 		err := rows.Scan(
@@ -443,7 +443,7 @@ func (r *Repository) GetDriverActiveQuests(ctx context.Context, driverID uuid.UU
 	}
 	defer rows.Close()
 
-	var progressList []*DriverQuestProgress
+	progressList := make([]*DriverQuestProgress, 0)
 	for rows.Next() {
 		progress := &DriverQuestProgress{}
 		quest := &DriverQuest{}
@@ -524,15 +524,17 @@ func (r *Repository) ClaimQuestReward(ctx context.Context, progressID uuid.UUID,
 // GetAchievement gets an achievement by ID
 func (r *Repository) GetAchievement(ctx context.Context, achievementID uuid.UUID) (*Achievement, error) {
 	query := `
-		SELECT id, name, description, category, icon_url, points, criteria, is_secret, rarity, is_active
+		SELECT id, code, name, description, category, icon_url,
+		       requirement_type, requirement_value, points_reward, cash_reward, is_secret, is_active, created_at
 		FROM driver_achievements
 		WHERE id = $1
 	`
 
 	a := &Achievement{}
 	err := r.db.QueryRow(ctx, query, achievementID).Scan(
-		&a.ID, &a.Name, &a.Description, &a.Category, &a.IconURL,
-		&a.Points, &a.Criteria, &a.IsSecret, &a.Rarity, &a.IsActive,
+		&a.ID, &a.Code, &a.Name, &a.Description, &a.Category, &a.IconURL,
+		&a.RequirementType, &a.RequirementValue, &a.PointsReward, &a.CashReward,
+		&a.IsSecret, &a.IsActive, &a.CreatedAt,
 	)
 
 	if err != nil {
@@ -545,10 +547,11 @@ func (r *Repository) GetAchievement(ctx context.Context, achievementID uuid.UUID
 // GetAllAchievements gets all achievements
 func (r *Repository) GetAllAchievements(ctx context.Context) ([]*Achievement, error) {
 	query := `
-		SELECT id, name, description, category, icon_url, points, criteria, is_secret, rarity, is_active
+		SELECT id, code, name, description, category, icon_url,
+		       requirement_type, requirement_value, points_reward, cash_reward, is_secret, is_active, created_at
 		FROM driver_achievements
 		WHERE is_active = true
-		ORDER BY category, points DESC
+		ORDER BY category, points_reward DESC
 	`
 
 	rows, err := r.db.Query(ctx, query)
@@ -557,12 +560,13 @@ func (r *Repository) GetAllAchievements(ctx context.Context) ([]*Achievement, er
 	}
 	defer rows.Close()
 
-	var achievements []*Achievement
+	achievements := make([]*Achievement, 0)
 	for rows.Next() {
 		a := &Achievement{}
 		err := rows.Scan(
-			&a.ID, &a.Name, &a.Description, &a.Category, &a.IconURL,
-			&a.Points, &a.Criteria, &a.IsSecret, &a.Rarity, &a.IsActive,
+			&a.ID, &a.Code, &a.Name, &a.Description, &a.Category, &a.IconURL,
+			&a.RequirementType, &a.RequirementValue, &a.PointsReward, &a.CashReward,
+			&a.IsSecret, &a.IsActive, &a.CreatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -576,9 +580,10 @@ func (r *Repository) GetAllAchievements(ctx context.Context) ([]*Achievement, er
 // GetDriverAchievements gets achievements earned by a driver
 func (r *Repository) GetDriverAchievements(ctx context.Context, driverID uuid.UUID) ([]*DriverAchievement, error) {
 	query := `
-		SELECT da.id, da.driver_id, da.achievement_id, da.earned_at, da.notified_at,
-		       a.id, a.name, a.description, a.category, a.icon_url, a.points, a.rarity
-		FROM driver_achievement_progress da
+		SELECT da.id, da.driver_id, da.achievement_id, da.earned_at, da.notified,
+		       a.id, a.code, a.name, a.description, a.category, a.icon_url,
+		       a.requirement_type, a.requirement_value, a.points_reward, a.cash_reward, a.is_secret
+		FROM driver_earned_achievements da
 		JOIN driver_achievements a ON da.achievement_id = a.id
 		WHERE da.driver_id = $1
 		ORDER BY da.earned_at DESC
@@ -590,14 +595,15 @@ func (r *Repository) GetDriverAchievements(ctx context.Context, driverID uuid.UU
 	}
 	defer rows.Close()
 
-	var achievements []*DriverAchievement
+	achievements := make([]*DriverAchievement, 0)
 	for rows.Next() {
 		da := &DriverAchievement{}
 		a := &Achievement{}
 
 		err := rows.Scan(
-			&da.ID, &da.DriverID, &da.AchievementID, &da.EarnedAt, &da.NotifiedAt,
-			&a.ID, &a.Name, &a.Description, &a.Category, &a.IconURL, &a.Points, &a.Rarity,
+			&da.ID, &da.DriverID, &da.AchievementID, &da.EarnedAt, &da.Notified,
+			&a.ID, &a.Code, &a.Name, &a.Description, &a.Category, &a.IconURL,
+			&a.RequirementType, &a.RequirementValue, &a.PointsReward, &a.CashReward, &a.IsSecret,
 		)
 		if err != nil {
 			return nil, err
@@ -612,7 +618,7 @@ func (r *Repository) GetDriverAchievements(ctx context.Context, driverID uuid.UU
 
 // HasAchievement checks if a driver has an achievement
 func (r *Repository) HasAchievement(ctx context.Context, driverID, achievementID uuid.UUID) (bool, error) {
-	query := `SELECT EXISTS(SELECT 1 FROM driver_achievement_progress WHERE driver_id = $1 AND achievement_id = $2)`
+	query := `SELECT EXISTS(SELECT 1 FROM driver_earned_achievements WHERE driver_id = $1 AND achievement_id = $2)`
 
 	var exists bool
 	err := r.db.QueryRow(ctx, query, driverID, achievementID).Scan(&exists)
@@ -622,8 +628,8 @@ func (r *Repository) HasAchievement(ctx context.Context, driverID, achievementID
 // AwardAchievement awards an achievement to a driver
 func (r *Repository) AwardAchievement(ctx context.Context, driverID, achievementID uuid.UUID) error {
 	query := `
-		INSERT INTO driver_achievement_progress (id, driver_id, achievement_id, earned_at)
-		VALUES ($1, $2, $3, NOW())
+		INSERT INTO driver_earned_achievements (id, driver_id, achievement_id)
+		VALUES ($1, $2, $3)
 		ON CONFLICT (driver_id, achievement_id) DO NOTHING
 	`
 
@@ -674,7 +680,7 @@ func (r *Repository) GetLeaderboard(ctx context.Context, period string, category
 	}
 	defer rows.Close()
 
-	var entries []LeaderboardEntry
+	entries := make([]LeaderboardEntry, 0)
 	rank := 1
 	for rows.Next() {
 		entry := LeaderboardEntry{Rank: rank}
