@@ -66,7 +66,8 @@ func (r *Repository) GetDriverGamification(ctx context.Context, driverID uuid.UU
 		       dg.total_quests_completed, dg.total_challenges_won, dg.total_bonuses_earned,
 		       dg.last_active_date, dg.tier_evaluated_at, dg.created_at, dg.updated_at,
 		       dt.id, dt.name, dt.display_name, dt.min_rides, dt.min_rating,
-		       dt.commission_rate, dt.surge_multiplier_bonus, dt.priority_dispatch, dt.benefits
+		       dt.commission_rate, dt.surge_multiplier_bonus, dt.priority_dispatch, dt.benefits,
+		       dt.is_active, dt.icon_url, dt.color_hex, dt.created_at
 		FROM driver_gamification dg
 		LEFT JOIN driver_tiers dt ON dg.current_tier_id = dt.id
 		WHERE dg.driver_id = $1
@@ -83,6 +84,7 @@ func (r *Repository) GetDriverGamification(ctx context.Context, driverID uuid.UU
 		&profile.LastActiveDate, &profile.TierEvaluatedAt, &profile.CreatedAt, &profile.UpdatedAt,
 		&tierID, &tier.Name, &tier.DisplayName, &tier.MinRides, &tier.MinRating,
 		&tier.CommissionRate, &tier.BonusMultiplier, &tier.PriorityDispatch, &tier.Benefits,
+		&tier.IsActive, &tier.IconURL, &tier.ColorHex, &tier.CreatedAt,
 	)
 
 	if err != nil {
@@ -109,26 +111,21 @@ func (r *Repository) CreateDriverGamification(ctx context.Context, profile *Driv
 	return err
 }
 
-// UpdateDriverStats updates driver statistics after a ride
+// UpdateDriverStats updates driver statistics after a ride.
+// The gamification DB tracks points-based metrics; ride counts/earnings are queried live from the rides table.
+// This increments total_points and weekly/monthly_points as a proxy for ride activity.
 func (r *Repository) UpdateDriverStats(ctx context.Context, driverID uuid.UUID, rides int, earnings float64, rating float64) error {
 	query := `
 		UPDATE driver_gamification
-		SET total_rides = total_rides + $1,
-		    total_earnings = total_earnings + $2,
-		    average_rating = CASE
-		        WHEN total_rides = 0 THEN $3
-		        ELSE (average_rating * total_rides + $3) / (total_rides + 1)
-		    END,
-		    weekly_rides = weekly_rides + $1,
-		    weekly_earnings = weekly_earnings + $2,
-		    monthly_rides = monthly_rides + $1,
-		    monthly_earnings = monthly_earnings + $2,
-		    last_active_date = NOW(),
+		SET total_points   = total_points   + $1,
+		    weekly_points  = weekly_points  + $1,
+		    monthly_points = monthly_points + $1,
+		    last_active_date = CURRENT_DATE,
 		    updated_at = NOW()
-		WHERE driver_id = $4
+		WHERE driver_id = $2
 	`
 
-	_, err := r.db.Exec(ctx, query, rides, earnings, rating, driverID)
+	_, err := r.db.Exec(ctx, query, rides, driverID)
 	return err
 }
 
@@ -163,7 +160,7 @@ func (r *Repository) UpdateDriverTier(ctx context.Context, driverID uuid.UUID, t
 func (r *Repository) IncrementQuestsCompleted(ctx context.Context, driverID uuid.UUID) error {
 	query := `
 		UPDATE driver_gamification
-		SET quests_completed = quests_completed + 1, updated_at = NOW()
+		SET total_quests_completed = total_quests_completed + 1, updated_at = NOW()
 		WHERE driver_id = $1
 	`
 
@@ -175,7 +172,7 @@ func (r *Repository) IncrementQuestsCompleted(ctx context.Context, driverID uuid
 func (r *Repository) AddBonusEarned(ctx context.Context, driverID uuid.UUID, bonus float64) error {
 	query := `
 		UPDATE driver_gamification
-		SET total_bonus_earned = total_bonus_earned + $1, updated_at = NOW()
+		SET total_bonuses_earned = total_bonuses_earned + $1, updated_at = NOW()
 		WHERE driver_id = $2
 	`
 
@@ -183,11 +180,11 @@ func (r *Repository) AddBonusEarned(ctx context.Context, driverID uuid.UUID, bon
 	return err
 }
 
-// AddAchievementPoints adds achievement points
+// AddAchievementPoints adds achievement points (stored as total_points)
 func (r *Repository) AddAchievementPoints(ctx context.Context, driverID uuid.UUID, points int) error {
 	query := `
 		UPDATE driver_gamification
-		SET achievement_points = achievement_points + $1, updated_at = NOW()
+		SET total_points = total_points + $1, updated_at = NOW()
 		WHERE driver_id = $2
 	`
 
@@ -195,16 +192,16 @@ func (r *Repository) AddAchievementPoints(ctx context.Context, driverID uuid.UUI
 	return err
 }
 
-// ResetWeeklyStats resets weekly statistics
+// ResetWeeklyStats resets weekly point counters
 func (r *Repository) ResetWeeklyStats(ctx context.Context) error {
-	query := `UPDATE driver_gamification SET weekly_rides = 0, weekly_earnings = 0`
+	query := `UPDATE driver_gamification SET weekly_points = 0, updated_at = NOW()`
 	_, err := r.db.Exec(ctx, query)
 	return err
 }
 
-// ResetMonthlyStats resets monthly statistics
+// ResetMonthlyStats resets monthly point counters
 func (r *Repository) ResetMonthlyStats(ctx context.Context) error {
-	query := `UPDATE driver_gamification SET monthly_rides = 0, monthly_earnings = 0`
+	query := `UPDATE driver_gamification SET monthly_points = 0, updated_at = NOW()`
 	_, err := r.db.Exec(ctx, query)
 	return err
 }
@@ -624,54 +621,40 @@ func (r *Repository) AwardAchievement(ctx context.Context, driverID, achievement
 // LEADERBOARD
 // ========================================
 
-// GetLeaderboard gets the leaderboard for a specific period and category
+// GetLeaderboard gets the leaderboard for a specific period and category.
+// Uses points-based columns that exist in the DB schema.
 func (r *Repository) GetLeaderboard(ctx context.Context, period string, category string, limit int) ([]LeaderboardEntry, error) {
 	var orderBy string
 	switch category {
-	case "rides":
+	case "earnings", "rides":
 		if period == "weekly" {
-			orderBy = "dg.weekly_rides"
+			orderBy = "dg.weekly_points"
 		} else if period == "monthly" {
-			orderBy = "dg.monthly_rides"
+			orderBy = "dg.monthly_points"
 		} else {
-			orderBy = "dg.total_rides"
+			orderBy = "dg.total_points"
 		}
-	case "earnings":
-		if period == "weekly" {
-			orderBy = "dg.weekly_earnings"
-		} else if period == "monthly" {
-			orderBy = "dg.monthly_earnings"
-		} else {
-			orderBy = "dg.total_earnings"
-		}
-	case "rating":
-		orderBy = "dg.average_rating"
 	default:
-		orderBy = "dg.total_rides"
+		orderBy = "dg.total_points"
 	}
 
 	query := `
 		SELECT dg.driver_id, u.first_name || ' ' || LEFT(u.last_name, 1) || '.' as driver_name,
-		       u.profile_photo_url, dt.name as tier_name,
+		       u.profile_image, dt.name as tier_name,
 		       CASE
-		           WHEN $2 = 'rides' AND $1 = 'weekly' THEN dg.weekly_rides::float8
-		           WHEN $2 = 'rides' AND $1 = 'monthly' THEN dg.monthly_rides::float8
-		           WHEN $2 = 'rides' THEN dg.total_rides::float8
-		           WHEN $2 = 'earnings' AND $1 = 'weekly' THEN dg.weekly_earnings
-		           WHEN $2 = 'earnings' AND $1 = 'monthly' THEN dg.monthly_earnings
-		           WHEN $2 = 'earnings' THEN dg.total_earnings
-		           WHEN $2 = 'rating' THEN dg.average_rating
-		           ELSE dg.total_rides::float8
+		           WHEN $1 = 'weekly'  THEN dg.weekly_points::float8
+		           WHEN $1 = 'monthly' THEN dg.monthly_points::float8
+		           ELSE dg.total_points::float8
 		       END as value
 		FROM driver_gamification dg
 		JOIN drivers d ON dg.driver_id = d.id
 		JOIN users u ON d.user_id = u.id
 		LEFT JOIN driver_tiers dt ON dg.current_tier_id = dt.id
 		ORDER BY ` + orderBy + ` DESC
-		LIMIT $3
+		LIMIT $2
 	`
 
-	rows, err := r.db.Query(ctx, query, period, category, limit)
+	rows, err := r.db.Query(ctx, query, period, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -695,41 +678,28 @@ func (r *Repository) GetLeaderboard(ctx context.Context, period string, category
 	return entries, nil
 }
 
-// GetDriverLeaderboardPosition gets a driver's position in the leaderboard
+// GetDriverLeaderboardPosition gets a driver's position in the leaderboard.
+// Uses points-based columns that exist in the DB schema.
 func (r *Repository) GetDriverLeaderboardPosition(ctx context.Context, driverID uuid.UUID, period string, category string) (*LeaderboardEntry, error) {
 	var orderBy string
-	switch category {
-	case "rides":
-		if period == "weekly" {
-			orderBy = "weekly_rides"
-		} else if period == "monthly" {
-			orderBy = "monthly_rides"
-		} else {
-			orderBy = "total_rides"
-		}
-	case "earnings":
-		if period == "weekly" {
-			orderBy = "weekly_earnings"
-		} else if period == "monthly" {
-			orderBy = "monthly_earnings"
-		} else {
-			orderBy = "total_earnings"
-		}
-	case "rating":
-		orderBy = "average_rating"
+	switch period {
+	case "weekly":
+		orderBy = "weekly_points"
+	case "monthly":
+		orderBy = "monthly_points"
 	default:
-		orderBy = "total_rides"
+		orderBy = "total_points"
 	}
 
 	query := `
 		WITH ranked AS (
 			SELECT driver_id,
 			       RANK() OVER (ORDER BY ` + orderBy + ` DESC) as rank,
-			       ` + orderBy + ` as value
+			       ` + orderBy + `::float8 as value
 			FROM driver_gamification
 		)
 		SELECT r.rank, r.value, u.first_name || ' ' || LEFT(u.last_name, 1) || '.' as driver_name,
-		       u.profile_photo_url, dt.name as tier_name
+		       u.profile_image, dt.name as tier_name
 		FROM ranked r
 		JOIN drivers d ON r.driver_id = d.id
 		JOIN users u ON d.user_id = u.id

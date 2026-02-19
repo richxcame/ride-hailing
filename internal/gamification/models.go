@@ -158,7 +158,7 @@ type LeaderboardEntry struct {
 	DriverID        uuid.UUID `json:"driver_id"`
 	DriverName      string    `json:"driver_name"`
 	ProfilePhotoURL *string   `json:"profile_photo_url,omitempty"`
-	TierName        string    `json:"tier_name"`
+	TierName        *string   `json:"tier_name,omitempty"`
 	Value           float64   `json:"value"` // Rides, earnings, or rating
 	IsCurrentDriver bool      `json:"is_current_driver,omitempty"`
 }
