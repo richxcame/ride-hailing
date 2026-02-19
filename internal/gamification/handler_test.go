@@ -207,6 +207,24 @@ func (m *MockRepository) GetDriverLeaderboardPosition(ctx context.Context, drive
 	return args.Get(0).(*LeaderboardEntry), args.Error(1)
 }
 
+func (m *MockRepository) GetDriverIDByUserID(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
+	args := m.Called(ctx, userID)
+	return args.Get(0).(uuid.UUID), args.Error(1)
+}
+
+func (m *MockRepository) GetUserIDByDriverID(ctx context.Context, driverID uuid.UUID) (uuid.UUID, error) {
+	args := m.Called(ctx, driverID)
+	return args.Get(0).(uuid.UUID), args.Error(1)
+}
+
+func (m *MockRepository) GetWeeklyStats(ctx context.Context, userID uuid.UUID) (*WeeklyStats, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*WeeklyStats), args.Error(1)
+}
+
 // ============================================================================
 // Helper Functions
 // ============================================================================
@@ -262,21 +280,18 @@ func createTestDriverTier() *DriverTier {
 
 func createTestDriverGamification(driverID uuid.UUID, tier *DriverTier) *DriverGamification {
 	return &DriverGamification{
-		DriverID:        driverID,
-		CurrentTierID:   &tier.ID,
-		CurrentTier:     tier,
-		TotalRides:      50,
-		TotalEarnings:   2500.00,
-		AverageRating:   4.8,
-		CurrentStreak:   5,
-		LongestStreak:   10,
-		WeeklyRides:     15,
-		WeeklyEarnings:  750.00,
-		MonthlyRides:    45,
-		MonthlyEarnings: 2250.00,
-		AcceptanceRate:  0.95,
-		CreatedAt:       time.Now().AddDate(0, -6, 0),
-		UpdatedAt:       time.Now(),
+		DriverID:             driverID,
+		CurrentTierID:        &tier.ID,
+		CurrentTier:          tier,
+		TotalPoints:          500,
+		WeeklyPoints:         150,
+		MonthlyPoints:        450,
+		CurrentStreak:        5,
+		LongestStreak:        10,
+		TotalQuestsCompleted: 3,
+		TotalBonusEarned:     250.00,
+		CreatedAt:            time.Now().AddDate(0, -6, 0),
+		UpdatedAt:            time.Now(),
 	}
 }
 
@@ -340,20 +355,24 @@ func TestHandler_GetStatus_Success(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 	tier := createTestDriverTier()
 	profile := createTestDriverGamification(driverID, tier)
 	quests := []*DriverQuest{createTestQuest()}
 	achievements := []*DriverAchievement{createTestDriverAchievement(driverID, createTestAchievement())}
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetDriverGamification", mock.Anything, driverID).Return(profile, nil)
 	mockRepo.On("GetAllTiers", mock.Anything).Return([]*DriverTier{tier}, nil)
 	mockRepo.On("GetActiveQuests", mock.Anything, mock.Anything, mock.Anything).Return(quests, nil)
 	mockRepo.On("GetQuestProgress", mock.Anything, driverID, mock.Anything).Return(nil, errors.New("not found"))
 	mockRepo.On("GetDriverAchievements", mock.Anything, driverID).Return(achievements, nil)
+	mockRepo.On("GetUserIDByDriverID", mock.Anything, driverID).Return(userID, nil)
+	mockRepo.On("GetWeeklyStats", mock.Anything, userID).Return(&WeeklyStats{Rides: 7, Earnings: 41.46}, nil)
 
 	c, w := setupTestContext("GET", "/api/v1/driver/gamification/status", nil)
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.GetStatus(c)
 
@@ -385,20 +404,25 @@ func TestHandler_GetStatus_NewProfile(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 	tier := createTestDriverTier()
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	// First call returns error (no profile), triggers creation
 	mockRepo.On("GetDriverGamification", mock.Anything, driverID).Return(nil, errors.New("not found")).Once()
+	// Second call from GetActiveQuestsWithProgress (returns nil profile, but that's ok)
+	mockRepo.On("GetDriverGamification", mock.Anything, driverID).Return(nil, errors.New("not found")).Maybe()
 	mockRepo.On("GetTierByName", mock.Anything, DriverTierNew).Return(tier, nil)
 	mockRepo.On("CreateDriverGamification", mock.Anything, mock.AnythingOfType("*gamification.DriverGamification")).Return(nil)
-	mockRepo.On("GetDriverGamification", mock.Anything, driverID).Return(createTestDriverGamification(driverID, tier), nil).Maybe()
 	mockRepo.On("GetAllTiers", mock.Anything).Return([]*DriverTier{tier}, nil)
 	mockRepo.On("GetActiveQuests", mock.Anything, mock.Anything, mock.Anything).Return([]*DriverQuest{}, nil)
 	mockRepo.On("GetDriverAchievements", mock.Anything, driverID).Return([]*DriverAchievement{}, nil)
+	mockRepo.On("GetUserIDByDriverID", mock.Anything, driverID).Return(userID, nil)
+	mockRepo.On("GetWeeklyStats", mock.Anything, userID).Return(&WeeklyStats{}, nil)
 
 	c, w := setupTestContext("GET", "/api/v1/driver/gamification/status", nil)
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.GetStatus(c)
 
@@ -411,13 +435,15 @@ func TestHandler_GetStatus_ServiceError(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetDriverGamification", mock.Anything, driverID).Return(nil, errors.New("not found"))
 	mockRepo.On("GetTierByName", mock.Anything, DriverTierNew).Return(nil, errors.New("database error"))
 
 	c, w := setupTestContext("GET", "/api/v1/driver/gamification/status", nil)
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.GetStatus(c)
 
@@ -434,17 +460,19 @@ func TestHandler_GetQuests_Success(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 	tier := createTestDriverTier()
 	profile := createTestDriverGamification(driverID, tier)
 	quests := []*DriverQuest{createTestQuest()}
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetDriverGamification", mock.Anything, driverID).Return(profile, nil)
 	mockRepo.On("GetActiveQuests", mock.Anything, mock.Anything, mock.Anything).Return(quests, nil)
 	mockRepo.On("GetQuestProgress", mock.Anything, driverID, mock.Anything).Return(nil, errors.New("not found"))
 
 	c, w := setupTestContext("GET", "/api/v1/driver/gamification/quests", nil)
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.GetQuests(c)
 
@@ -474,15 +502,17 @@ func TestHandler_GetQuests_EmptyList(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 	tier := createTestDriverTier()
 	profile := createTestDriverGamification(driverID, tier)
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetDriverGamification", mock.Anything, driverID).Return(profile, nil)
 	mockRepo.On("GetActiveQuests", mock.Anything, mock.Anything, mock.Anything).Return([]*DriverQuest{}, nil)
 
 	c, w := setupTestContext("GET", "/api/v1/driver/gamification/quests", nil)
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.GetQuests(c)
 
@@ -495,15 +525,17 @@ func TestHandler_GetQuests_ServiceError(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 	tier := createTestDriverTier()
 	profile := createTestDriverGamification(driverID, tier)
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetDriverGamification", mock.Anything, driverID).Return(profile, nil)
 	mockRepo.On("GetActiveQuests", mock.Anything, mock.Anything, mock.Anything).Return(nil, errors.New("database error"))
 
 	c, w := setupTestContext("GET", "/api/v1/driver/gamification/quests", nil)
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.GetQuests(c)
 
@@ -520,15 +552,17 @@ func TestHandler_JoinQuest_Success(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 	quest := createTestQuest()
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetQuestProgress", mock.Anything, driverID, quest.ID).Return(nil, errors.New("not found"))
 	mockRepo.On("CreateQuestProgress", mock.Anything, mock.AnythingOfType("*gamification.DriverQuestProgress")).Return(nil)
 
 	c, w := setupTestContext("POST", "/api/v1/driver/gamification/quests/"+quest.ID.String()+"/join", nil)
 	c.Params = gin.Params{{Key: "id", Value: quest.ID.String()}}
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.JoinQuest(c)
 
@@ -561,11 +595,14 @@ func TestHandler_JoinQuest_InvalidQuestID(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
+
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 
 	c, w := setupTestContext("POST", "/api/v1/driver/gamification/quests/invalid-uuid/join", nil)
 	c.Params = gin.Params{{Key: "id", Value: "invalid-uuid"}}
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.JoinQuest(c)
 
@@ -580,15 +617,17 @@ func TestHandler_JoinQuest_AlreadyJoined(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 	quest := createTestQuest()
 	progress := createTestQuestProgress(driverID, quest, QuestStatusActive)
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetQuestProgress", mock.Anything, driverID, quest.ID).Return(progress, nil)
 
 	c, w := setupTestContext("POST", "/api/v1/driver/gamification/quests/"+quest.ID.String()+"/join", nil)
 	c.Params = gin.Params{{Key: "id", Value: quest.ID.String()}}
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.JoinQuest(c)
 
@@ -602,15 +641,17 @@ func TestHandler_JoinQuest_ServiceError(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 	quest := createTestQuest()
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetQuestProgress", mock.Anything, driverID, quest.ID).Return(nil, errors.New("not found"))
 	mockRepo.On("CreateQuestProgress", mock.Anything, mock.AnythingOfType("*gamification.DriverQuestProgress")).Return(errors.New("database error"))
 
 	c, w := setupTestContext("POST", "/api/v1/driver/gamification/quests/"+quest.ID.String()+"/join", nil)
 	c.Params = gin.Params{{Key: "id", Value: quest.ID.String()}}
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.JoinQuest(c)
 
@@ -627,10 +668,12 @@ func TestHandler_ClaimQuestReward_Success(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 	quest := createTestQuest()
 	progress := createTestQuestProgress(driverID, quest, QuestStatusCompleted)
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetQuestProgress", mock.Anything, driverID, quest.ID).Return(progress, nil)
 	mockRepo.On("GetQuest", mock.Anything, quest.ID).Return(quest, nil)
 	mockRepo.On("ClaimQuestReward", mock.Anything, progress.ID, quest.RewardValue).Return(nil)
@@ -639,7 +682,7 @@ func TestHandler_ClaimQuestReward_Success(t *testing.T) {
 
 	c, w := setupTestContext("POST", "/api/v1/driver/gamification/quests/"+quest.ID.String()+"/claim", nil)
 	c.Params = gin.Params{{Key: "id", Value: quest.ID.String()}}
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.ClaimQuestReward(c)
 
@@ -672,11 +715,14 @@ func TestHandler_ClaimQuestReward_InvalidQuestID(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
+
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 
 	c, w := setupTestContext("POST", "/api/v1/driver/gamification/quests/invalid-uuid/claim", nil)
 	c.Params = gin.Params{{Key: "id", Value: "invalid-uuid"}}
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.ClaimQuestReward(c)
 
@@ -689,15 +735,17 @@ func TestHandler_ClaimQuestReward_QuestNotCompleted(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 	quest := createTestQuest()
 	progress := createTestQuestProgress(driverID, quest, QuestStatusActive) // Not completed
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetQuestProgress", mock.Anything, driverID, quest.ID).Return(progress, nil)
 
 	c, w := setupTestContext("POST", "/api/v1/driver/gamification/quests/"+quest.ID.String()+"/claim", nil)
 	c.Params = gin.Params{{Key: "id", Value: quest.ID.String()}}
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.ClaimQuestReward(c)
 
@@ -712,14 +760,16 @@ func TestHandler_ClaimQuestReward_QuestNotFound(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 	questID := uuid.New()
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetQuestProgress", mock.Anything, driverID, questID).Return(nil, errors.New("not found"))
 
 	c, w := setupTestContext("POST", "/api/v1/driver/gamification/quests/"+questID.String()+"/claim", nil)
 	c.Params = gin.Params{{Key: "id", Value: questID.String()}}
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.ClaimQuestReward(c)
 
@@ -736,15 +786,17 @@ func TestHandler_GetAchievements_Success(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 	achievements := []*DriverAchievement{
 		createTestDriverAchievement(driverID, createTestAchievement()),
 	}
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetDriverAchievements", mock.Anything, driverID).Return(achievements, nil)
 
 	c, w := setupTestContext("GET", "/api/v1/driver/gamification/achievements", nil)
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.GetAchievements(c)
 
@@ -774,12 +826,14 @@ func TestHandler_GetAchievements_EmptyList(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetDriverAchievements", mock.Anything, driverID).Return([]*DriverAchievement{}, nil)
 
 	c, w := setupTestContext("GET", "/api/v1/driver/gamification/achievements", nil)
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.GetAchievements(c)
 
@@ -792,12 +846,14 @@ func TestHandler_GetAchievements_ServiceError(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetDriverAchievements", mock.Anything, driverID).Return(nil, errors.New("database error"))
 
 	c, w := setupTestContext("GET", "/api/v1/driver/gamification/achievements", nil)
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.GetAchievements(c)
 
@@ -814,6 +870,7 @@ func TestHandler_GetLeaderboard_Success(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 	entries := []LeaderboardEntry{
 		{Rank: 1, DriverID: uuid.New(), DriverName: "Top Driver", Value: 100},
@@ -821,11 +878,12 @@ func TestHandler_GetLeaderboard_Success(t *testing.T) {
 	}
 	driverPosition := &LeaderboardEntry{Rank: 2, DriverID: driverID, Value: 50, IsCurrentDriver: true}
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetLeaderboard", mock.Anything, "weekly", "rides", 100).Return(entries, nil)
 	mockRepo.On("GetDriverLeaderboardPosition", mock.Anything, driverID, "weekly", "rides").Return(driverPosition, nil)
 
 	c, w := setupTestContext("GET", "/api/v1/driver/gamification/leaderboard", nil)
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.GetLeaderboard(c)
 
@@ -855,14 +913,16 @@ func TestHandler_GetLeaderboard_WithQueryParams(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetLeaderboard", mock.Anything, "monthly", "earnings", 100).Return([]LeaderboardEntry{}, nil)
 	mockRepo.On("GetDriverLeaderboardPosition", mock.Anything, driverID, "monthly", "earnings").Return(nil, errors.New("not found"))
 
 	c, w := setupTestContext("GET", "/api/v1/driver/gamification/leaderboard?period=monthly&category=earnings", nil)
 	c.Request.URL.RawQuery = "period=monthly&category=earnings"
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.GetLeaderboard(c)
 
@@ -875,12 +935,14 @@ func TestHandler_GetLeaderboard_ServiceError(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetLeaderboard", mock.Anything, "weekly", "rides", 100).Return(nil, errors.New("database error"))
 
 	c, w := setupTestContext("GET", "/api/v1/driver/gamification/leaderboard", nil)
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.GetLeaderboard(c)
 
@@ -960,6 +1022,7 @@ func TestHandler_GetDriverStats_Success(t *testing.T) {
 	handler := createTestHandler(mockRepo)
 
 	driverID := uuid.New()
+	userID := uuid.New()
 	tier := createTestDriverTier()
 	profile := createTestDriverGamification(driverID, tier)
 
@@ -967,6 +1030,8 @@ func TestHandler_GetDriverStats_Success(t *testing.T) {
 	mockRepo.On("GetAllTiers", mock.Anything).Return([]*DriverTier{tier}, nil)
 	mockRepo.On("GetActiveQuests", mock.Anything, mock.Anything, mock.Anything).Return([]*DriverQuest{}, nil)
 	mockRepo.On("GetDriverAchievements", mock.Anything, driverID).Return([]*DriverAchievement{}, nil)
+	mockRepo.On("GetUserIDByDriverID", mock.Anything, driverID).Return(userID, nil)
+	mockRepo.On("GetWeeklyStats", mock.Anything, userID).Return(&WeeklyStats{}, nil)
 
 	c, w := setupTestContext("GET", "/api/v1/admin/gamification/driver/"+driverID.String(), nil)
 	c.Params = gin.Params{{Key: "id", Value: driverID.String()}}
@@ -1003,6 +1068,7 @@ func TestHandler_GetDriverStats_NotFound(t *testing.T) {
 
 	driverID := uuid.New()
 
+	// GetOrCreateProfile fails → returns error before GetUserIDByDriverID is called
 	mockRepo.On("GetDriverGamification", mock.Anything, driverID).Return(nil, errors.New("not found"))
 	mockRepo.On("GetTierByName", mock.Anything, DriverTierNew).Return(nil, errors.New("tier not found"))
 
@@ -1095,40 +1161,40 @@ func TestHandler_ResetMonthlyStats_ServiceError(t *testing.T) {
 func TestHandler_GetStatus_TableDriven(t *testing.T) {
 	tests := []struct {
 		name           string
-		setupMock      func(*MockRepository, uuid.UUID)
+		setupMock      func(*MockRepository, uuid.UUID, uuid.UUID)
 		setUserID      bool
-		userID         uuid.UUID
 		expectedStatus int
 	}{
 		{
 			name: "success with existing profile",
-			setupMock: func(m *MockRepository, driverID uuid.UUID) {
+			setupMock: func(m *MockRepository, userID uuid.UUID, driverID uuid.UUID) {
 				tier := createTestDriverTier()
 				profile := createTestDriverGamification(driverID, tier)
+				m.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 				m.On("GetDriverGamification", mock.Anything, driverID).Return(profile, nil)
 				m.On("GetAllTiers", mock.Anything).Return([]*DriverTier{tier}, nil)
 				m.On("GetActiveQuests", mock.Anything, mock.Anything, mock.Anything).Return([]*DriverQuest{}, nil)
 				m.On("GetDriverAchievements", mock.Anything, driverID).Return([]*DriverAchievement{}, nil)
+				m.On("GetUserIDByDriverID", mock.Anything, driverID).Return(userID, nil)
+				m.On("GetWeeklyStats", mock.Anything, userID).Return(&WeeklyStats{}, nil)
 			},
 			setUserID:      true,
-			userID:         uuid.New(),
 			expectedStatus: http.StatusOK,
 		},
 		{
 			name:           "unauthorized - no user ID",
-			setupMock:      func(m *MockRepository, driverID uuid.UUID) {},
+			setupMock:      func(m *MockRepository, userID uuid.UUID, driverID uuid.UUID) {},
 			setUserID:      false,
-			userID:         uuid.Nil,
 			expectedStatus: http.StatusUnauthorized,
 		},
 		{
 			name: "service error - tier not found",
-			setupMock: func(m *MockRepository, driverID uuid.UUID) {
+			setupMock: func(m *MockRepository, userID uuid.UUID, driverID uuid.UUID) {
+				m.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 				m.On("GetDriverGamification", mock.Anything, driverID).Return(nil, errors.New("not found"))
 				m.On("GetTierByName", mock.Anything, DriverTierNew).Return(nil, errors.New("tier not found"))
 			},
 			setUserID:      true,
-			userID:         uuid.New(),
 			expectedStatus: http.StatusInternalServerError,
 		},
 	}
@@ -1140,15 +1206,14 @@ func TestHandler_GetStatus_TableDriven(t *testing.T) {
 			mockRepo := new(MockRepository)
 			handler := createTestHandler(mockRepo)
 
-			if tt.setUserID && tt.userID == uuid.Nil {
-				tt.userID = uuid.New()
-			}
+			userID := uuid.New()
+			driverID := uuid.New()
 
-			tt.setupMock(mockRepo, tt.userID)
+			tt.setupMock(mockRepo, userID, driverID)
 
 			c, w := setupTestContext("GET", "/api/v1/driver/gamification/status", nil)
 			if tt.setUserID {
-				setUserContext(c, tt.userID)
+				setUserContext(c, userID)
 			}
 
 			handler.GetStatus(c)
@@ -1162,17 +1227,18 @@ func TestHandler_ClaimQuestReward_TableDriven(t *testing.T) {
 	tests := []struct {
 		name           string
 		questID        string
-		setupMock      func(*MockRepository, uuid.UUID, uuid.UUID)
+		setupMock      func(*MockRepository, uuid.UUID, uuid.UUID, uuid.UUID)
 		setUserID      bool
 		expectedStatus int
 	}{
 		{
 			name:    "success",
 			questID: uuid.New().String(),
-			setupMock: func(m *MockRepository, driverID uuid.UUID, questID uuid.UUID) {
+			setupMock: func(m *MockRepository, userID uuid.UUID, driverID uuid.UUID, questID uuid.UUID) {
 				quest := createTestQuest()
 				quest.ID = questID
 				progress := createTestQuestProgress(driverID, quest, QuestStatusCompleted)
+				m.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 				m.On("GetQuestProgress", mock.Anything, driverID, questID).Return(progress, nil)
 				m.On("GetQuest", mock.Anything, questID).Return(quest, nil)
 				m.On("ClaimQuestReward", mock.Anything, progress.ID, quest.RewardValue).Return(nil)
@@ -1183,26 +1249,29 @@ func TestHandler_ClaimQuestReward_TableDriven(t *testing.T) {
 			expectedStatus: http.StatusOK,
 		},
 		{
-			name:           "invalid quest ID",
-			questID:        "invalid-uuid",
-			setupMock:      func(m *MockRepository, driverID uuid.UUID, questID uuid.UUID) {},
+			name:    "invalid quest ID",
+			questID: "invalid-uuid",
+			setupMock: func(m *MockRepository, userID uuid.UUID, driverID uuid.UUID, questID uuid.UUID) {
+				m.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
+			},
 			setUserID:      true,
 			expectedStatus: http.StatusBadRequest,
 		},
 		{
 			name:           "unauthorized",
 			questID:        uuid.New().String(),
-			setupMock:      func(m *MockRepository, driverID uuid.UUID, questID uuid.UUID) {},
+			setupMock:      func(m *MockRepository, userID uuid.UUID, driverID uuid.UUID, questID uuid.UUID) {},
 			setUserID:      false,
 			expectedStatus: http.StatusUnauthorized,
 		},
 		{
 			name:    "quest not completed",
 			questID: uuid.New().String(),
-			setupMock: func(m *MockRepository, driverID uuid.UUID, questID uuid.UUID) {
+			setupMock: func(m *MockRepository, userID uuid.UUID, driverID uuid.UUID, questID uuid.UUID) {
 				quest := createTestQuest()
 				quest.ID = questID
 				progress := createTestQuestProgress(driverID, quest, QuestStatusActive)
+				m.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 				m.On("GetQuestProgress", mock.Anything, driverID, questID).Return(progress, nil)
 			},
 			setUserID:      true,
@@ -1217,15 +1286,16 @@ func TestHandler_ClaimQuestReward_TableDriven(t *testing.T) {
 			mockRepo := new(MockRepository)
 			handler := createTestHandler(mockRepo)
 
+			userID := uuid.New()
 			driverID := uuid.New()
 			questID, _ := uuid.Parse(tt.questID)
 
-			tt.setupMock(mockRepo, driverID, questID)
+			tt.setupMock(mockRepo, userID, driverID, questID)
 
 			c, w := setupTestContext("POST", "/api/v1/driver/gamification/quests/"+tt.questID+"/claim", nil)
 			c.Params = gin.Params{{Key: "id", Value: tt.questID}}
 			if tt.setUserID {
-				setUserContext(c, driverID)
+				setUserContext(c, userID)
 			}
 
 			handler.ClaimQuestReward(c)
@@ -1245,17 +1315,21 @@ func TestHandler_GetStatus_ResponseFormat(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 	tier := createTestDriverTier()
 	profile := createTestDriverGamification(driverID, tier)
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetDriverGamification", mock.Anything, driverID).Return(profile, nil)
 	mockRepo.On("GetAllTiers", mock.Anything).Return([]*DriverTier{tier}, nil)
 	mockRepo.On("GetActiveQuests", mock.Anything, mock.Anything, mock.Anything).Return([]*DriverQuest{}, nil)
 	mockRepo.On("GetDriverAchievements", mock.Anything, driverID).Return([]*DriverAchievement{}, nil)
+	mockRepo.On("GetUserIDByDriverID", mock.Anything, driverID).Return(userID, nil)
+	mockRepo.On("GetWeeklyStats", mock.Anything, userID).Return(&WeeklyStats{}, nil)
 
 	c, w := setupTestContext("GET", "/api/v1/driver/gamification/status", nil)
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.GetStatus(c)
 
@@ -1273,13 +1347,15 @@ func TestHandler_ErrorResponse_Format(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetDriverGamification", mock.Anything, driverID).Return(nil, errors.New("not found"))
 	mockRepo.On("GetTierByName", mock.Anything, DriverTierNew).Return(nil, errors.New("database error"))
 
 	c, w := setupTestContext("GET", "/api/v1/driver/gamification/status", nil)
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.GetStatus(c)
 
@@ -1305,14 +1381,16 @@ func TestHandler_GetLeaderboard_DefaultParams(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
 
 	// Should use default "weekly" and "rides"
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetLeaderboard", mock.Anything, "weekly", "rides", 100).Return([]LeaderboardEntry{}, nil)
 	mockRepo.On("GetDriverLeaderboardPosition", mock.Anything, driverID, "weekly", "rides").Return(nil, errors.New("not found"))
 
 	c, w := setupTestContext("GET", "/api/v1/driver/gamification/leaderboard", nil)
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.GetLeaderboard(c)
 
@@ -1325,11 +1403,14 @@ func TestHandler_JoinQuest_EmptyQuestID(t *testing.T) {
 	mockRepo := new(MockRepository)
 	handler := createTestHandler(mockRepo)
 
+	userID := uuid.New()
 	driverID := uuid.New()
+
+	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 
 	c, w := setupTestContext("POST", "/api/v1/driver/gamification/quests//join", nil)
 	c.Params = gin.Params{{Key: "id", Value: ""}}
-	setUserContext(c, driverID)
+	setUserContext(c, userID)
 
 	handler.JoinQuest(c)
 

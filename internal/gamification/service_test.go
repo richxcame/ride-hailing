@@ -202,6 +202,24 @@ func (m *mockRepo) GetDriverLeaderboardPosition(ctx context.Context, driverID uu
 	return args.Get(0).(*LeaderboardEntry), args.Error(1)
 }
 
+func (m *mockRepo) GetDriverIDByUserID(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
+	args := m.Called(ctx, userID)
+	return args.Get(0).(uuid.UUID), args.Error(1)
+}
+
+func (m *mockRepo) GetUserIDByDriverID(ctx context.Context, driverID uuid.UUID) (uuid.UUID, error) {
+	args := m.Called(ctx, driverID)
+	return args.Get(0).(uuid.UUID), args.Error(1)
+}
+
+func (m *mockRepo) GetWeeklyStats(ctx context.Context, userID uuid.UUID) (*WeeklyStats, error) {
+	args := m.Called(ctx, userID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*WeeklyStats), args.Error(1)
+}
+
 // ========================================
 // TEST HELPERS
 // ========================================
@@ -230,8 +248,8 @@ func TestGetOrCreateProfile(t *testing.T) {
 				existingProfile := &DriverGamification{
 					DriverID:      driverID,
 					CurrentTierID: &tierID,
-					TotalRides:    50,
-					AverageRating: 4.8,
+					TotalPoints:   500,
+					WeeklyPoints:  50,
 					CurrentTier: &DriverTier{
 						ID:   tierID,
 						Name: DriverTierBronze,
@@ -242,8 +260,8 @@ func TestGetOrCreateProfile(t *testing.T) {
 			wantErr: false,
 			validate: func(t *testing.T, profile *DriverGamification) {
 				assert.Equal(t, driverID, profile.DriverID)
-				assert.Equal(t, 50, profile.TotalRides)
-				assert.Equal(t, 4.8, profile.AverageRating)
+				assert.Equal(t, 500, profile.TotalPoints)
+				assert.Equal(t, 50, profile.WeeklyPoints)
 				assert.NotNil(t, profile.CurrentTier)
 				assert.Equal(t, DriverTierBronze, profile.CurrentTier.Name)
 			},
@@ -314,13 +332,12 @@ func TestCheckTierUpgrade(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name: "qualifies for upgrade - rides and rating met",
+			name: "qualifies for upgrade - enough points for Silver",
 			setupMocks: func(m *mockRepo) {
 				profile := &DriverGamification{
 					DriverID:      driverID,
 					CurrentTierID: &bronzeTierID,
-					TotalRides:    60,
-					AverageRating: 4.5,
+					TotalPoints:   60,
 				}
 				m.On("GetDriverGamification", mock.Anything, driverID).Return(profile, nil)
 				m.On("GetAllTiers", mock.Anything).Return(allTiers, nil)
@@ -334,8 +351,7 @@ func TestCheckTierUpgrade(t *testing.T) {
 				profile := &DriverGamification{
 					DriverID:      driverID,
 					CurrentTierID: &silverTierID,
-					TotalRides:    60,
-					AverageRating: 4.5,
+					TotalPoints:   60,
 				}
 				m.On("GetDriverGamification", mock.Anything, driverID).Return(profile, nil)
 				m.On("GetAllTiers", mock.Anything).Return(allTiers, nil)
@@ -344,18 +360,16 @@ func TestCheckTierUpgrade(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "rating too low - no upgrade",
+			name: "points too low - no upgrade beyond bronze",
 			setupMocks: func(m *mockRepo) {
 				profile := &DriverGamification{
 					DriverID:      driverID,
 					CurrentTierID: &bronzeTierID,
-					TotalRides:    60,
-					AverageRating: 4.1, // meets Silver ride requirement but not rating for Silver (4.3)
+					TotalPoints:   15, // >= Bronze(10) but < Silver(50) — stays at Bronze
 				}
 				m.On("GetDriverGamification", mock.Anything, driverID).Return(profile, nil)
 				m.On("GetAllTiers", mock.Anything).Return(allTiers, nil)
-				// Only qualifies for Bronze (rides>=10, rating>=4.0), which is current tier
-				// UpdateDriverTier should NOT be called since already at bronze
+				// UpdateDriverTier should NOT be called since already at correct tier
 			},
 			wantErr: false,
 		},
@@ -391,11 +405,11 @@ func TestCheckAchievements(t *testing.T) {
 		wantErr    bool
 	}{
 		{
-			name: "milestone reached - 100 rides awards Century Rider",
+			name: "milestone reached - 100 points awards Century Rider",
 			setupMocks: func(m *mockRepo) {
 				profile := &DriverGamification{
-					DriverID:   driverID,
-					TotalRides: 100,
+					DriverID:    driverID,
+					TotalPoints: 100,
 				}
 				achievements := []*Achievement{
 					{
@@ -417,8 +431,8 @@ func TestCheckAchievements(t *testing.T) {
 			name: "already earned - skipped",
 			setupMocks: func(m *mockRepo) {
 				profile := &DriverGamification{
-					DriverID:   driverID,
-					TotalRides: 500,
+					DriverID:    driverID,
+					TotalPoints: 500,
 				}
 				achievements := []*Achievement{
 					{
