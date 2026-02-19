@@ -202,6 +202,40 @@ func (h *Handler) GetBackgroundCheck(c *gin.Context) {
 	common.SuccessResponse(c, check)
 }
 
+// ReviewBackgroundCheck manually sets a background check status to passed or failed (admin)
+// PATCH /api/v1/admin/verification/background/:id/review
+func (h *Handler) ReviewBackgroundCheck(c *gin.Context) {
+	checkID, err := uuid.Parse(c.Param("id"))
+	if err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid check ID")
+		return
+	}
+
+	reviewerID, err := middleware.GetUserID(c)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusUnauthorized, "unauthorized")
+		return
+	}
+
+	var req ReviewBackgroundCheckRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	check, err := h.service.ReviewBackgroundCheck(c.Request.Context(), checkID, reviewerID, req.Status, req.Notes)
+	if err != nil {
+		if appErr, ok := err.(*common.AppError); ok {
+			common.AppErrorResponse(c, appErr)
+			return
+		}
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to review background check")
+		return
+	}
+
+	common.SuccessResponse(c, check)
+}
+
 // GetDriverBackgroundCheck gets background check for a specific driver (admin)
 // GET /api/v1/admin/verification/driver/:id/background
 func (h *Handler) GetDriverBackgroundCheck(c *gin.Context) {
@@ -354,6 +388,7 @@ func (h *Handler) RegisterRoutes(r *gin.Engine, jwtProvider jwtkeys.KeyProvider)
 	{
 		admin.POST("/background", h.InitiateBackgroundCheck)
 		admin.GET("/background/:id", h.GetBackgroundCheck)
+		admin.PATCH("/background/:id/review", h.ReviewBackgroundCheck)
 		admin.GET("/driver/:id/background", h.GetDriverBackgroundCheck)
 		admin.GET("/driver/:id/status", h.GetDriverVerificationStatusAdmin)
 	}

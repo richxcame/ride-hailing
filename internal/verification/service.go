@@ -301,6 +301,44 @@ func (s *Service) GetDriverVerificationStatus(ctx context.Context, driverID uuid
 	return s.repo.GetDriverVerificationStatus(ctx, driverID)
 }
 
+// ReviewBackgroundCheck lets an admin manually set the outcome of a background check.
+// Allowed statuses: passed, failed. Also auto-approves/rejects the driver accordingly.
+func (s *Service) ReviewBackgroundCheck(ctx context.Context, checkID uuid.UUID, reviewerID uuid.UUID, status BackgroundCheckStatus, notes *string) (*BackgroundCheck, error) {
+	if status != BGCheckStatusPassed && status != BGCheckStatusFailed {
+		return nil, common.NewBadRequestError("status must be 'passed' or 'failed'", nil)
+	}
+
+	check, err := s.repo.GetBackgroundCheck(ctx, checkID)
+	if err != nil {
+		return nil, common.NewNotFoundError("background check not found", err)
+	}
+
+	var expiresAt *time.Time
+	if status == BGCheckStatusPassed {
+		exp := time.Now().AddDate(1, 0, 0)
+		expiresAt = &exp
+	}
+
+	if err := s.repo.UpdateBackgroundCheckCompleted(ctx, checkID, status, nil, expiresAt); err != nil {
+		return nil, common.NewInternalServerError("failed to update background check")
+	}
+
+	if notes != nil {
+		_ = s.repo.UpdateBackgroundCheckStatus(ctx, checkID, status, notes, nil)
+	}
+
+	approved := status == BGCheckStatusPassed
+	if err := s.repo.UpdateDriverApproval(ctx, check.DriverID, approved, &reviewerID, notes); err != nil {
+		logger.Error("failed to update driver approval after background check review", zap.Error(err))
+	}
+
+	updated, err := s.repo.GetBackgroundCheck(ctx, checkID)
+	if err != nil {
+		return nil, common.NewInternalServerError("failed to fetch updated background check")
+	}
+	return updated, nil
+}
+
 // ========================================
 // PROVIDER INTEGRATIONS
 // ========================================

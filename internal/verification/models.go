@@ -155,6 +155,12 @@ type SelfieVerificationResponse struct {
 	Message         string                   `json:"message,omitempty"`
 }
 
+// ReviewBackgroundCheckRequest represents an admin manual review of a background check
+type ReviewBackgroundCheckRequest struct {
+	Status BackgroundCheckStatus `json:"status" binding:"required"` // "passed" or "failed"
+	Notes  *string               `json:"notes,omitempty"`
+}
+
 // WebhookPayload represents a webhook from background check provider
 type WebhookPayload struct {
 	Provider   BackgroundCheckProvider `json:"provider"`
