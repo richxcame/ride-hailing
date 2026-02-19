@@ -296,20 +296,20 @@ func (r *Repository) GetAllTiers(ctx context.Context) ([]*DriverTier, error) {
 // GetActiveQuests gets active quests for a driver
 func (r *Repository) GetActiveQuests(ctx context.Context, tierID *uuid.UUID, city *string) ([]*DriverQuest, error) {
 	query := `
-		SELECT id, name, description, quest_type, target_value, reward_type, reward_value,
-		       start_date, end_date, tier_restriction, city_restriction, max_participants,
-		       current_count, is_active, is_featured, icon_url, created_at
+		SELECT id, name, description, quest_type, target_value, time_window_hours,
+		       reward_type, reward_value, start_time, end_time, min_tier_id,
+		       region_id, city_id, vehicle_type, max_participants, current_participants,
+		       is_guaranteed, is_active, created_at
 		FROM driver_quests
 		WHERE is_active = true
-		  AND start_date <= NOW()
-		  AND end_date >= NOW()
-		  AND (tier_restriction IS NULL OR tier_restriction = $1 OR $1 IS NULL)
-		  AND (city_restriction IS NULL OR city_restriction = $2 OR $2 IS NULL)
-		  AND (max_participants IS NULL OR current_count < max_participants)
-		ORDER BY is_featured DESC, end_date ASC
+		  AND start_time <= NOW()
+		  AND end_time >= NOW()
+		  AND (min_tier_id IS NULL OR min_tier_id = $1 OR $1 IS NULL)
+		  AND (max_participants IS NULL OR current_participants < max_participants)
+		ORDER BY end_time ASC
 	`
 
-	rows, err := r.db.Query(ctx, query, tierID, city)
+	rows, err := r.db.Query(ctx, query, tierID)
 	if err != nil {
 		return nil, err
 	}
@@ -319,9 +319,10 @@ func (r *Repository) GetActiveQuests(ctx context.Context, tierID *uuid.UUID, cit
 	for rows.Next() {
 		q := &DriverQuest{}
 		err := rows.Scan(
-			&q.ID, &q.Name, &q.Description, &q.QuestType, &q.TargetValue, &q.RewardType, &q.RewardValue,
-			&q.StartDate, &q.EndDate, &q.TierRestriction, &q.CityRestriction, &q.MaxParticipants,
-			&q.CurrentCount, &q.IsActive, &q.IsFeatured, &q.IconURL, &q.CreatedAt,
+			&q.ID, &q.Name, &q.Description, &q.QuestType, &q.TargetValue, &q.TimeWindowHours,
+			&q.RewardType, &q.RewardValue, &q.StartTime, &q.EndTime, &q.MinTierID,
+			&q.RegionID, &q.CityID, &q.VehicleType, &q.MaxParticipants, &q.CurrentCount,
+			&q.IsGuaranteed, &q.IsActive, &q.CreatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -335,18 +336,20 @@ func (r *Repository) GetActiveQuests(ctx context.Context, tierID *uuid.UUID, cit
 // GetQuest gets a quest by ID
 func (r *Repository) GetQuest(ctx context.Context, questID uuid.UUID) (*DriverQuest, error) {
 	query := `
-		SELECT id, name, description, quest_type, target_value, reward_type, reward_value,
-		       start_date, end_date, tier_restriction, city_restriction, max_participants,
-		       current_count, is_active, is_featured, icon_url, created_at
+		SELECT id, name, description, quest_type, target_value, time_window_hours,
+		       reward_type, reward_value, start_time, end_time, min_tier_id,
+		       region_id, city_id, vehicle_type, max_participants, current_participants,
+		       is_guaranteed, is_active, created_at
 		FROM driver_quests
 		WHERE id = $1
 	`
 
 	q := &DriverQuest{}
 	err := r.db.QueryRow(ctx, query, questID).Scan(
-		&q.ID, &q.Name, &q.Description, &q.QuestType, &q.TargetValue, &q.RewardType, &q.RewardValue,
-		&q.StartDate, &q.EndDate, &q.TierRestriction, &q.CityRestriction, &q.MaxParticipants,
-		&q.CurrentCount, &q.IsActive, &q.IsFeatured, &q.IconURL, &q.CreatedAt,
+		&q.ID, &q.Name, &q.Description, &q.QuestType, &q.TargetValue, &q.TimeWindowHours,
+		&q.RewardType, &q.RewardValue, &q.StartTime, &q.EndTime, &q.MinTierID,
+		&q.RegionID, &q.CityID, &q.VehicleType, &q.MaxParticipants, &q.CurrentCount,
+		&q.IsGuaranteed, &q.IsActive, &q.CreatedAt,
 	)
 
 	if err != nil {
@@ -359,12 +362,13 @@ func (r *Repository) GetQuest(ctx context.Context, questID uuid.UUID) (*DriverQu
 // GetQuestsByType gets quests by type
 func (r *Repository) GetQuestsByType(ctx context.Context, questType QuestType) ([]*DriverQuest, error) {
 	query := `
-		SELECT id, name, description, quest_type, target_value, reward_type, reward_value,
-		       start_date, end_date, tier_restriction, city_restriction, max_participants,
-		       current_count, is_active, is_featured, icon_url, created_at
+		SELECT id, name, description, quest_type, target_value, time_window_hours,
+		       reward_type, reward_value, start_time, end_time, min_tier_id,
+		       region_id, city_id, vehicle_type, max_participants, current_participants,
+		       is_guaranteed, is_active, created_at
 		FROM driver_quests
 		WHERE quest_type = $1 AND is_active = true
-		  AND start_date <= NOW() AND end_date >= NOW()
+		  AND start_time <= NOW() AND end_time >= NOW()
 	`
 
 	rows, err := r.db.Query(ctx, query, questType)
@@ -377,9 +381,10 @@ func (r *Repository) GetQuestsByType(ctx context.Context, questType QuestType) (
 	for rows.Next() {
 		q := &DriverQuest{}
 		err := rows.Scan(
-			&q.ID, &q.Name, &q.Description, &q.QuestType, &q.TargetValue, &q.RewardType, &q.RewardValue,
-			&q.StartDate, &q.EndDate, &q.TierRestriction, &q.CityRestriction, &q.MaxParticipants,
-			&q.CurrentCount, &q.IsActive, &q.IsFeatured, &q.IconURL, &q.CreatedAt,
+			&q.ID, &q.Name, &q.Description, &q.QuestType, &q.TargetValue, &q.TimeWindowHours,
+			&q.RewardType, &q.RewardValue, &q.StartTime, &q.EndTime, &q.MinTierID,
+			&q.RegionID, &q.CityID, &q.VehicleType, &q.MaxParticipants, &q.CurrentCount,
+			&q.IsGuaranteed, &q.IsActive, &q.CreatedAt,
 		)
 		if err != nil {
 			return nil, err
@@ -397,7 +402,8 @@ func (r *Repository) GetQuestsByType(ctx context.Context, questType QuestType) (
 // GetQuestProgress gets a driver's progress on a quest
 func (r *Repository) GetQuestProgress(ctx context.Context, driverID, questID uuid.UUID) (*DriverQuestProgress, error) {
 	query := `
-		SELECT id, driver_id, quest_id, current_value, status, completed_at, claimed_at, reward_amount, created_at, updated_at
+		SELECT id, driver_id, quest_id, current_value, target_value, progress_percent,
+		       completed, completed_at, reward_paid, reward_paid_at, reward_amount, started_at, updated_at
 		FROM driver_quest_progress
 		WHERE driver_id = $1 AND quest_id = $2
 	`
@@ -405,8 +411,9 @@ func (r *Repository) GetQuestProgress(ctx context.Context, driverID, questID uui
 	progress := &DriverQuestProgress{}
 	err := r.db.QueryRow(ctx, query, driverID, questID).Scan(
 		&progress.ID, &progress.DriverID, &progress.QuestID, &progress.CurrentValue,
-		&progress.Status, &progress.CompletedAt, &progress.ClaimedAt, &progress.RewardAmount,
-		&progress.CreatedAt, &progress.UpdatedAt,
+		&progress.TargetValue, &progress.ProgressPercent, &progress.Completed,
+		&progress.CompletedAt, &progress.RewardPaid, &progress.RewardPaidAt,
+		&progress.RewardAmount, &progress.StartedAt, &progress.UpdatedAt,
 	)
 
 	if err != nil {
@@ -419,14 +426,15 @@ func (r *Repository) GetQuestProgress(ctx context.Context, driverID, questID uui
 // GetDriverActiveQuests gets all active quest progress for a driver
 func (r *Repository) GetDriverActiveQuests(ctx context.Context, driverID uuid.UUID) ([]*DriverQuestProgress, error) {
 	query := `
-		SELECT dqp.id, dqp.driver_id, dqp.quest_id, dqp.current_value, dqp.status,
-		       dqp.completed_at, dqp.claimed_at, dqp.reward_amount, dqp.created_at, dqp.updated_at,
-		       dq.id, dq.name, dq.description, dq.quest_type, dq.target_value, dq.reward_type, dq.reward_value,
-		       dq.start_date, dq.end_date, dq.is_featured, dq.icon_url
+		SELECT dqp.id, dqp.driver_id, dqp.quest_id, dqp.current_value, dqp.target_value,
+		       dqp.progress_percent, dqp.completed, dqp.completed_at, dqp.reward_paid,
+		       dqp.reward_paid_at, dqp.reward_amount, dqp.started_at, dqp.updated_at,
+		       dq.id, dq.name, dq.description, dq.quest_type, dq.target_value,
+		       dq.reward_type, dq.reward_value, dq.start_time, dq.end_time
 		FROM driver_quest_progress dqp
 		JOIN driver_quests dq ON dqp.quest_id = dq.id
-		WHERE dqp.driver_id = $1 AND dqp.status IN ('active', 'completed')
-		ORDER BY dq.end_date ASC
+		WHERE dqp.driver_id = $1 AND dqp.completed = false
+		ORDER BY dq.end_time ASC
 	`
 
 	rows, err := r.db.Query(ctx, query, driverID)
@@ -442,11 +450,11 @@ func (r *Repository) GetDriverActiveQuests(ctx context.Context, driverID uuid.UU
 
 		err := rows.Scan(
 			&progress.ID, &progress.DriverID, &progress.QuestID, &progress.CurrentValue,
-			&progress.Status, &progress.CompletedAt, &progress.ClaimedAt, &progress.RewardAmount,
-			&progress.CreatedAt, &progress.UpdatedAt,
+			&progress.TargetValue, &progress.ProgressPercent, &progress.Completed,
+			&progress.CompletedAt, &progress.RewardPaid, &progress.RewardPaidAt,
+			&progress.RewardAmount, &progress.StartedAt, &progress.UpdatedAt,
 			&quest.ID, &quest.Name, &quest.Description, &quest.QuestType, &quest.TargetValue,
-			&quest.RewardType, &quest.RewardValue, &quest.StartDate, &quest.EndDate,
-			&quest.IsFeatured, &quest.IconURL,
+			&quest.RewardType, &quest.RewardValue, &quest.StartTime, &quest.EndTime,
 		)
 		if err != nil {
 			return nil, err
@@ -462,12 +470,13 @@ func (r *Repository) GetDriverActiveQuests(ctx context.Context, driverID uuid.UU
 // CreateQuestProgress creates a new quest progress record
 func (r *Repository) CreateQuestProgress(ctx context.Context, progress *DriverQuestProgress) error {
 	query := `
-		INSERT INTO driver_quest_progress (id, driver_id, quest_id, current_value, status)
+		INSERT INTO driver_quest_progress (id, driver_id, quest_id, current_value, target_value)
 		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (driver_id, quest_id) DO NOTHING
 	`
 
 	_, err := r.db.Exec(ctx, query,
-		progress.ID, progress.DriverID, progress.QuestID, progress.CurrentValue, progress.Status,
+		progress.ID, progress.DriverID, progress.QuestID, progress.CurrentValue, progress.TargetValue,
 	)
 
 	return err
@@ -475,28 +484,33 @@ func (r *Repository) CreateQuestProgress(ctx context.Context, progress *DriverQu
 
 // UpdateQuestProgress updates quest progress
 func (r *Repository) UpdateQuestProgress(ctx context.Context, progressID uuid.UUID, currentValue int, status QuestStatus) error {
+	completed := status == QuestStatusCompleted
 	var completedAt *time.Time
-	if status == QuestStatusCompleted {
+	if completed {
 		now := time.Now()
 		completedAt = &now
 	}
 
 	query := `
 		UPDATE driver_quest_progress
-		SET current_value = $1, status = $2, completed_at = COALESCE($3, completed_at), updated_at = NOW()
+		SET current_value = $1,
+		    progress_percent = LEAST(($1::numeric / NULLIF(target_value, 0)) * 100, 100),
+		    completed = $2,
+		    completed_at = COALESCE($3, completed_at),
+		    updated_at = NOW()
 		WHERE id = $4
 	`
 
-	_, err := r.db.Exec(ctx, query, currentValue, status, completedAt, progressID)
+	_, err := r.db.Exec(ctx, query, currentValue, completed, completedAt, progressID)
 	return err
 }
 
-// ClaimQuestReward marks a quest as claimed
+// ClaimQuestReward marks a quest reward as paid
 func (r *Repository) ClaimQuestReward(ctx context.Context, progressID uuid.UUID, rewardAmount float64) error {
 	query := `
 		UPDATE driver_quest_progress
-		SET status = 'claimed', claimed_at = NOW(), reward_amount = $1, updated_at = NOW()
-		WHERE id = $2 AND status = 'completed'
+		SET reward_paid = true, reward_paid_at = NOW(), reward_amount = $1, updated_at = NOW()
+		WHERE id = $2 AND completed = true
 	`
 
 	_, err := r.db.Exec(ctx, query, rewardAmount, progressID)

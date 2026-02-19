@@ -512,7 +512,7 @@ func TestUpdateQuestProgress(t *testing.T) {
 					DriverID:     driverID,
 					QuestID:      questID,
 					CurrentValue: 9,
-					Status:       QuestStatusActive,
+					TargetValue:  10,
 				}
 				m.On("GetQuestsByType", mock.Anything, QuestTypeRideCount).Return(quests, nil)
 				m.On("GetQuestProgress", mock.Anything, driverID, questID).Return(progress, nil)
@@ -559,7 +559,7 @@ func TestClaimQuestReward(t *testing.T) {
 					ID:       progressID,
 					DriverID: driverID,
 					QuestID:  questID,
-					Status:   QuestStatusCompleted,
+					Completed: true,
 				}
 				quest := &DriverQuest{
 					ID:          questID,
@@ -588,7 +588,7 @@ func TestClaimQuestReward(t *testing.T) {
 					ID:       progressID,
 					DriverID: driverID,
 					QuestID:  questID,
-					Status:   QuestStatusActive, // Not completed
+					Completed: false, // Not completed
 				}
 				m.On("GetQuestProgress", mock.Anything, driverID, questID).Return(progress, nil)
 			},

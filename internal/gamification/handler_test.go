@@ -303,24 +303,24 @@ func createTestQuest() *DriverQuest {
 		TargetValue: 10,
 		RewardType:  "bonus",
 		RewardValue: 50.00,
-		StartDate:   time.Now().AddDate(0, 0, -7),
-		EndDate:     time.Now().AddDate(0, 0, 7),
+		StartTime:   time.Now().AddDate(0, 0, -7),
+		EndTime:     time.Now().AddDate(0, 0, 7),
 		IsActive:    true,
-		IsFeatured:  true,
 		CreatedAt:   time.Now(),
 	}
 }
 
-func createTestQuestProgress(driverID uuid.UUID, quest *DriverQuest, status QuestStatus) *DriverQuestProgress {
+func createTestQuestProgress(driverID uuid.UUID, quest *DriverQuest, completed bool) *DriverQuestProgress {
 	return &DriverQuestProgress{
-		ID:           uuid.New(),
-		DriverID:     driverID,
-		QuestID:      quest.ID,
-		Quest:        quest,
+		ID:          uuid.New(),
+		DriverID:    driverID,
+		QuestID:     quest.ID,
+		Quest:       quest,
 		CurrentValue: 5,
-		Status:       status,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
+		TargetValue: quest.TargetValue,
+		Completed:   completed,
+		StartedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
 	}
 }
 
@@ -557,7 +557,7 @@ func TestHandler_JoinQuest_Success(t *testing.T) {
 	quest := createTestQuest()
 
 	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
-	mockRepo.On("GetQuestProgress", mock.Anything, driverID, quest.ID).Return(nil, errors.New("not found"))
+	mockRepo.On("GetQuest", mock.Anything, quest.ID).Return(quest, nil)
 	mockRepo.On("CreateQuestProgress", mock.Anything, mock.AnythingOfType("*gamification.DriverQuestProgress")).Return(nil)
 
 	c, w := setupTestContext("POST", "/api/v1/driver/gamification/quests/"+quest.ID.String()+"/join", nil)
@@ -620,10 +620,11 @@ func TestHandler_JoinQuest_AlreadyJoined(t *testing.T) {
 	userID := uuid.New()
 	driverID := uuid.New()
 	quest := createTestQuest()
-	progress := createTestQuestProgress(driverID, quest, QuestStatusActive)
 
 	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
-	mockRepo.On("GetQuestProgress", mock.Anything, driverID, quest.ID).Return(progress, nil)
+	mockRepo.On("GetQuest", mock.Anything, quest.ID).Return(quest, nil)
+	// ON CONFLICT DO NOTHING — CreateQuestProgress succeeds even if already exists
+	mockRepo.On("CreateQuestProgress", mock.Anything, mock.AnythingOfType("*gamification.DriverQuestProgress")).Return(nil)
 
 	c, w := setupTestContext("POST", "/api/v1/driver/gamification/quests/"+quest.ID.String()+"/join", nil)
 	c.Params = gin.Params{{Key: "id", Value: quest.ID.String()}}
@@ -631,7 +632,7 @@ func TestHandler_JoinQuest_AlreadyJoined(t *testing.T) {
 
 	handler.JoinQuest(c)
 
-	// Should succeed even if already joined
+	// Should succeed even if already joined (ON CONFLICT DO NOTHING)
 	assert.Equal(t, http.StatusOK, w.Code)
 }
 
@@ -646,7 +647,7 @@ func TestHandler_JoinQuest_ServiceError(t *testing.T) {
 	quest := createTestQuest()
 
 	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
-	mockRepo.On("GetQuestProgress", mock.Anything, driverID, quest.ID).Return(nil, errors.New("not found"))
+	mockRepo.On("GetQuest", mock.Anything, quest.ID).Return(quest, nil)
 	mockRepo.On("CreateQuestProgress", mock.Anything, mock.AnythingOfType("*gamification.DriverQuestProgress")).Return(errors.New("database error"))
 
 	c, w := setupTestContext("POST", "/api/v1/driver/gamification/quests/"+quest.ID.String()+"/join", nil)
@@ -671,7 +672,7 @@ func TestHandler_ClaimQuestReward_Success(t *testing.T) {
 	userID := uuid.New()
 	driverID := uuid.New()
 	quest := createTestQuest()
-	progress := createTestQuestProgress(driverID, quest, QuestStatusCompleted)
+	progress := createTestQuestProgress(driverID, quest, true)
 
 	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetQuestProgress", mock.Anything, driverID, quest.ID).Return(progress, nil)
@@ -738,7 +739,7 @@ func TestHandler_ClaimQuestReward_QuestNotCompleted(t *testing.T) {
 	userID := uuid.New()
 	driverID := uuid.New()
 	quest := createTestQuest()
-	progress := createTestQuestProgress(driverID, quest, QuestStatusActive) // Not completed
+	progress := createTestQuestProgress(driverID, quest, false) // Not completed
 
 	mockRepo.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 	mockRepo.On("GetQuestProgress", mock.Anything, driverID, quest.ID).Return(progress, nil)
@@ -1237,7 +1238,7 @@ func TestHandler_ClaimQuestReward_TableDriven(t *testing.T) {
 			setupMock: func(m *MockRepository, userID uuid.UUID, driverID uuid.UUID, questID uuid.UUID) {
 				quest := createTestQuest()
 				quest.ID = questID
-				progress := createTestQuestProgress(driverID, quest, QuestStatusCompleted)
+				progress := createTestQuestProgress(driverID, quest, true)
 				m.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 				m.On("GetQuestProgress", mock.Anything, driverID, questID).Return(progress, nil)
 				m.On("GetQuest", mock.Anything, questID).Return(quest, nil)
@@ -1270,7 +1271,7 @@ func TestHandler_ClaimQuestReward_TableDriven(t *testing.T) {
 			setupMock: func(m *MockRepository, userID uuid.UUID, driverID uuid.UUID, questID uuid.UUID) {
 				quest := createTestQuest()
 				quest.ID = questID
-				progress := createTestQuestProgress(driverID, quest, QuestStatusActive)
+				progress := createTestQuestProgress(driverID, quest, false)
 				m.On("GetDriverIDByUserID", mock.Anything, userID).Return(driverID, nil)
 				m.On("GetQuestProgress", mock.Anything, driverID, questID).Return(progress, nil)
 			},

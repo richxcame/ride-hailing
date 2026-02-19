@@ -93,38 +93,43 @@ type DriverGamification struct {
 
 // DriverQuest represents a quest/challenge for drivers
 type DriverQuest struct {
-	ID              uuid.UUID      `json:"id" db:"id"`
-	Name            string         `json:"name" db:"name"`
-	Description     *string        `json:"description,omitempty" db:"description"`
-	QuestType       QuestType      `json:"quest_type" db:"quest_type"`
-	TargetValue     int            `json:"target_value" db:"target_value"`
-	RewardType      string         `json:"reward_type" db:"reward_type"` // bonus, multiplier, badge
-	RewardValue     float64        `json:"reward_value" db:"reward_value"`
-	StartDate       time.Time      `json:"start_date" db:"start_date"`
-	EndDate         time.Time      `json:"end_date" db:"end_date"`
-	TierRestriction *uuid.UUID     `json:"tier_restriction,omitempty" db:"tier_restriction"`
-	CityRestriction *string        `json:"city_restriction,omitempty" db:"city_restriction"`
-	MaxParticipants *int           `json:"max_participants,omitempty" db:"max_participants"`
-	CurrentCount    int            `json:"current_count" db:"current_count"`
-	IsActive        bool           `json:"is_active" db:"is_active"`
-	IsFeatured      bool           `json:"is_featured" db:"is_featured"`
-	IconURL         *string        `json:"icon_url,omitempty" db:"icon_url"`
-	CreatedAt       time.Time      `json:"created_at" db:"created_at"`
+	ID              uuid.UUID  `json:"id" db:"id"`
+	Name            string     `json:"name" db:"name"`
+	Description     *string    `json:"description,omitempty" db:"description"`
+	QuestType       QuestType  `json:"quest_type" db:"quest_type"`
+	TargetValue     int        `json:"target_value" db:"target_value"`
+	TimeWindowHours *int       `json:"time_window_hours,omitempty" db:"time_window_hours"`
+	RewardType      string     `json:"reward_type" db:"reward_type"` // bonus, multiplier, badge
+	RewardValue     float64    `json:"reward_value" db:"reward_value"`
+	StartTime       time.Time  `json:"start_time" db:"start_time"`
+	EndTime         time.Time  `json:"end_time" db:"end_time"`
+	MinTierID       *uuid.UUID `json:"min_tier_id,omitempty" db:"min_tier_id"`
+	RegionID        *uuid.UUID `json:"region_id,omitempty" db:"region_id"`
+	CityID          *uuid.UUID `json:"city_id,omitempty" db:"city_id"`
+	VehicleType     *string    `json:"vehicle_type,omitempty" db:"vehicle_type"`
+	MaxParticipants *int       `json:"max_participants,omitempty" db:"max_participants"`
+	CurrentCount    int        `json:"current_participants" db:"current_participants"`
+	IsGuaranteed    bool       `json:"is_guaranteed" db:"is_guaranteed"`
+	IsActive        bool       `json:"is_active" db:"is_active"`
+	CreatedAt       time.Time  `json:"created_at" db:"created_at"`
 }
 
 // DriverQuestProgress represents a driver's progress on a quest
 type DriverQuestProgress struct {
-	ID            uuid.UUID    `json:"id" db:"id"`
-	DriverID      uuid.UUID    `json:"driver_id" db:"driver_id"`
-	QuestID       uuid.UUID    `json:"quest_id" db:"quest_id"`
-	Quest         *DriverQuest `json:"quest,omitempty"`
-	CurrentValue  int          `json:"current_value" db:"current_value"`
-	Status        QuestStatus  `json:"status" db:"status"`
-	CompletedAt   *time.Time   `json:"completed_at,omitempty" db:"completed_at"`
-	ClaimedAt     *time.Time   `json:"claimed_at,omitempty" db:"claimed_at"`
-	RewardAmount  *float64     `json:"reward_amount,omitempty" db:"reward_amount"`
-	CreatedAt     time.Time    `json:"created_at" db:"created_at"`
-	UpdatedAt     time.Time    `json:"updated_at" db:"updated_at"`
+	ID              uuid.UUID    `json:"id" db:"id"`
+	DriverID        uuid.UUID    `json:"driver_id" db:"driver_id"`
+	QuestID         uuid.UUID    `json:"quest_id" db:"quest_id"`
+	Quest           *DriverQuest `json:"quest,omitempty"`
+	CurrentValue    float64      `json:"current_value" db:"current_value"`
+	TargetValue     int          `json:"target_value" db:"target_value"`
+	ProgressPercent float64      `json:"progress_percent" db:"progress_percent"`
+	Completed       bool         `json:"completed" db:"completed"`
+	CompletedAt     *time.Time   `json:"completed_at,omitempty" db:"completed_at"`
+	RewardPaid      bool         `json:"reward_paid" db:"reward_paid"`
+	RewardPaidAt    *time.Time   `json:"reward_paid_at,omitempty" db:"reward_paid_at"`
+	RewardAmount    *float64     `json:"reward_amount,omitempty" db:"reward_amount"`
+	StartedAt       time.Time    `json:"started_at" db:"started_at"`
+	UpdatedAt       time.Time    `json:"updated_at" db:"updated_at"`
 }
 
 // Achievement represents a driver achievement/badge
@@ -182,9 +187,10 @@ type GamificationStatusResponse struct {
 // QuestWithProgress combines quest with driver's progress
 type QuestWithProgress struct {
 	Quest           DriverQuest `json:"quest"`
-	CurrentValue    int         `json:"current_value"`
+	CurrentValue    float64     `json:"current_value"`
 	ProgressPercent float64     `json:"progress_percent"`
-	Status          QuestStatus `json:"status"`
+	Completed       bool        `json:"completed"`
+	RewardPaid      bool        `json:"reward_paid"`
 	DaysRemaining   int         `json:"days_remaining"`
 }
 

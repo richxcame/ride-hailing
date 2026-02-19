@@ -148,18 +148,14 @@ func (s *Service) GetActiveQuestsWithProgress(ctx context.Context, driverID uuid
 
 		qwp := QuestWithProgress{
 			Quest:         *quest,
-			CurrentValue:  0,
-			Status:        QuestStatusActive,
-			DaysRemaining: int(time.Until(quest.EndDate).Hours() / 24),
+			DaysRemaining: int(time.Until(quest.EndTime).Hours() / 24),
 		}
 
 		if progress != nil {
 			qwp.CurrentValue = progress.CurrentValue
-			qwp.Status = progress.Status
-			qwp.ProgressPercent = float64(progress.CurrentValue) / float64(quest.TargetValue) * 100
-			if qwp.ProgressPercent > 100 {
-				qwp.ProgressPercent = 100
-			}
+			qwp.ProgressPercent = progress.ProgressPercent
+			qwp.Completed = progress.Completed
+			qwp.RewardPaid = progress.RewardPaid
 		}
 
 		result = append(result, qwp)
@@ -170,18 +166,17 @@ func (s *Service) GetActiveQuestsWithProgress(ctx context.Context, driverID uuid
 
 // JoinQuest enrolls a driver in a quest
 func (s *Service) JoinQuest(ctx context.Context, driverID, questID uuid.UUID) error {
-	// Check if already joined
-	existing, _ := s.repo.GetQuestProgress(ctx, driverID, questID)
-	if existing != nil {
-		return nil // Already joined
+	quest, err := s.repo.GetQuest(ctx, questID)
+	if err != nil {
+		return common.NewNotFoundError("quest not found", err)
 	}
 
-	// Create progress record
+	// Create progress record (ON CONFLICT DO NOTHING handles duplicates)
 	progress := &DriverQuestProgress{
-		ID:       uuid.New(),
-		DriverID: driverID,
-		QuestID:  questID,
-		Status:   QuestStatusActive,
+		ID:          uuid.New(),
+		DriverID:    driverID,
+		QuestID:     questID,
+		TargetValue: quest.TargetValue,
 	}
 
 	return s.repo.CreateQuestProgress(ctx, progress)
@@ -200,24 +195,23 @@ func (s *Service) UpdateQuestProgress(ctx context.Context, driverID uuid.UUID, q
 		if progress == nil {
 			// Auto-join the quest
 			progress = &DriverQuestProgress{
-				ID:       uuid.New(),
-				DriverID: driverID,
-				QuestID:  quest.ID,
-				Status:   QuestStatusActive,
+				ID:          uuid.New(),
+				DriverID:    driverID,
+				QuestID:     quest.ID,
+				TargetValue: quest.TargetValue,
 			}
 			if err := s.repo.CreateQuestProgress(ctx, progress); err != nil {
 				continue
 			}
 		}
 
-		if progress.Status != QuestStatusActive {
-			continue // Already completed or claimed
+		if progress.Completed {
+			continue // Already completed
 		}
 
 		// Update progress
-		newValue := progress.CurrentValue + increment
-		status := progress.Status
-
+		newValue := int(progress.CurrentValue) + increment
+		status := QuestStatusActive
 		if newValue >= quest.TargetValue {
 			status = QuestStatusCompleted
 		}
@@ -245,8 +239,12 @@ func (s *Service) ClaimQuestReward(ctx context.Context, req *ClaimQuestRewardReq
 		return nil, common.NewNotFoundError("quest progress not found", err)
 	}
 
-	if progress.Status != QuestStatusCompleted {
+	if !progress.Completed {
 		return nil, common.NewBadRequestError("quest not completed yet", nil)
+	}
+
+	if progress.RewardPaid {
+		return nil, common.NewBadRequestError("reward already claimed", nil)
 	}
 
 	quest, err := s.repo.GetQuest(ctx, req.QuestID)
