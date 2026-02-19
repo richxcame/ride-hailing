@@ -413,3 +413,16 @@ func (h *Handler) RegisterRoutesOnGroup(rg *gin.RouterGroup) {
 		verification.GET("/background", h.GetBackgroundStatus)
 	}
 }
+
+// RegisterAdminRoutes registers admin verification routes on an already-authenticated admin group.
+// The group is expected to already have auth + admin-role middleware applied.
+func (h *Handler) RegisterAdminRoutes(api *gin.RouterGroup) {
+	bg := api.Group("/verification")
+	{
+		bg.POST("/background", h.InitiateBackgroundCheck)
+		bg.GET("/background/:id", h.GetBackgroundCheck)
+		bg.PATCH("/background/:id/review", h.ReviewBackgroundCheck)
+		bg.GET("/driver/:id/background", h.GetDriverBackgroundCheck)
+		bg.GET("/driver/:id/status", h.GetDriverVerificationStatusAdmin)
+	}
+}

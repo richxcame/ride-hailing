@@ -28,6 +28,7 @@ import (
 	"github.com/richxcame/ride-hailing/internal/ridetypes"
 	"github.com/richxcame/ride-hailing/internal/support"
 	"github.com/richxcame/ride-hailing/internal/vehicle"
+	"github.com/richxcame/ride-hailing/internal/verification"
 	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/errors"
@@ -226,6 +227,11 @@ func main() {
 	vehicleSvc := vehicle.NewService(vehicleRepo)
 	vehicleHandler := vehicle.NewHandler(vehicleSvc)
 
+	// Initialize verification (background checks, selfie verification)
+	verificationRepo := verification.NewRepository(db)
+	verificationSvc := verification.NewService(verificationRepo, cfg)
+	verificationHandler := verification.NewHandler(verificationSvc)
+
 	// Set up Gin router
 	router := gin.New()
 	router.HandleMethodNotAllowed = true
@@ -364,6 +370,9 @@ func main() {
 
 		// Vehicle management
 		vehicleHandler.RegisterAdminRoutes(api)
+
+		// Verification (background checks)
+		verificationHandler.RegisterAdminRoutes(api)
 	}
 
 	// Create HTTP server with timeouts
