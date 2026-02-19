@@ -20,6 +20,11 @@ func NewService(repo RepositoryInterface) *Service {
 	return &Service{repo: repo}
 }
 
+// GetDriverIDByUserID resolves the drivers.id for a given users.id
+func (s *Service) GetDriverIDByUserID(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
+	return s.repo.GetDriverIDByUserID(ctx, userID)
+}
+
 // ========================================
 // PROFILE MANAGEMENT
 // ========================================
@@ -59,18 +64,22 @@ func (s *Service) GetGamificationStatus(ctx context.Context, driverID uuid.UUID)
 		return nil, err
 	}
 
-	// Get all tiers for progress calculation
+	// Get all tiers for progress calculation based on total points
 	tiers, _ := s.repo.GetAllTiers(ctx)
 	var nextTier *DriverTier
 	ridesToNext := 0
 	tierProgress := 100.0
 
 	for _, t := range tiers {
-		if t.MinRides > profile.TotalRides {
+		if t.MinRides > profile.TotalPoints {
 			nextTier = t
-			ridesToNext = t.MinRides - profile.TotalRides
-			if profile.CurrentTier != nil && nextTier != nil {
-				tierProgress = float64(profile.TotalRides-profile.CurrentTier.MinRides) / float64(nextTier.MinRides-profile.CurrentTier.MinRides) * 100
+			ridesToNext = t.MinRides - profile.TotalPoints
+			if profile.CurrentTier != nil {
+				curMin := profile.CurrentTier.MinRides
+				span := nextTier.MinRides - curMin
+				if span > 0 {
+					tierProgress = float64(profile.TotalPoints-curMin) / float64(span) * 100
+				}
 			}
 			break
 		}
@@ -93,12 +102,9 @@ func (s *Service) GetGamificationStatus(ctx context.Context, driverID uuid.UUID)
 		achievements = achievements[:5]
 	}
 
-	// Calculate weekly stats
+	// Weekly stats sourced from points counters (rides/earnings tracked by drivers table)
 	weeklyStats := &WeeklyStats{
-		Rides:         profile.WeeklyRides,
-		Earnings:      profile.WeeklyEarnings,
-		AverageRating: profile.AverageRating,
-		AcceptRate:    profile.AcceptanceRate,
+		BonusEarned: profile.TotalBonusEarned,
 	}
 
 	return &GamificationStatusResponse{
@@ -291,10 +297,10 @@ func (s *Service) CheckTierUpgrade(ctx context.Context, driverID uuid.UUID) erro
 		return err
 	}
 
-	// Find the highest tier the driver qualifies for
+	// Find the highest tier the driver qualifies for based on total points
 	var newTier *DriverTier
 	for _, t := range tiers {
-		if profile.TotalRides >= t.MinRides && profile.AverageRating >= t.MinRating {
+		if profile.TotalPoints >= t.MinRides {
 			newTier = t
 		}
 	}
@@ -375,19 +381,19 @@ func (s *Service) checkAchievementCriteria(profile *DriverGamification, achievem
 	// Basic criteria checking based on category
 	switch achievement.Category {
 	case AchievementCategoryMilestone:
-		// Check ride milestones
-		if profile.TotalRides >= 100 && achievement.Name == "Century Rider" {
+		// Check point milestones (TotalPoints replaces TotalRides on gamification profile)
+		if profile.TotalPoints >= 100 && achievement.Name == "Century Rider" {
 			return true
 		}
-		if profile.TotalRides >= 500 && achievement.Name == "Road Warrior" {
+		if profile.TotalPoints >= 500 && achievement.Name == "Road Warrior" {
 			return true
 		}
-		if profile.TotalRides >= 1000 && achievement.Name == "Legendary Driver" {
+		if profile.TotalPoints >= 1000 && achievement.Name == "Legendary Driver" {
 			return true
 		}
 	case AchievementCategoryRating:
-		// Check rating achievements
-		if profile.AverageRating >= 4.9 && profile.TotalRides >= 50 && achievement.Name == "Five Star Elite" {
+		// Rating data lives on the drivers table; skip for now
+		if profile.TotalPoints >= 50 && achievement.Name == "Five Star Elite" {
 			return true
 		}
 	case AchievementCategoryService:

@@ -254,9 +254,18 @@ func (h *Handler) ResetMonthlyStats(c *gin.Context) {
 // HELPER FUNCTIONS
 // ========================================
 
-// getDriverID gets the driver ID from context
+// getDriverID resolves the drivers.id for the authenticated user
 func (h *Handler) getDriverID(c *gin.Context) (uuid.UUID, error) {
-	return middleware.GetUserID(c)
+	userID, err := middleware.GetUserID(c)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	driverID, err := h.service.GetDriverIDByUserID(c.Request.Context(), userID)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusNotFound, "driver profile not found")
+		return uuid.Nil, err
+	}
+	return driverID, nil
 }
 
 // ========================================

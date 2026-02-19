@@ -61,7 +61,7 @@ type DriverTier struct {
 	MinRides         int            `json:"min_rides" db:"min_rides"`
 	MinRating        float64        `json:"min_rating" db:"min_rating"`
 	CommissionRate   float64        `json:"commission_rate" db:"commission_rate"`
-	BonusMultiplier  float64        `json:"bonus_multiplier" db:"bonus_multiplier"`
+	BonusMultiplier  float64        `json:"bonus_multiplier" db:"surge_multiplier_bonus"`
 	PriorityDispatch bool           `json:"priority_dispatch" db:"priority_dispatch"`
 	IconURL          *string        `json:"icon_url,omitempty" db:"icon_url"`
 	ColorHex         *string        `json:"color_hex,omitempty" db:"color_hex"`
@@ -72,27 +72,23 @@ type DriverTier struct {
 
 // DriverGamification represents a driver's gamification profile
 type DriverGamification struct {
-	DriverID               uuid.UUID    `json:"driver_id" db:"driver_id"`
-	CurrentTierID          *uuid.UUID   `json:"current_tier_id,omitempty" db:"current_tier_id"`
-	CurrentTier            *DriverTier  `json:"current_tier,omitempty"`
-	TotalRides             int          `json:"total_rides" db:"total_rides"`
-	TotalEarnings          float64      `json:"total_earnings" db:"total_earnings"`
-	AverageRating          float64      `json:"average_rating" db:"average_rating"`
-	CurrentStreak          int          `json:"current_streak" db:"current_streak"`
-	LongestStreak          int          `json:"longest_streak" db:"longest_streak"`
-	TotalBonusEarned       float64      `json:"total_bonus_earned" db:"total_bonus_earned"`
-	AchievementPoints      int          `json:"achievement_points" db:"achievement_points"`
-	QuestsCompleted        int          `json:"quests_completed" db:"quests_completed"`
-	LastActiveDate         *time.Time   `json:"last_active_date,omitempty" db:"last_active_date"`
-	WeeklyRides            int          `json:"weekly_rides" db:"weekly_rides"`
-	WeeklyEarnings         float64      `json:"weekly_earnings" db:"weekly_earnings"`
-	MonthlyRides           int          `json:"monthly_rides" db:"monthly_rides"`
-	MonthlyEarnings        float64      `json:"monthly_earnings" db:"monthly_earnings"`
-	AcceptanceRate         float64      `json:"acceptance_rate" db:"acceptance_rate"`
-	CancellationRate       float64      `json:"cancellation_rate" db:"cancellation_rate"`
-	TierUpgradedAt         *time.Time   `json:"tier_upgraded_at,omitempty" db:"tier_upgraded_at"`
-	CreatedAt              time.Time    `json:"created_at" db:"created_at"`
-	UpdatedAt              time.Time    `json:"updated_at" db:"updated_at"`
+	DriverID             uuid.UUID   `json:"driver_id" db:"driver_id"`
+	CurrentTierID        *uuid.UUID  `json:"current_tier_id,omitempty" db:"current_tier_id"`
+	CurrentTier          *DriverTier `json:"current_tier,omitempty"`
+	TotalPoints          int         `json:"total_points" db:"total_points"`
+	WeeklyPoints         int         `json:"weekly_points" db:"weekly_points"`
+	MonthlyPoints        int         `json:"monthly_points" db:"monthly_points"`
+	CurrentStreak        int         `json:"current_streak" db:"current_streak"`
+	LongestStreak        int         `json:"longest_streak" db:"longest_streak"`
+	AcceptanceStreak     int         `json:"acceptance_streak" db:"acceptance_streak"`
+	FiveStarStreak       int         `json:"five_star_streak" db:"five_star_streak"`
+	TotalQuestsCompleted int         `json:"total_quests_completed" db:"total_quests_completed"`
+	TotalChallengesWon   int         `json:"total_challenges_won" db:"total_challenges_won"`
+	TotalBonusEarned     float64     `json:"total_bonuses_earned" db:"total_bonuses_earned"`
+	LastActiveDate       *time.Time  `json:"last_active_date,omitempty" db:"last_active_date"`
+	TierEvaluatedAt      *time.Time  `json:"tier_evaluated_at,omitempty" db:"tier_evaluated_at"`
+	CreatedAt            time.Time   `json:"created_at" db:"created_at"`
+	UpdatedAt            time.Time   `json:"updated_at" db:"updated_at"`
 }
 
 // DriverQuest represents a quest/challenge for drivers

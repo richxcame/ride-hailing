@@ -22,16 +22,22 @@ func NewRepository(db *pgxpool.Pool) *Repository {
 // DRIVER GAMIFICATION PROFILE
 // ========================================
 
+// GetDriverIDByUserID looks up the drivers.id for a given users.id
+func (r *Repository) GetDriverIDByUserID(ctx context.Context, userID uuid.UUID) (uuid.UUID, error) {
+	var driverID uuid.UUID
+	err := r.db.QueryRow(ctx, `SELECT id FROM drivers WHERE user_id = $1`, userID).Scan(&driverID)
+	return driverID, err
+}
+
 // GetDriverGamification gets a driver's gamification profile
 func (r *Repository) GetDriverGamification(ctx context.Context, driverID uuid.UUID) (*DriverGamification, error) {
 	query := `
-		SELECT dg.driver_id, dg.current_tier_id, dg.total_rides, dg.total_earnings,
-		       dg.average_rating, dg.current_streak, dg.longest_streak, dg.total_bonus_earned,
-		       dg.achievement_points, dg.quests_completed, dg.last_active_date,
-		       dg.weekly_rides, dg.weekly_earnings, dg.monthly_rides, dg.monthly_earnings,
-		       dg.acceptance_rate, dg.cancellation_rate, dg.tier_upgraded_at, dg.created_at, dg.updated_at,
+		SELECT dg.driver_id, dg.current_tier_id, dg.total_points, dg.weekly_points, dg.monthly_points,
+		       dg.current_streak, dg.longest_streak, dg.acceptance_streak, dg.five_star_streak,
+		       dg.total_quests_completed, dg.total_challenges_won, dg.total_bonuses_earned,
+		       dg.last_active_date, dg.tier_evaluated_at, dg.created_at, dg.updated_at,
 		       dt.id, dt.name, dt.display_name, dt.min_rides, dt.min_rating,
-		       dt.commission_rate, dt.bonus_multiplier, dt.priority_dispatch, dt.benefits
+		       dt.commission_rate, dt.surge_multiplier_bonus, dt.priority_dispatch, dt.benefits
 		FROM driver_gamification dg
 		LEFT JOIN driver_tiers dt ON dg.current_tier_id = dt.id
 		WHERE dg.driver_id = $1
@@ -42,11 +48,10 @@ func (r *Repository) GetDriverGamification(ctx context.Context, driverID uuid.UU
 	var tierID *uuid.UUID
 
 	err := r.db.QueryRow(ctx, query, driverID).Scan(
-		&profile.DriverID, &profile.CurrentTierID, &profile.TotalRides, &profile.TotalEarnings,
-		&profile.AverageRating, &profile.CurrentStreak, &profile.LongestStreak, &profile.TotalBonusEarned,
-		&profile.AchievementPoints, &profile.QuestsCompleted, &profile.LastActiveDate,
-		&profile.WeeklyRides, &profile.WeeklyEarnings, &profile.MonthlyRides, &profile.MonthlyEarnings,
-		&profile.AcceptanceRate, &profile.CancellationRate, &profile.TierUpgradedAt, &profile.CreatedAt, &profile.UpdatedAt,
+		&profile.DriverID, &profile.CurrentTierID, &profile.TotalPoints, &profile.WeeklyPoints, &profile.MonthlyPoints,
+		&profile.CurrentStreak, &profile.LongestStreak, &profile.AcceptanceStreak, &profile.FiveStarStreak,
+		&profile.TotalQuestsCompleted, &profile.TotalChallengesWon, &profile.TotalBonusEarned,
+		&profile.LastActiveDate, &profile.TierEvaluatedAt, &profile.CreatedAt, &profile.UpdatedAt,
 		&tierID, &tier.Name, &tier.DisplayName, &tier.MinRides, &tier.MinRating,
 		&tier.CommissionRate, &tier.BonusMultiplier, &tier.PriorityDispatch, &tier.Benefits,
 	)
@@ -66,18 +71,12 @@ func (r *Repository) GetDriverGamification(ctx context.Context, driverID uuid.UU
 // CreateDriverGamification creates a new gamification profile
 func (r *Repository) CreateDriverGamification(ctx context.Context, profile *DriverGamification) error {
 	query := `
-		INSERT INTO driver_gamification (
-			driver_id, current_tier_id, total_rides, total_earnings,
-			average_rating, current_streak, longest_streak
-		) VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO driver_gamification (driver_id, current_tier_id)
+		VALUES ($1, $2)
 		ON CONFLICT (driver_id) DO NOTHING
 	`
 
-	_, err := r.db.Exec(ctx, query,
-		profile.DriverID, profile.CurrentTierID, profile.TotalRides,
-		profile.TotalEarnings, profile.AverageRating, profile.CurrentStreak, profile.LongestStreak,
-	)
-
+	_, err := r.db.Exec(ctx, query, profile.DriverID, profile.CurrentTierID)
 	return err
 }
 
@@ -189,7 +188,7 @@ func (r *Repository) ResetMonthlyStats(ctx context.Context) error {
 func (r *Repository) GetTier(ctx context.Context, tierID uuid.UUID) (*DriverTier, error) {
 	query := `
 		SELECT id, name, display_name, min_rides, min_rating, commission_rate,
-		       bonus_multiplier, priority_dispatch, icon_url, color_hex, benefits, is_active
+		       surge_multiplier_bonus, priority_dispatch, icon_url, color_hex, benefits, is_active
 		FROM driver_tiers
 		WHERE id = $1
 	`
@@ -212,7 +211,7 @@ func (r *Repository) GetTier(ctx context.Context, tierID uuid.UUID) (*DriverTier
 func (r *Repository) GetTierByName(ctx context.Context, name DriverTierName) (*DriverTier, error) {
 	query := `
 		SELECT id, name, display_name, min_rides, min_rating, commission_rate,
-		       bonus_multiplier, priority_dispatch, icon_url, color_hex, benefits, is_active
+		       surge_multiplier_bonus, priority_dispatch, icon_url, color_hex, benefits, is_active
 		FROM driver_tiers
 		WHERE name = $1
 	`
@@ -235,7 +234,7 @@ func (r *Repository) GetTierByName(ctx context.Context, name DriverTierName) (*D
 func (r *Repository) GetAllTiers(ctx context.Context) ([]*DriverTier, error) {
 	query := `
 		SELECT id, name, display_name, min_rides, min_rating, commission_rate,
-		       bonus_multiplier, priority_dispatch, icon_url, color_hex, benefits, is_active
+		       surge_multiplier_bonus, priority_dispatch, icon_url, color_hex, benefits, is_active
 		FROM driver_tiers
 		WHERE is_active = true
 		ORDER BY min_rides ASC

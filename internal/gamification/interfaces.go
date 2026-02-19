@@ -9,6 +9,7 @@ import (
 // RepositoryInterface defines the interface for gamification repository operations
 type RepositoryInterface interface {
 	// Driver Gamification Profile
+	GetDriverIDByUserID(ctx context.Context, userID uuid.UUID) (uuid.UUID, error)
 	GetDriverGamification(ctx context.Context, driverID uuid.UUID) (*DriverGamification, error)
 	CreateDriverGamification(ctx context.Context, profile *DriverGamification) error
 	UpdateDriverStats(ctx context.Context, driverID uuid.UUID, rides int, earnings float64, rating float64) error
