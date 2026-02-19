@@ -172,6 +172,18 @@ type VehicleListResponse struct {
 	Vehicles []Vehicle `json:"vehicles"`
 }
 
+// AdminVehicleFilter defines filter parameters for admin vehicle listing
+type AdminVehicleFilter struct {
+	Status   string    `form:"status"`    // pending, approved, rejected, suspended, retired
+	Category string    `form:"category"`  // economy, comfort, premium, etc.
+	DriverID *uuid.UUID `form:"driver_id"`
+	Search   string    `form:"search"`    // matches make, model, license_plate
+	YearFrom *int      `form:"year_from"`
+	YearTo   *int      `form:"year_to"`
+	SortBy   string    `form:"sort_by"`   // created_at (default), updated_at
+	SortDir  string    `form:"sort_dir"`  // desc (default), asc
+}
+
 // VehicleStats represents vehicle-related statistics
 type VehicleStats struct {
 	TotalVehicles     int `json:"total_vehicles"`

@@ -2,6 +2,8 @@ package vehicle
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -245,6 +247,101 @@ func (r *Repository) GetPendingReviewVehicles(ctx context.Context, limit, offset
 	defer rows.Close()
 
 	var vehicles []Vehicle
+	for rows.Next() {
+		v := Vehicle{}
+		if err := rows.Scan(
+			&v.ID, &v.DriverID, &v.Status, &v.Category,
+			&v.Make, &v.Model, &v.Year, &v.Color, &v.LicensePlate, &v.VIN,
+			&v.FuelType, &v.MaxPassengers, &v.HasChildSeat,
+			&v.HasWheelchairAccess, &v.HasWifi, &v.HasCharger,
+			&v.PetFriendly, &v.LuggageCapacity,
+			&v.RegistrationPhotoURL, &v.InsurancePhotoURL,
+			&v.FrontPhotoURL, &v.BackPhotoURL, &v.SidePhotoURL, &v.InteriorPhotoURL,
+			&v.InsuranceExpiry, &v.RegistrationExpiry, &v.InspectionExpiry,
+			&v.RejectionReason, &v.IsActive, &v.IsPrimary,
+			&v.CreatedAt, &v.UpdatedAt,
+		); err != nil {
+			return nil, 0, err
+		}
+		vehicles = append(vehicles, v)
+	}
+	return vehicles, total, nil
+}
+
+// GetAllVehicles returns vehicles for admin with filters and pagination
+func (r *Repository) GetAllVehicles(ctx context.Context, filter *AdminVehicleFilter, limit, offset int) ([]Vehicle, int64, error) {
+	args := []interface{}{}
+	where := []string{}
+	i := 1
+
+	if filter.Status != "" {
+		where = append(where, fmt.Sprintf("status = $%d", i))
+		args = append(args, filter.Status)
+		i++
+	}
+	if filter.Category != "" {
+		where = append(where, fmt.Sprintf("category = $%d", i))
+		args = append(args, filter.Category)
+		i++
+	}
+	if filter.DriverID != nil {
+		where = append(where, fmt.Sprintf("driver_id = $%d", i))
+		args = append(args, *filter.DriverID)
+		i++
+	}
+	if filter.Search != "" {
+		where = append(where, fmt.Sprintf("(make ILIKE $%d OR model ILIKE $%d OR license_plate ILIKE $%d)", i, i, i))
+		args = append(args, "%"+filter.Search+"%")
+		i++
+	}
+	if filter.YearFrom != nil {
+		where = append(where, fmt.Sprintf("year >= $%d", i))
+		args = append(args, *filter.YearFrom)
+		i++
+	}
+	if filter.YearTo != nil {
+		where = append(where, fmt.Sprintf("year <= $%d", i))
+		args = append(args, *filter.YearTo)
+		i++
+	}
+
+	whereClause := ""
+	if len(where) > 0 {
+		whereClause = "WHERE " + strings.Join(where, " AND ")
+	}
+
+	sortCol := "created_at"
+	if filter.SortBy == "updated_at" {
+		sortCol = "updated_at"
+	}
+	sortDir := "DESC"
+	if strings.ToUpper(filter.SortDir) == "ASC" {
+		sortDir = "ASC"
+	}
+
+	var total int64
+	countArgs := make([]interface{}, len(args))
+	copy(countArgs, args)
+	if err := r.db.QueryRow(ctx,
+		fmt.Sprintf("SELECT COUNT(*) FROM vehicles %s", whereClause),
+		countArgs...,
+	).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	args = append(args, limit, offset)
+	query := fmt.Sprintf(
+		"SELECT %s FROM vehicles %s ORDER BY %s %s LIMIT $%d OFFSET $%d",
+		vehicleSelectCols, whereClause, sortCol, sortDir, i, i+1,
+	)
+
+	rows, err := r.db.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	vehicles := make([]Vehicle, 0)
 	for rows.Next() {
 		v := Vehicle{}
 		if err := rows.Scan(

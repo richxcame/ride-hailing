@@ -5805,162 +5805,6 @@
                 }
               },
               "response": []
-            },
-            {
-              "name": "Admin Review Vehicle",
-              "request": {
-                "body": {
-                  "mode": "raw",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  },
-                  "raw": "{\n  \"approved\": true\n}"
-                },
-                "description": "Admin: review a vehicle",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "method": "POST",
-                "url": {
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "admin",
-                    "vehicles",
-                    ":id",
-                    "review"
-                  ],
-                  "raw": "{{base_url}}/api/v1/admin/vehicles/:id/review"
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "Admin Pending Vehicles",
-              "request": {
-                "description": "Admin: list pending vehicles",
-                "header": [],
-                "method": "GET",
-                "url": {
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "admin",
-                    "vehicles",
-                    "pending"
-                  ],
-                  "query": [
-                    {
-                      "key": "limit",
-                      "value": "20"
-                    },
-                    {
-                      "key": "offset",
-                      "value": "0"
-                    }
-                  ],
-                  "raw": "{{base_url}}/api/v1/admin/vehicles/pending"
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "Admin Vehicle Stats",
-              "request": {
-                "description": "Admin: get vehicle statistics",
-                "header": [],
-                "method": "GET",
-                "url": {
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "admin",
-                    "vehicles",
-                    "stats"
-                  ],
-                  "raw": "{{base_url}}/api/v1/admin/vehicles/stats"
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "Admin Suspend Vehicle",
-              "request": {
-                "body": {
-                  "mode": "raw",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  },
-                  "raw": "{\n  \"reason\": \"Failed inspection\"\n}"
-                },
-                "description": "Admin: suspend a vehicle",
-                "header": [
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "method": "POST",
-                "url": {
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "admin",
-                    "vehicles",
-                    ":id",
-                    "suspend"
-                  ],
-                  "raw": "{{base_url}}/api/v1/admin/vehicles/:id/suspend"
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "Admin Expiring Vehicles",
-              "request": {
-                "description": "Admin: list vehicles with expiring documents",
-                "header": [],
-                "method": "GET",
-                "url": {
-                  "host": [
-                    "{{base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "admin",
-                    "vehicles",
-                    "expiring"
-                  ],
-                  "query": [
-                    {
-                      "key": "days",
-                      "value": "30"
-                    }
-                  ],
-                  "raw": "{{base_url}}/api/v1/admin/vehicles/expiring"
-                }
-              },
-              "response": []
             }
           ],
           "name": "Vehicles"
@@ -11504,7 +11348,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\n  \"code\": \"TM\",\n  \"code3\": \"TKM\",\n  \"currency_code\": \"TMT\",\n  \"default_language\": \"tk\",\n  \"is_active\": true,\n  \"name\": \"Turkmenistan\",\n  \"native_name\": \"Türkmenistan\",\n  \"phone_prefix\": \"+993\",\n  \"timezone\": \"Asia/Ashgabat\"\n}"
+                      "raw": "{\n  \"code\": \"TM\",\n  \"code3\": \"TKM\",\n  \"currency_code\": \"TMT\",\n  \"default_language\": \"tk\",\n  \"is_active\": true,\n  \"name\": \"Turkmenistan\",\n  \"native_name\": \"T\u00fcrkmenistan\",\n  \"phone_prefix\": \"+993\",\n  \"timezone\": \"Asia/Ashgabat\"\n}"
                     },
                     "header": [
                       {
@@ -11679,7 +11523,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\n  \"code\": \"ASH\",\n  \"is_active\": true,\n  \"name\": \"Ashgabat\",\n  \"native_name\": \"Aşgabat\",\n  \"timezone\": \"Asia/Ashgabat\"\n}"
+                      "raw": "{\n  \"code\": \"ASH\",\n  \"is_active\": true,\n  \"name\": \"Ashgabat\",\n  \"native_name\": \"A\u015fgabat\",\n  \"timezone\": \"Asia/Ashgabat\"\n}"
                     },
                     "header": [
                       {
@@ -11856,7 +11700,7 @@
                           "language": "json"
                         }
                       },
-                      "raw": "{\n  \"center_latitude\": 37.9601,\n  \"center_longitude\": 58.3261,\n  \"is_active\": true,\n  \"name\": \"Ashgabat\",\n  \"native_name\": \"Aşgabat\",\n  \"population\": 1000000,\n  \"timezone\": \"Asia/Ashgabat\"\n}"
+                      "raw": "{\n  \"center_latitude\": 37.9601,\n  \"center_longitude\": 58.3261,\n  \"is_active\": true,\n  \"name\": \"Ashgabat\",\n  \"native_name\": \"A\u015fgabat\",\n  \"population\": 1000000,\n  \"timezone\": \"Asia/Ashgabat\"\n}"
                     },
                     "header": [
                       {
@@ -16652,6 +16496,248 @@
                 }
               ],
               "name": "Analytics"
+            },
+            {
+              "name": "Vehicles",
+              "item": [
+                {
+                  "name": "Review Vehicle",
+                  "request": {
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"approved\": true\n}"
+                    },
+                    "description": "Admin: review a vehicle",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "vehicles",
+                        ":id",
+                        "review"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/vehicles/:id/review"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "List All Vehicles",
+                  "request": {
+                    "description": "Admin: list all vehicles with filters and pagination",
+                    "header": [],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "vehicles"
+                      ],
+                      "query": [
+                        {
+                          "key": "status",
+                          "value": "pending",
+                          "description": "Filter by status: pending, approved, rejected, suspended, retired",
+                          "disabled": true
+                        },
+                        {
+                          "key": "category",
+                          "value": "economy",
+                          "description": "Filter by category: economy, comfort, premium, lux, xl, wav, electric",
+                          "disabled": true
+                        },
+                        {
+                          "key": "driver_id",
+                          "value": "",
+                          "description": "Filter by driver UUID",
+                          "disabled": true
+                        },
+                        {
+                          "key": "search",
+                          "value": "toyota",
+                          "description": "Search by make, model, or license plate",
+                          "disabled": true
+                        },
+                        {
+                          "key": "year_from",
+                          "value": "2018",
+                          "description": "Filter by minimum vehicle year",
+                          "disabled": true
+                        },
+                        {
+                          "key": "year_to",
+                          "value": "2025",
+                          "description": "Filter by maximum vehicle year",
+                          "disabled": true
+                        },
+                        {
+                          "key": "sort_by",
+                          "value": "created_at",
+                          "description": "Sort field: created_at (default) or updated_at",
+                          "disabled": true
+                        },
+                        {
+                          "key": "sort_dir",
+                          "value": "desc",
+                          "description": "Sort direction: desc (default) or asc",
+                          "disabled": true
+                        },
+                        {
+                          "key": "limit",
+                          "value": "20",
+                          "description": "Number of results per page"
+                        },
+                        {
+                          "key": "offset",
+                          "value": "0",
+                          "description": "Pagination offset"
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/vehicles"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Pending Vehicles",
+                  "request": {
+                    "description": "Admin: list pending vehicles",
+                    "header": [],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "vehicles",
+                        "pending"
+                      ],
+                      "query": [
+                        {
+                          "key": "limit",
+                          "value": "20"
+                        },
+                        {
+                          "key": "offset",
+                          "value": "0"
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/vehicles/pending"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Vehicle Stats",
+                  "request": {
+                    "description": "Admin: get vehicle statistics",
+                    "header": [],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "vehicles",
+                        "stats"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/vehicles/stats"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Suspend Vehicle",
+                  "request": {
+                    "body": {
+                      "mode": "raw",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      },
+                      "raw": "{\n  \"reason\": \"Failed inspection\"\n}"
+                    },
+                    "description": "Admin: suspend a vehicle",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "method": "POST",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "vehicles",
+                        ":id",
+                        "suspend"
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/vehicles/:id/suspend"
+                    }
+                  },
+                  "response": []
+                },
+                {
+                  "name": "Expiring Vehicles",
+                  "request": {
+                    "description": "Admin: list vehicles with expiring documents",
+                    "header": [],
+                    "method": "GET",
+                    "url": {
+                      "host": [
+                        "{{admin_base_url}}"
+                      ],
+                      "path": [
+                        "api",
+                        "v1",
+                        "admin",
+                        "vehicles",
+                        "expiring"
+                      ],
+                      "query": [
+                        {
+                          "key": "days",
+                          "value": "30"
+                        }
+                      ],
+                      "raw": "{{admin_base_url}}/api/v1/admin/vehicles/expiring"
+                    }
+                  },
+                  "response": []
+                }
+              ]
             }
           ],
           "name": "Admin CRUD"
@@ -18927,7 +19013,7 @@
             {
               "name": "Get Driver Location",
               "request": {
-                "description": "Get a driver's current location (latitude, longitude, heading, speed, h3_cell, status). Served by the geo service — the canonical owner of driver location data.",
+                "description": "Get a driver's current location (latitude, longitude, heading, speed, h3_cell, status). Served by the geo service \u2014 the canonical owner of driver location data.",
                 "header": [
                   {
                     "key": "Authorization",
@@ -18988,397 +19074,6 @@
         }
       ],
       "name": "Realtime"
-    },
-    {
-      "item": [
-        {
-          "item": [
-            {
-              "name": "Request Ride",
-              "request": {
-                "body": {
-                  "mode": "raw",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  },
-                  "raw": "{\n  \"pickup_latitude\": 37.903304,\n  \"pickup_longitude\": 58.343444,\n  \"pickup_address\": \"Ashgabat, Pickup Location\",\n  \"dropoff_latitude\": 37.895233,\n  \"dropoff_longitude\": 58.370719,\n  \"dropoff_address\": \"Ashgabat, Dropoff Location\",\n  \"ride_type_id\": \"dd433fc7-53f3-4c5e-9ccc-d67ed25e44c6\"\n}"
-                },
-                "description": "Request a new ride",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{auth_token}}"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "method": "POST",
-                "url": {
-                  "host": [
-                    "{{rides_base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "rides"
-                  ],
-                  "raw": "{{rides_base_url}}/api/v1/rides"
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "Get Ride",
-              "request": {
-                "description": "Get ride details",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{auth_token}}"
-                  }
-                ],
-                "method": "GET",
-                "url": {
-                  "host": [
-                    "{{rides_base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "rides",
-                    ":id"
-                  ],
-                  "raw": "{{rides_base_url}}/api/v1/rides/:id"
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "Get My Rides",
-              "request": {
-                "description": "Get user's rides",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{auth_token}}"
-                  }
-                ],
-                "method": "GET",
-                "url": {
-                  "host": [
-                    "{{rides_base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "rides"
-                  ],
-                  "query": [
-                    {
-                      "disabled": true,
-                      "key": "limit",
-                      "value": "20"
-                    },
-                    {
-                      "disabled": true,
-                      "key": "offset",
-                      "value": "0"
-                    }
-                  ],
-                  "raw": "{{rides_base_url}}/api/v1/rides"
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "Get Surge Info",
-              "request": {
-                "description": "Get surge pricing info",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{auth_token}}"
-                  }
-                ],
-                "method": "GET",
-                "url": {
-                  "host": [
-                    "{{rides_base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "rides",
-                    "surge-info"
-                  ],
-                  "query": [
-                    {
-                      "disabled": true,
-                      "key": "latitude",
-                      "value": "41.2995"
-                    },
-                    {
-                      "disabled": true,
-                      "key": "longitude",
-                      "value": "69.2401"
-                    }
-                  ],
-                  "raw": "{{rides_base_url}}/api/v1/rides/surge-info"
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "Cancel Ride",
-              "request": {
-                "body": {
-                  "mode": "raw",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  },
-                  "raw": "{\n  \"reason\": \"Changed plans\"\n}"
-                },
-                "description": "Cancel a ride",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{auth_token}}"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "method": "POST",
-                "url": {
-                  "host": [
-                    "{{rides_base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "rides",
-                    ":id",
-                    "cancel"
-                  ],
-                  "raw": "{{rides_base_url}}/api/v1/rides/:id/cancel"
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "Rate Ride",
-              "request": {
-                "body": {
-                  "mode": "raw",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  },
-                  "raw": "{\n  \"rating\": 5,\n  \"feedback\": \"Great ride!\"\n}"
-                },
-                "description": "Rate a completed ride",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{auth_token}}"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "method": "POST",
-                "url": {
-                  "host": [
-                    "{{rides_base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "rides",
-                    ":id",
-                    "rate"
-                  ],
-                  "raw": "{{rides_base_url}}/api/v1/rides/:id/rate"
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "Match Drivers",
-              "request": {
-                "description": "Find matching drivers",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{auth_token}}"
-                  }
-                ],
-                "method": "GET",
-                "url": {
-                  "host": [
-                    "{{rides_base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "rides",
-                    "match-drivers"
-                  ],
-                  "query": [
-                    {
-                      "disabled": true,
-                      "key": "latitude",
-                      "value": "41.2995"
-                    },
-                    {
-                      "disabled": true,
-                      "key": "longitude",
-                      "value": "69.2401"
-                    }
-                  ],
-                  "raw": "{{rides_base_url}}/api/v1/rides/match-drivers"
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "Get Available Rides (Driver)",
-              "request": {
-                "description": "Get available rides for driver",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{auth_token}}"
-                  }
-                ],
-                "method": "GET",
-                "url": {
-                  "host": [
-                    "{{rides_base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "driver",
-                    "rides",
-                    "available"
-                  ],
-                  "raw": "{{rides_base_url}}/api/v1/driver/rides/available"
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "Accept Ride (Driver)",
-              "request": {
-                "description": "Driver accepts a ride",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{auth_token}}"
-                  }
-                ],
-                "method": "POST",
-                "url": {
-                  "host": [
-                    "{{rides_base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "driver",
-                    "rides",
-                    ":id",
-                    "accept"
-                  ],
-                  "raw": "{{rides_base_url}}/api/v1/driver/rides/:id/accept"
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "Start Ride (Driver)",
-              "request": {
-                "description": "Driver starts a ride",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{auth_token}}"
-                  }
-                ],
-                "method": "POST",
-                "url": {
-                  "host": [
-                    "{{rides_base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "driver",
-                    "rides",
-                    ":id",
-                    "start"
-                  ],
-                  "raw": "{{rides_base_url}}/api/v1/driver/rides/:id/start"
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "Complete Ride (Driver)",
-              "request": {
-                "body": {
-                  "mode": "raw",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  },
-                  "raw": "{\n  \"actual_distance\": 5.2\n}"
-                },
-                "description": "Driver completes a ride",
-                "header": [
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer {{auth_token}}"
-                  },
-                  {
-                    "key": "Content-Type",
-                    "value": "application/json"
-                  }
-                ],
-                "method": "POST",
-                "url": {
-                  "host": [
-                    "{{rides_base_url}}"
-                  ],
-                  "path": [
-                    "api",
-                    "v1",
-                    "driver",
-                    "rides",
-                    ":id",
-                    "complete"
-                  ],
-                  "raw": "{{rides_base_url}}/api/v1/driver/rides/:id/complete"
-                }
-              },
-              "response": []
-            }
-          ],
-          "name": "Rides (Standalone)"
-        }
-      ],
-      "name": "Rides (Standalone)"
     },
     {
       "name": "Documents",

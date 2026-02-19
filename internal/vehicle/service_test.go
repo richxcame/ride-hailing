@@ -75,6 +75,14 @@ func (m *mockRepo) RetireVehicle(ctx context.Context, vehicleID uuid.UUID) error
 	return args.Error(0)
 }
 
+func (m *mockRepo) GetAllVehicles(ctx context.Context, filter *AdminVehicleFilter, limit, offset int) ([]Vehicle, int64, error) {
+	args := m.Called(ctx, filter, limit, offset)
+	if args.Get(0) == nil {
+		return nil, args.Get(1).(int64), args.Error(2)
+	}
+	return args.Get(0).([]Vehicle), args.Get(1).(int64), args.Error(2)
+}
+
 func (m *mockRepo) GetPendingReviewVehicles(ctx context.Context, limit, offset int) ([]Vehicle, int, error) {
 	args := m.Called(ctx, limit, offset)
 	if args.Get(0) == nil {

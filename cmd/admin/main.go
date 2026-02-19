@@ -27,6 +27,7 @@ import (
 	"github.com/richxcame/ride-hailing/internal/promos"
 	"github.com/richxcame/ride-hailing/internal/ridetypes"
 	"github.com/richxcame/ride-hailing/internal/support"
+	"github.com/richxcame/ride-hailing/internal/vehicle"
 	"github.com/richxcame/ride-hailing/pkg/common"
 	"github.com/richxcame/ride-hailing/pkg/config"
 	"github.com/richxcame/ride-hailing/pkg/errors"
@@ -220,6 +221,11 @@ func main() {
 	documentsSvc := documents.NewService(documentsRepo, &stubStorage{}, documents.ServiceConfig{})
 	documentsHandler := documents.NewHandler(documentsSvc, &stubDriverService{})
 
+	// Initialize vehicle management
+	vehicleRepo := vehicle.NewRepository(db)
+	vehicleSvc := vehicle.NewService(vehicleRepo)
+	vehicleHandler := vehicle.NewHandler(vehicleSvc)
+
 	// Set up Gin router
 	router := gin.New()
 	router.HandleMethodNotAllowed = true
@@ -355,6 +361,9 @@ func main() {
 
 		// Document verification management
 		documentsHandler.RegisterAdminRoutes(api)
+
+		// Vehicle management
+		vehicleHandler.RegisterAdminRoutes(api)
 	}
 
 	// Create HTTP server with timeouts

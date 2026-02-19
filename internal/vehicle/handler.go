@@ -301,6 +301,26 @@ func (h *Handler) GetInspections(c *gin.Context) {
 // ADMIN ENDPOINTS
 // ========================================
 
+// AdminListAll returns all vehicles with filters and pagination
+// GET /api/v1/admin/vehicles?status=pending&category=comfort&search=toyota&year_from=2018&sort_by=created_at&sort_dir=desc
+func (h *Handler) AdminListAll(c *gin.Context) {
+	var filter AdminVehicleFilter
+	if err := c.ShouldBindQuery(&filter); err != nil {
+		common.ErrorResponse(c, http.StatusBadRequest, "invalid filter parameters")
+		return
+	}
+
+	params := pagination.ParseParams(c)
+	vehicles, total, err := h.service.GetAllVehicles(c.Request.Context(), &filter, params.Limit, params.Offset)
+	if err != nil {
+		common.ErrorResponse(c, http.StatusInternalServerError, "failed to list vehicles")
+		return
+	}
+
+	meta := pagination.BuildMeta(params.Limit, params.Offset, total)
+	common.SuccessResponseWithMeta(c, gin.H{"vehicles": vehicles}, meta)
+}
+
 // AdminReview approves or rejects a vehicle
 // POST /api/v1/admin/vehicles/:id/review
 func (h *Handler) AdminReview(c *gin.Context) {
@@ -407,9 +427,8 @@ func (h *Handler) AdminGetExpiring(c *gin.Context) {
 // ROUTE REGISTRATION
 // ========================================
 
-// RegisterRoutes registers vehicle routes
+// RegisterRoutes registers driver-facing vehicle routes on the mobile server.
 func (h *Handler) RegisterRoutes(r *gin.Engine, jwtProvider jwtkeys.KeyProvider) {
-	// Driver routes
 	driver := r.Group("/api/v1/driver/vehicles")
 	driver.Use(middleware.AuthMiddlewareWithProvider(jwtProvider))
 	driver.Use(middleware.RequireRole(models.RoleDriver))
@@ -425,16 +444,18 @@ func (h *Handler) RegisterRoutes(r *gin.Engine, jwtProvider jwtkeys.KeyProvider)
 		driver.POST("/maintenance/:reminderId/complete", h.CompleteMaintenance)
 		driver.GET("/:id/inspections", h.GetInspections)
 	}
+}
 
-	// Admin routes
-	admin := r.Group("/api/v1/admin/vehicles")
-	admin.Use(middleware.AuthMiddlewareWithProvider(jwtProvider))
-	admin.Use(middleware.RequireRole(models.RoleAdmin))
+// RegisterAdminRoutes registers vehicle management routes on the admin server.
+// api must already have admin auth middleware applied (AuthMiddlewareWithProvider + RequireAdmin).
+func (h *Handler) RegisterAdminRoutes(api *gin.RouterGroup) {
+	vehicles := api.Group("/vehicles")
 	{
-		admin.GET("/pending", h.AdminGetPending)
-		admin.GET("/stats", h.AdminGetStats)
-		admin.GET("/expiring", h.AdminGetExpiring)
-		admin.POST("/:id/review", h.AdminReview)
-		admin.POST("/:id/suspend", h.AdminSuspend)
+		vehicles.GET("", h.AdminListAll)
+		vehicles.GET("/pending", h.AdminGetPending)
+		vehicles.GET("/stats", h.AdminGetStats)
+		vehicles.GET("/expiring", h.AdminGetExpiring)
+		vehicles.POST("/:id/review", h.AdminReview)
+		vehicles.POST("/:id/suspend", h.AdminSuspend)
 	}
 }
