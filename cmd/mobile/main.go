@@ -275,6 +275,33 @@ func main() {
 	currencyService := currency.NewService(currencyRepo, getEnv("BASE_CURRENCY", "USD"))
 	pricingService := pricing.NewService(pricingRepo, geographyService, currencyService)
 	ridesService.SetPricingService(pricingService)
+	// Wire geography as the location resolver for rides.
+	// Adapter converts *geography.ResolvedLocation → *rides.LocationContext
+	// without creating an import cycle between the two packages.
+	ridesService.SetLocationResolver(rides.LocationResolverFunc(func(ctx context.Context, latitude, longitude float64) (*rides.LocationContext, error) {
+		resolved, err := geographyService.ResolveLocation(ctx, latitude, longitude)
+		if err != nil {
+			return nil, err
+		}
+		lc := &rides.LocationContext{Timezone: resolved.Timezone}
+		if resolved.Country != nil {
+			id := resolved.Country.ID
+			lc.CountryID = &id
+		}
+		if resolved.Region != nil {
+			id := resolved.Region.ID
+			lc.RegionID = &id
+		}
+		if resolved.City != nil {
+			id := resolved.City.ID
+			lc.CityID = &id
+		}
+		if resolved.PricingZone != nil {
+			id := resolved.PricingZone.ID
+			lc.PricingZoneID = &id
+		}
+		return lc, nil
+	}))
 	rideTypesService := ridetypes.NewService(rideTypesRepo, geographyService)
 	negotiationService := negotiation.NewService(negotiationRepo, pricingService, geographyService)
 	safetyService := safety.NewService(safetyRepo, safety.Config{

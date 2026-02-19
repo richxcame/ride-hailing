@@ -10,8 +10,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/richxcame/ride-hailing/internal/pricing"
 	"github.com/richxcame/ride-hailing/pkg/common"
-	pkggeo "github.com/richxcame/ride-hailing/pkg/geo"
 	"github.com/richxcame/ride-hailing/pkg/eventbus"
+	pkggeo "github.com/richxcame/ride-hailing/pkg/geo"
 	"github.com/richxcame/ride-hailing/pkg/httpclient"
 	"github.com/richxcame/ride-hailing/pkg/logger"
 	"github.com/richxcame/ride-hailing/pkg/models"
@@ -51,6 +51,7 @@ type Service struct {
 	eventBus            *eventbus.Bus
 	pricingConfig       *PricingConfig
 	pricingService      *pricing.Service
+	locationResolver    LocationResolver
 	rideTypeNameFetcher func(ctx context.Context, id uuid.UUID) (string, error)
 }
 
@@ -60,6 +61,30 @@ type SurgeCalculator interface {
 	GetCurrentSurgeInfo(ctx context.Context, latitude, longitude float64) (map[string]interface{}, error)
 }
 
+// LocationContext carries the resolved geographic hierarchy for a coordinate.
+// Only the IDs are kept here; the rides service does not need the full objects.
+type LocationContext struct {
+	CountryID     *uuid.UUID
+	RegionID      *uuid.UUID
+	CityID        *uuid.UUID
+	PricingZoneID *uuid.UUID
+	Timezone      string // IANA tz name, e.g. "Asia/Ashgabat"
+}
+
+// LocationResolver resolves a latitude/longitude to the geographic hierarchy.
+// Implemented by geography.Service — but defined here to avoid import cycles.
+type LocationResolver interface {
+	ResolveLocationContext(ctx context.Context, latitude, longitude float64) (*LocationContext, error)
+}
+
+// LocationResolverFunc is a function adapter that implements LocationResolver.
+// Use it in main.go to wire geography.Service without importing the geography package
+// inside the rides package (which would create an import cycle).
+type LocationResolverFunc func(ctx context.Context, latitude, longitude float64) (*LocationContext, error)
+
+func (f LocationResolverFunc) ResolveLocationContext(ctx context.Context, latitude, longitude float64) (*LocationContext, error) {
+	return f(ctx, latitude, longitude)
+}
 
 // NewService creates a new rides service
 func NewService(repo *Repository, promosServiceURL string, breaker *resilience.CircuitBreaker, httpClientTimeout ...time.Duration) *Service {
@@ -100,6 +125,12 @@ func (s *Service) SetEventBus(bus *eventbus.Bus) {
 // SetPricingService sets the hierarchical pricing service for fare calculation.
 func (s *Service) SetPricingService(svc *pricing.Service) {
 	s.pricingService = svc
+}
+
+// SetLocationResolver wires the geography service so ride records are stamped
+// with the correct country/region/city/zone IDs at creation time.
+func (s *Service) SetLocationResolver(r LocationResolver) {
+	s.locationResolver = r
 }
 
 // SetRideTypeNameFetcher provides a function to resolve a ride type name by ID.
@@ -169,6 +200,34 @@ func (s *Service) RequestRide(ctx context.Context, riderID uuid.UUID, req *model
 	var currencyCode string
 	var pricingVersionID *uuid.UUID
 	var countryID, regionID, cityID, pickupZoneID, dropoffZoneID *uuid.UUID
+
+	// Resolve geographic hierarchy for the pickup location (non-blocking, best-effort).
+	// Industry pattern: stamp rides at creation time so analytics, pricing, and
+	// compliance rules can be applied without re-querying geo boundaries later.
+	if s.locationResolver != nil {
+		resolveCtx, resolveCancel := context.WithTimeout(ctx, 500*time.Millisecond)
+		if loc, err := s.locationResolver.ResolveLocationContext(resolveCtx, req.PickupLatitude, req.PickupLongitude); err == nil {
+			countryID = loc.CountryID
+			regionID = loc.RegionID
+			cityID = loc.CityID
+			pickupZoneID = loc.PricingZoneID
+		} else {
+			logger.WarnContext(ctx, "geo resolve failed for pickup, ride will have nil location IDs",
+				zap.Float64("latitude", req.PickupLatitude),
+				zap.Float64("longitude", req.PickupLongitude),
+				zap.Error(err))
+		}
+		resolveCancel()
+
+		// Also resolve dropoff zone (may differ from pickup zone)
+		if pickupZoneID != nil {
+			resolveCtx2, resolveCancel2 := context.WithTimeout(ctx, 500*time.Millisecond)
+			if loc, err := s.locationResolver.ResolveLocationContext(resolveCtx2, req.DropoffLatitude, req.DropoffLongitude); err == nil {
+				dropoffZoneID = loc.PricingZoneID
+			}
+			resolveCancel2()
+		}
+	}
 
 	rideTypeID = req.RideTypeID
 
@@ -377,7 +436,7 @@ func (s *Service) AcceptRide(ctx context.Context, rideID, driverID uuid.UUID) (*
 	)
 
 	s.publishEvent(eventbus.SubjectRideAccepted, "ride.accepted", "rides-service", eventbus.RideAcceptedData{
-		RideID:     rideID,
+		RideID:           rideID,
 		RiderID:          ride.RiderID,
 		DriverID:         driverID,
 		PickupLatitude:   ride.PickupLatitude,
@@ -743,8 +802,8 @@ func (s *Service) predictETAFromML(ctx context.Context, req *models.RideRequest)
 		DropoffLatitude:  req.DropoffLatitude,
 		DropoffLongitude: req.DropoffLongitude,
 		TrafficLevel:     "medium",
-		Weather:      "clear",
-		DriverID:     "",
+		Weather:          "clear",
+		DriverID:         "",
 	}
 	if req.RideTypeID != nil {
 		payload.RideTypeID = 1
@@ -785,7 +844,6 @@ func (s *Service) predictETAFromML(ctx context.Context, req *models.RideRequest)
 
 	return resp.EstimatedMinutes, true
 }
-
 
 func (s *Service) postToPromos(ctx context.Context, path string, body interface{}, headers map[string]string) ([]byte, error) {
 	if s.promosBreaker == nil {

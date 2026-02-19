@@ -396,3 +396,4 @@ func ToResolveLocationResponse(r *ResolvedLocation) *ResolveLocationResponse {
 		Timezone:    r.Timezone,
 	}
 }
+
